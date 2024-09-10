@@ -2,28 +2,64 @@
 # -*- coding: utf-8 -*-
 # main_oop.py
 
-__author__ = "Kamil Rataj"
-__version__ = "1.0.0"
-__maintainer__ = "Kamil Rataj"
-__status__ = "Development"
+"""
+Sign Language Translator using MediaPipe and OpenCV.
 
-WIN_NAME = "Sign language translator"
+This script captures video from a webcam, processes the frames to recognize hand gestures using a pre-trained model,
+and displays the results in real-time.
+
+Author: Kamil Rataj
+Version: 1.0.0
+Maintainer: Kamil Rataj
+Status: Development
+"""
 
 import argparse
 import sys
 import time
 import cv2
 import mediapipe as mp
-#from mediapipe.tasks import python
+from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.framework.formats import landmark_pb2
 
+WIN_NAME = "Sign language translator"
 
 class GestureRecognizerApp:
+    """
+    A class to represent the gesture recognizer application.
+
+    Attributes:
+        model (str): Path to the gesture recognition model.
+        num_hands (int): Maximum number of hands to detect.
+        min_hand_detection_confidence (float): Minimum confidence for hand detection.
+        min_hand_presence_confidence (float): Minimum confidence for hand presence.
+        min_tracking_confidence (float): Minimum confidence for hand tracking.
+        camera_id (int): ID of the camera to use.
+        width (int): Width of the video frame.
+        height (int): Height of the video frame.
+        mirror (bool): Whether to mirror the video frame.
+        print_console (bool): Whether to print results to the console.
+    """
+
     def __init__(self, model: str, num_hands: int, min_hand_detection_confidence: float,
                  min_hand_presence_confidence: float, min_tracking_confidence: float,
                  camera_id: int, width: int, height: int, mirror: bool = False, print_console: bool = False):
+        """
+        Constructs all the necessary attributes for the GestureRecognizerApp object.
 
+        Args:
+            model (str): Path to the gesture recognition model.
+            num_hands (int): Maximum number of hands to detect.
+            min_hand_detection_confidence (float): Minimum confidence for hand detection.
+            min_hand_presence_confidence (float): Minimum confidence for hand presence.
+            min_tracking_confidence (float): Minimum confidence for hand tracking.
+            camera_id (int): ID of the camera to use.
+            width (int): Width of the video frame.
+            height (int): Height of the video frame.
+            mirror (bool): Whether to mirror the video frame.
+            print_console (bool): Whether to print results to the console.
+        """
         self.print_console = print_console
         self.model = model
         self.num_hands = num_hands
@@ -50,7 +86,14 @@ class GestureRecognizerApp:
         self.mp_drawing_styles = mp.solutions.drawing_styles
 
     def save_result(self, result: vision.GestureRecognizerResult, output_image: mp.Image, timestamp_ms: int):
-        """Callback to save the recognition result."""
+        """
+        Callback to save the recognition result.
+
+        Args:
+            result (vision.GestureRecognizerResult): The result of the gesture recognition.
+            output_image (mp.Image): The output image with the recognition result.
+            timestamp_ms (int): The timestamp of the recognition result.
+        """
         # Calculate FPS
         if self.counter % 10 == 0:
             self.fps = 10 / (time.time() - self.start_time)
@@ -62,7 +105,10 @@ class GestureRecognizerApp:
         self.stop_flag = False
 
     def run(self):
-        """Main loop for gesture recognition."""
+        """
+        Main loop for gesture recognition.
+        Captures video from the webcam, processes each frame, and displays the results.
+        """
         cap = cv2.VideoCapture(self.camera_id)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
@@ -117,7 +163,13 @@ class GestureRecognizerApp:
         cv2.destroyAllWindows()
 
     def process_recognition_result(self, frame, print_console):
-        """Process and display the recognition result."""
+        """
+        Process and display the recognition result.
+
+        Args:
+            frame: The video frame to draw the results on.
+            print_console (bool): Whether to print results to the console.
+        """
         for hand_index, hand_landmarks in enumerate(self.recognition_result.hand_landmarks):
             # Draw landmarks on the frame
             hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
@@ -151,6 +203,9 @@ class GestureRecognizerApp:
 
 
 def main():
+    """
+    Main function to parse arguments and start the gesture recognizer application.
+    """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--model', help='Name of gesture recognition model.',
                         default='../models/gesture_recognizer_asl_mp.task')
