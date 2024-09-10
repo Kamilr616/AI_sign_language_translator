@@ -25,6 +25,9 @@ mp_drawing_styles = mp.solutions.drawing_styles
 # Global variables to calculate FPS
 COUNTER, FPS = 0, 0
 START_TIME = time.time()
+STOP_FLAG = 1
+recognition_result = None
+
 
 WIN_NAME = "Sign language translator"  # Window name
 
@@ -71,20 +74,20 @@ def run(model: str, num_hands: int,
     label_thickness = 1
 
     recognition_frame = None
-    recognition_result_list = []
-
+    global FPS, recognition_result, STOP_FLAG
 
     def save_result(result: vision.GestureRecognizerResult,
                     unused_output_image: mp.Image, timestamp_ms: int):
-        global FPS, COUNTER, START_TIME
+        global FPS, COUNTER, START_TIME, recognition_result, STOP_FLAG
 
         # Calculate the FPS
         if COUNTER % fps_avg_frame_count == 0:
             FPS = fps_avg_frame_count / (time.time() - START_TIME)
             START_TIME = time.time()
 
-        recognition_result_list.append(result)
+        recognition_result = result
         COUNTER += 1
+        STOP_FLAG = 0
 
     # Initialize the gesture recognizer model
     base_options = python.BaseOptions(model_asset_path=model)
@@ -109,14 +112,14 @@ def run(model: str, num_hands: int,
         if mirror == 1:
             image = cv2.flip(image, 1)
 
+        if STOP_FLAG == 1:
+            # Convert the image from BGR to RGB as required by the TFLite model.
+            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        # Convert the image from BGR to RGB as required by the TFLite model.
-        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
 
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
-
-        # Run gesture recognizer using the model.
-        recognizer.recognize_async(mp_image, time.time_ns() // 1_000_000)
+            # Run gesture recognizer using the model.
+            recognizer.recognize_async(mp_image, time.time_ns() // 1_000_000)
 
         # Show the FPS
         fps_text = 'FPS = {:.1f}'.format(FPS)
@@ -125,10 +128,10 @@ def run(model: str, num_hands: int,
         cv2.putText(current_frame, fps_text, text_location, cv2.FONT_HERSHEY_DUPLEX,
                     font_size, text_color, font_thickness, cv2.LINE_AA)
 
-        if recognition_result_list:
+        if recognition_result is not None:
             # Draw landmarks and write the text for each hand.
             for hand_index, hand_landmarks in enumerate(
-                    recognition_result_list[0].hand_landmarks):
+                    recognition_result.hand_landmarks):
                 # Calculate the bounding box of the hand
                 x_min = min([landmark.x for landmark in hand_landmarks])
                 y_min = min([landmark.y for landmark in hand_landmarks])
@@ -141,19 +144,17 @@ def run(model: str, num_hands: int,
                 y_max_px = int(y_max * frame_height)
 
                 # Get gesture classification results
-                if recognition_result_list[0].gestures:
-                    gesture = recognition_result_list[0].gestures[hand_index]
+                if recognition_result.gestures:
+                    gesture = recognition_result.gestures[hand_index]
                     category_name = gesture[0].category_name
                     score = round(gesture[0].score, 3)
 
-                    handedness = recognition_result_list[0].handedness[hand_index]
+                    handedness = recognition_result.handedness[hand_index]
                     handedness_category_name = handedness[0].category_name
                     handedness_score = round(handedness[0].score, 3)
 
                     result_text = f'Sign: {category_name}({format(score, ".1%")})'
                     result_text2 = f'{hand_index} {handedness_category_name}({format(handedness_score, ".1%")})'
-
-                    handedness_index = handedness[0].index
 
                     # Compute text size
                     text_size = \
@@ -194,7 +195,8 @@ def run(model: str, num_hands: int,
                     mp_drawing_styles.get_default_hand_connections_style())
 
             recognition_frame = current_frame
-            recognition_result_list.clear()
+            recognition_result = None
+            STOP_FLAG = 1
 
         # Show the current frame
         if recognition_frame is not None:
