@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# main_oop.py
+# recognizer_oop_old.py
 
 """
 Sign Language Translator using MediaPipe and OpenCV.
@@ -78,12 +78,16 @@ class GestureRecognizerApp:
         self.result_ready = False
         self.recognition_result = None
         self.recognition_frame = None
+        self.output_image = None
+
         self.stop_flag = True
 
         # MediaPipe drawing and gesture recognizer setup
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_drawing_styles = mp.solutions.drawing_styles
+
+        print(WIN_NAME.center(150, '-'))
 
     def save_result(self, result: vision.GestureRecognizerResult, output_image: mp.Image, timestamp_ms: int):
         """
@@ -124,8 +128,6 @@ class GestureRecognizerApp:
                                                   result_callback=self.save_result)
         recognizer = vision.GestureRecognizer.create_from_options(options)
 
-        print(WIN_NAME.center(150, '-'))
-
         while cap.isOpened():
             success, image = cap.read()
             if not success:
@@ -136,23 +138,23 @@ class GestureRecognizerApp:
                 image = cv2.flip(image, 1)
 
             if self.stop_flag:
-                # Convert image to RGB
-                rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
+                # Convert image to mp.Image
+                mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data= cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
 
                 # Run gesture recognition asynchronously
                 recognizer.recognize_async(mp_image, time.time_ns() // 1_000_000)
-
-            # Display FPS
-            fps_text = f'{self.fps:.1f} FPS'
-            cv2.putText(image, fps_text, (24, 45), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0, 0, 0), 1)
 
             if self.result_ready:
                 self.process_recognition_result(image, self.print_console)
                 self.result_ready = False
 
+            # Display FPS
+            fps_text = f'{self.fps:.1f} FPS'
+            cv2.putText(image, fps_text, (24, 45), cv2.FONT_HERSHEY_DUPLEX, 0.8, (0, 0, 0), 1)
+
             # Show the frame
             cv2.imshow(WIN_NAME, image if self.recognition_frame is None else self.recognition_frame)
+            self.output_image = image
 
             # Stop the loop if ESC is pressed
             if cv2.waitKey(1) == 27 or cv2.getWindowProperty(WIN_NAME, cv2.WND_PROP_VISIBLE) < 1:
