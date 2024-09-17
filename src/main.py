@@ -1,95 +1,104 @@
 import sys
-import cv2
-from PySide6.QtCore import QTimer
 from recognizer_oop import GestureRecognizerApp
 from gui import *
+from txt_to_speech import TextToSpeech
+
 
 class MainApp(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(MainApp, self).__init__()
-        self.nolag = False
         self.setupUi(self)
 
-        # Inicjalizacja GestureRecognizerApp
+        self.recognizer_app = None
+        self.tts_app = None
+        self.checkbox_1_flag = False
+
+        # Connect UI elements to their respective methods
+        self.checkBox.stateChanged.connect(self.checkbox_change)
+        self.startButton.clicked.connect(self.button2_click())
+        self.pushButton3.clicked.connect(self.reset_recognizer)
+        self.pushButton4.clicked.connect(self.reset_tts)
+        self.pushButton2.clicked.connect(self.button1_click)
+
+    def reset_tts(self):
+        """ Reset the text-to-speech engine with new settings. """
+        if self.tts_app is not None:
+            self.tts_app.stop()
+        self.tts_app = TextToSpeech(
+            rate=self.spinBox5.value(),
+            volume=(self.spinBox4.value() / 100.0))
+
+    def reset_recognizer(self):
+        """ Reset the gesture recognizer with new settings. """
+        if self.recognizer_app is not None:
+            self.recognizer_app.close()
         self.recognizer_app = GestureRecognizerApp(
             model='../models/gesture_recognizer_asl_mp.task',
             num_hands=1,
-            min_hand_detection_confidence=0.75,
-            min_hand_presence_confidence=0.75,
-            min_tracking_confidence=0.75,
+            min_hand_detection_confidence=self.spinBox1.value() / 100.0,
+            min_hand_presence_confidence=self.spinBox2.value() / 100.0,
+            min_tracking_confidence=self.spinBox3.value() / 100.0,
             camera_id=0,
             width=640,
             height=480
         )
-
-        # Timer do aktualizacji klatek wideo
-        self.interval = 22
-
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_frame)
-        self.timer.setInterval(self.interval)
-
-        self.timer2 = QTimer(self)
-        self.timer2.timeout.connect(self.recognize_frame)
-        self.timer2.setInterval(self.interval)
-
-        # Podłączenie przycisków do metod start i stop
-        self.startButton.clicked.connect(self.start_stream)
-        self.stopButton.clicked.connect(self.stop_stream)
-        self.checkBox.stateChanged.connect(self.nolag_change)
-
-        self.recognizer_app.initialize_camera()
-        self.timer.start()
-        self.timer2.start()
-
-    def nolag_change(self):
-        self.nolag = not self.nolag
-
-    def recognize_frame(self):
+        self.recognizer_app.result_ready_signal.connect(self.update_frame)
+        self.recognizer_app.start()
         self.recognizer_app.recognize_frame()
 
-    def start_stream(self):
-        """
-        Rozpoczęcie strumienia wideo.
-        """
-        self. interval += 1
-        self.timer.setInterval(self. interval)
-        print(self.interval)
+    def start(self):
+        """ Start the gesture recognizer application if not already started. """
+        if self.recognizer_app is None:
+            self.reset_recognizer()
+        if self.tts_app is None:
+            self.reset_tts()
 
-    def stop_stream(self):
-        """
-        Zatrzymanie strumienia wideo.
-        """
-        self. interval -= 1
-        self.timer.setInterval(self. interval)
-        print(self.interval)
-
-    def update_frame(self):
-        """
-        Pobieranie i wyświetlanie klatki z rozpoznawania gestów.
-        """
-        frame, text = self.recognizer_app.get_frame(self.nolag)
+    def update_frame(self, frame, text):
+        """ Update the UI with the processed frame and recognized gesture text. """
         if frame is not None:
-            # Konwersja z OpenCV (BGR) do QImage (RGB)
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            h, w, ch = rgb_frame.shape
-            bytes_per_line = ch * w
-            qimg = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            h, w, ch = frame.shape
+            image = QImage(frame.data, w, h, ch * w, QImage.Format_RGB888)
+            self.label.setPixmap(QPixmap.fromImage(image))
 
-            # Wyświetlanie w QLabel
-            self.label.setPixmap(QPixmap.fromImage(qimg))
-
-        if text is not None:
+        if len(text) > 6:
             self.label2.setText(text)
+            if self.checkbox_1_flag:
+                self.translate_to_speech(text[6])
+
+    def translate_to_speech(self, data):
+        """ Translate the recognized gesture text to speech. """
+        if self.tts_app is not None:
+            self.tts_app.speak(data)
+
+    def checkbox_change(self):
+        """ Toggle the auto mode for text-to-speech. """
+        self.checkbox_1_flag = not self.checkbox_1_flag
+
+    def button1_click(self):
+        """ Manually trigger text-to-speech translation. """
+        self.translate_to_speech(self.label2.text())
+
+    def button2_click(self):
+        """ Placeholder for future functionality. """
+        pass
 
     def closeEvent(self, event):
-        """
-        Zwalnianie zasobów przy zamykaniu aplikacji.
-        """
-        self.recognizer_app.close()
+        """ Release resources when closing the application. """
+        if self.recognizer_app is not None:
+            self.recognizer_app.close()
+        if self.tts_app is not None:
+            self.tts_app.stop()
+        super().closeEvent(event)
 
-if __name__ == '__main__':
+
+def main():
+    """ Main function to start the application. """
     app = QApplication(sys.argv)
     window = MainApp()
+    window.start()
     window.show()
     sys.exit(app.exec())
+
+
+if __name__ == '__main__':
+    main()
