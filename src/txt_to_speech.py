@@ -1,0 +1,60 @@
+import pyttsx3
+import threading
+
+
+class TextToSpeech:
+    def __init__(self, rate=150, volume=1.0):
+        """Initialize the TextToSpeech engine with the given rate and volume."""
+        self.engine = pyttsx3.init()
+        self.set_rate(rate)
+        self.set_volume(volume)
+        self._thread = None
+        self._lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._set_default_voice()
+
+    def set_rate(self, rate):
+        """Set the speech rate."""
+        self.engine.setProperty('rate', rate)
+
+    def set_volume(self, volume):
+        """Set the speech volume."""
+        self.engine.setProperty('volume', volume)
+
+    def _set_default_voice(self):
+        """Set the default voice."""
+        self.engine.setProperty('voice',
+                                r'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens\TTS_MS_EN-US_ZIRA_11.0')
+
+    def speak(self, text):
+        """Speak the given text, managing concurrent speech requests."""
+        with self._lock:
+            if self._thread and self._thread.is_alive():
+                self._stop_event.set()  # Signal the current speech to stop
+                # self._thread.join()  # Commented out to avoid blocking
+
+            self._stop_event.clear()
+            self._thread = threading.Thread(target=self._speak, args=(text,))
+            self._thread.start()
+
+    def _speak(self, text):
+        """Internal method to handle the speech synthesis."""
+
+        def on_end(name, completed):
+            if self._stop_event.is_set():
+                self.engine.stop()
+
+        self.engine.connect('finished-utterance', on_end)
+        self.engine.say(text)
+        try:
+            self.engine.runAndWait()
+        except RuntimeError:
+            print('Wait for the speech to finish')
+
+    def stop(self):
+        """Stop the speech synthesis."""
+        with self._lock:
+            if self._thread and self._thread.is_alive():
+                self._stop_event.set()
+                self._thread.join()
+            self.engine.stop()
