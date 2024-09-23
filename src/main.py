@@ -1,8 +1,8 @@
 import sys
-from recognizer_oop import GestureRecognizerApp
+from recognizer import GestureRecognizerApp
 from gui import *
-from txt_to_speech import TextToSpeech
-
+from speaker import TextToSpeech
+import qdarkstyle
 
 class MainApp(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -24,6 +24,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         """ Reset the text-to-speech engine with new settings. """
         if self.tts_app is not None:
             self.tts_app.stop()
+
         self.tts_app = TextToSpeech(
             rate=self.spinBox5.value(),
             volume=(self.spinBox4.value() / 100.0))
@@ -31,13 +32,16 @@ class MainApp(QMainWindow, Ui_MainWindow):
     def reset_recognizer(self):
         """ Reset the gesture recognizer with new settings. """
         if self.recognizer_app is not None:
+            self.recognizer_app.result_ready_signal.disconnect()
             self.recognizer_app.close()
+
         self.recognizer_app = GestureRecognizerApp(
             model='../models/gesture_recognizer_asl_mp.task',
             num_hands=1,
-            min_hand_detection_confidence=self.spinBox1.value() / 100.0,
-            min_hand_presence_confidence=self.spinBox2.value() / 100.0,
-            min_tracking_confidence=self.spinBox3.value() / 100.0,
+            min_hand_detection_confidence=(self.spinBox1.value() / 100.0),
+            min_hand_presence_confidence=(self.spinBox2.value() / 100.0),
+            min_tracking_confidence=(self.spinBox3.value() / 100.0),
+            score_treshold = (self.spinBox6.value() / 100.0),
             camera_id=0,
             width=640,
             height=480
@@ -50,20 +54,29 @@ class MainApp(QMainWindow, Ui_MainWindow):
         """ Start the gesture recognizer application if not already started. """
         if self.recognizer_app is None:
             self.reset_recognizer()
+
         if self.tts_app is None:
             self.reset_tts()
 
-    def update_frame(self, frame, text):
+    def update_frame(self, frame, text, scores, latest_fps):
         """ Update the UI with the processed frame and recognized gesture text. """
-        if frame is not None:
-            h, w, ch = frame.shape
-            image = QImage(frame.data, w, h, ch * w, QImage.Format_RGB888)
-            self.label.setPixmap(QPixmap.fromImage(image))
+        if frame:
+            self.label.setPixmap(frame)
 
-        if len(text) > 6:
-            self.label2.setText(text)
+        if latest_fps:
+            self.label_9.setText(f'{latest_fps:.1f} FPS')
+
+        if text and scores:
+            self.label2.setText(f'Sign: {text[0]} ({scores[0]:.0%}) - Hand: {text[1]} ({scores[1]:.0%})')
+            self.label_7.setText(text[0])
+            self.progressBar.setValue(scores[0]*100)
+
             if self.checkbox_1_flag:
-                self.translate_to_speech(text[6])
+                self.translate_to_speech(text[0])
+        else:
+            self.label2.setText('No info')
+            self.label_7.setText('-')
+            self.progressBar.setValue(0)
 
     def translate_to_speech(self, data):
         """ Translate the recognized gesture text to speech. """
@@ -85,15 +98,21 @@ class MainApp(QMainWindow, Ui_MainWindow):
     def closeEvent(self, event):
         """ Release resources when closing the application. """
         if self.recognizer_app is not None:
+            self.recognizer_app.result_ready_signal.disconnect()
             self.recognizer_app.close()
+            self.recognizer_app = None
+
         if self.tts_app is not None:
             self.tts_app.stop()
+            self.tts_app = None
+
         super().closeEvent(event)
 
 
 def main():
     """ Main function to start the application. """
     app = QApplication(sys.argv)
+    app.setStyleSheet(qdarkstyle.load_stylesheet_pyside6())
     window = MainApp()
     window.start()
     window.show()
