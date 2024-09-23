@@ -1,2 +1,5 @@
 mediapipe>=0.10.0
 opencv-python
+qdarkstyle
+pyttsx3
+PySide6

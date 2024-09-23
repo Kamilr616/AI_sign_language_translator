@@ -2,26 +2,33 @@ import cv2
 import time
 import mediapipe as mp
 from PySide6.QtCore import Signal, QObject
+from PySide6.QtGui import QPixmap, QImage
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+from mediapipe.tasks.python.components import processors
 from mediapipe.framework.formats import landmark_pb2
+
+
+def convert_frame_qpixmap(frame):
+    h, w, ch = frame.shape
+    image = QImage(frame.data, w, h, ch * w, QImage.Format_RGB888)
+    return QPixmap.fromImage(image)
 
 
 class GestureRecognizerApp(QObject):
     """
     A class to represent the gesture recognizer application.
     """
-    result_ready_signal = Signal(object, str)  # Signal to send frame and recognized text
+    result_ready_signal = Signal(object, list, list, float)
 
     def __init__(self, model: str, num_hands: int, min_hand_detection_confidence: float,
-                 min_hand_presence_confidence: float, min_tracking_confidence: float,
+                 min_hand_presence_confidence: float, min_tracking_confidence: float, score_treshold: float,
                  camera_id: int, width: int, height: int):
         """
         Initialize the gesture recognizer application with MediaPipe.
         """
         super().__init__()
-        self.recognizer = None
-        self.cap = None
+
         self.model = model
         self.num_hands = num_hands
         self.min_hand_detection_confidence = min_hand_detection_confidence
@@ -30,10 +37,14 @@ class GestureRecognizerApp(QObject):
         self.camera_id = camera_id
         self.width = width
         self.height = height
+        self.score_treshold = score_treshold
 
-        # Initialize other state variables
+        self.recognizer = None
+        self.cap = None
+
+        # Initialize state variables
         self.counter = 0
-        self.fps = 0
+        self.fps = 0.0
         self.start_time = time.time()
 
         # MediaPipe drawing and gesture recognizer setup
@@ -46,8 +57,17 @@ class GestureRecognizerApp(QObject):
         self.cap = cv2.VideoCapture(self.camera_id)
         if not self.cap.isOpened():
             raise IOError(f"Cannot open camera {self.camera_id}")
+
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+
+        classifier_options = processors.ClassifierOptions(
+            display_names_locale=None,
+            max_results=1,
+            score_threshold=self.score_treshold,
+            category_allowlist= None,
+            category_denylist=['space','del']
+        )
 
         base_options = python.BaseOptions(model_asset_path=self.model)
         options = vision.GestureRecognizerOptions(
@@ -57,7 +77,9 @@ class GestureRecognizerApp(QObject):
             min_hand_detection_confidence=self.min_hand_detection_confidence,
             min_hand_presence_confidence=self.min_hand_presence_confidence,
             min_tracking_confidence=self.min_tracking_confidence,
-            result_callback=self.save_result
+            result_callback=self.save_result,
+            custom_gesture_classifier_options=classifier_options
+
         )
         self.recognizer = vision.GestureRecognizer.create_from_options(options)
 
@@ -65,15 +87,15 @@ class GestureRecognizerApp(QObject):
         """
         Callback to save the recognition result.
         """
-        self.calculate_fps()
-        frame, text = self.draw_recognition_result(output_image.numpy_view().copy(), result)
-        self.result_ready_signal.emit(frame, text)
+        frame, text, category_name, latest_fps = self.process_single_recognition_result(output_image.numpy_view().copy(), result)
+        self.result_ready_signal.emit(convert_frame_qpixmap(frame), text, category_name, latest_fps)
         self.recognize_frame()
+        self.calculate_fps()
 
     def calculate_fps(self):
         """ Calculate the frames per second (FPS). """
         if self.counter % 10 == 0:
-            self.fps = 10 / (time.time() - self.start_time)
+            self.fps = 10.0 / (time.time() - self.start_time)
             self.start_time = time.time()
         self.counter += 1
 
@@ -81,7 +103,7 @@ class GestureRecognizerApp(QObject):
         """ Capture a frame from the camera and run gesture recognition. """
         success, image = self.cap.read()
         if not success:
-            return
+            return None
 
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         self.recognizer.recognize_async(mp_image, time.time_ns() // 1_000_000)
@@ -90,42 +112,45 @@ class GestureRecognizerApp(QObject):
         """ Capture a frame from the camera. """
         success, image = self.cap.read()
         if not success:
-            return
+            return None
 
-        return image
+        return convert_frame_qpixmap(image)
 
-    def draw_recognition_result(self, frame, result):
+    def process_single_recognition_result(self, frame, result):
         """
         Process the recognition result and draw landmarks on the frame.
         """
-        text = "No hand detected"
-        category_name = ""
+        text = []
+        scores = []
+        latest_fps = self.fps
 
-        for hand_index, hand_landmarks in enumerate(result.hand_landmarks):
+        if result.hand_landmarks:
             hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
             hand_landmarks_proto.landmark.extend([
-                landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z) for landmark in hand_landmarks
+                landmark_pb2.NormalizedLandmark(x=landmark.x, y=landmark.y, z=landmark.z) for landmark in result.hand_landmarks[0]
             ])
 
             self.mp_drawing.draw_landmarks(frame, hand_landmarks_proto, self.mp_hands.HAND_CONNECTIONS,
                                            self.mp_drawing_styles.get_default_hand_landmarks_style(),
                                            self.mp_drawing_styles.get_default_hand_connections_style())
+
             if result.gestures:
-                gesture = result.gestures[hand_index]
+                gesture = result.gestures[0]
                 category_name = gesture[0].category_name
-                score = int(gesture[0].score * 100)
-                handedness = result.handedness[hand_index]
+                gesture_score = gesture[0].score
+                handedness = result.handedness[0]
                 handedness_category_name = handedness[0].category_name
-                handedness_score = int(handedness[0].score * 100)
+                handedness_score = handedness[0].score
 
-                text = f'Sign: {category_name} ({score}%) Hand: {handedness_category_name} ({handedness_score}%)'
+                text = [category_name, handedness_category_name]
+                scores = [gesture_score, handedness_score]
 
-        cv2.putText(frame, f'{self.fps:.1f} FPS', (24, 45), cv2.FONT_HERSHEY_DUPLEX, 0.7, (0, 0, 0), 1)
-
-        return frame, text
+        return frame, text, scores, latest_fps
 
     def close(self):
         """ Release resources. """
-        if self.cap.isOpened():
+        if self.cap and self.cap.isOpened():
             self.cap.release()
-        self.recognizer.close()
+
+        if self.recognizer:
+            self.recognizer.close()
