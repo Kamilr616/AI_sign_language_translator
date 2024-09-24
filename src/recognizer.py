@@ -1,6 +1,7 @@
-from camera_capture import *
 import time
 import mediapipe as mp
+import custom_landmarks
+from camera_capture import AsyncCamera
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtGui import QPixmap, QImage
 from mediapipe.tasks import python
@@ -70,7 +71,9 @@ class GestureRecognizerApp(QObject):
         # MediaPipe drawing and gesture recognizer setup
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
-        self.mp_drawing_styles = mp.solutions.drawing_styles
+
+        # Custom landmarks
+        self.drawing_styles = custom_landmarks
 
     def start(self):
         """
@@ -179,8 +182,8 @@ class GestureRecognizerApp(QObject):
             ])
 
             self.mp_drawing.draw_landmarks(frame, hand_landmarks_proto, self.mp_hands.HAND_CONNECTIONS,
-                                           self.mp_drawing_styles.get_default_hand_landmarks_style(),
-                                           self.mp_drawing_styles.get_default_hand_connections_style())
+                                           self.drawing_styles.get_hand_landmarks_style(),
+                                           self.drawing_styles.get_hand_connections_style())
 
             if result.gestures:
                 gesture = result.gestures[0]
