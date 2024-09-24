@@ -1,3 +1,4 @@
+import warnings
 import pyttsx3
 import threading
 
@@ -49,7 +50,7 @@ class TextToSpeech:
         try:
             self.engine.runAndWait()
         except RuntimeError:
-            print('Wait for the speech to finish')
+            warnings.warn('Wait for the speech to finish')
 
     def stop(self):
         """Stop the speech synthesis."""
