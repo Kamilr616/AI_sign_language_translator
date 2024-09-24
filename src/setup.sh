@@ -1,3 +1,3 @@
 # Install Python dependencies.
-python3 -m pip install pip --upgrade
-python3 -m pip install -r requirements.txt
+python -m pip install pip --upgrade
+python -m pip install -r requirements.txt
