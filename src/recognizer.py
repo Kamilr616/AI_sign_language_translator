@@ -71,7 +71,7 @@ class GestureRecognizerApp(QObject):
         # MediaPipe drawing and gesture recognizer setup
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
-
+        
         # Custom landmarks
         self.drawing_styles = custom_landmarks
 

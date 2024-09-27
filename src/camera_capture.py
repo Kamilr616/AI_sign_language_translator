@@ -45,7 +45,6 @@ class AsyncCamera:
     def is_ended(self):
         """
         Check if the capture has ended.
-
         Returns:
             bool: Returns False if thread has ended.
         """
@@ -85,7 +84,6 @@ class AsyncCamera:
                     if q.empty():
                         src = cv2.cvtColor(src, cv2.COLOR_BGR2RGB)
                         q.put((time.time(), src))
-
         except Exception as e:
             print(e)
 

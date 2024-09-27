@@ -6,7 +6,6 @@ from speaker import TextToSpeech
 
 MODEL_PATH = '../models/gesture_recognizer_asl_6.task'
 
-
 class MainApp(QMainWindow, Ui_MainWindow):
     def __init__(self):
         """
