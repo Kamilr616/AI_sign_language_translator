@@ -669,7 +669,7 @@
         <number>100</number>
        </property>
        <property name="value">
-        <number>75</number>
+        <number>65</number>
        </property>
       </widget>
      </item>
@@ -709,7 +709,7 @@
         <number>100</number>
        </property>
        <property name="value">
-        <number>75</number>
+        <number>65</number>
        </property>
       </widget>
      </item>
@@ -743,7 +743,7 @@
         <number>100</number>
        </property>
        <property name="value">
-        <number>75</number>
+        <number>55</number>
        </property>
       </widget>
      </item>
@@ -777,7 +777,7 @@
         <number>100</number>
        </property>
        <property name="value">
-        <number>75</number>
+        <number>60</number>
        </property>
       </widget>
      </item>
@@ -816,7 +816,7 @@
         <number>500</number>
        </property>
        <property name="value">
-        <number>149</number>
+        <number>150</number>
        </property>
       </widget>
      </item>
@@ -829,7 +829,7 @@
         <number>105</number>
        </property>
        <property name="value">
-        <number>70</number>
+        <number>90</number>
        </property>
       </widget>
      </item>
@@ -857,7 +857,7 @@
       <x>650</x>
       <y>310</y>
       <width>231</width>
-      <height>181</height>
+      <height>208</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout">
@@ -865,7 +865,7 @@
       <widget class="QLabel" name="label_7">
        <property name="font">
         <font>
-         <pointsize>128</pointsize>
+         <pointsize>116</pointsize>
          <bold>true</bold>
         </font>
        </property>
@@ -882,6 +882,12 @@
      </item>
      <item>
       <widget class="QProgressBar" name="progressBar">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="value">
         <number>0</number>
        </property>

@@ -4,7 +4,7 @@ from recognizer import GestureRecognizerApp
 from gui import *
 from speaker import TextToSpeech
 
-MODEL_PATH = '../models/gesture_recognizer_asl_2.task'
+MODEL_PATH = '../models/gesture_recognizer_asl_6.task'
 
 
 class MainApp(QMainWindow, Ui_MainWindow):
