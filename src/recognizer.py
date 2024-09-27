@@ -1,6 +1,7 @@
 import time
 import mediapipe as mp
 import custom_landmarks
+import warnings
 from camera_capture import AsyncCamera
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtGui import QPixmap, QImage
@@ -50,6 +51,7 @@ class GestureRecognizerApp(QObject):
         """
         super().__init__()
 
+        self.last_timestamp = 0
         self.model = model
         self.num_hands = num_hands
         self.min_hand_detection_confidence = min_hand_detection_confidence
@@ -136,12 +138,23 @@ class GestureRecognizerApp(QObject):
         if not self.cap:
             return None
 
-        success, image = self.cap.read()
-        if not success:
+        cap_timestamp, image = self.cap.read()
+
+        if not cap_timestamp:
             return None
 
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
-        self.recognizer.recognize_async(mp_image, time.time_ns() // 1_000_000)
+
+        if cap_timestamp <= self.last_timestamp:
+            self.recognize_frame()
+            return None
+
+        self.last_timestamp = cap_timestamp
+
+        try:
+            self.recognizer.recognize_async(mp_image, cap_timestamp // 1_000_000)
+        except Exception as e:
+            warnings.warn(f"Exception in recognizer: {e}")
 
     def get_frame(self):
         """
@@ -153,8 +166,8 @@ class GestureRecognizerApp(QObject):
         if not self.cap:
             return None
 
-        success, image = self.cap.read()
-        if not success:
+        cap_timestamp, image = self.cap.read()
+        if not cap_timestamp:
             return None
 
         return convert_frame_qpixmap(image)

@@ -2,6 +2,7 @@ import queue
 import threading
 import cv2
 import time
+import warnings
 
 
 class AsyncCamera:
@@ -76,16 +77,16 @@ class AsyncCamera:
             v.set(cv2.CAP_PROP_FRAME_HEIGHT, opt["height"])
 
             while v.isOpened():
-                # Read a frame from the video capture
-                stat, src = v.read()
                 if not q2.empty():
                     return
+                # Read a frame from the video capture
+                stat, src = v.read()
                 if stat:
                     if q.empty():
                         src = cv2.cvtColor(src, cv2.COLOR_BGR2RGB)
-                        q.put((time.time(), src))
+                        q.put((time.time_ns(), src))
         except Exception as e:
-            print(e)
+            warnings.warn(f"Exception in camera capture: {e}")
 
     def read(self):
         """

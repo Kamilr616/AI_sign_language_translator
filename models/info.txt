@@ -106,3 +106,22 @@ _lr_decay = 0.9
 _gamma = 2
 loss: 0.0283 - categorical_accuracy: 0.9757
 Test loss:0.02830398455262184, Test accuracy:0.975722074508667
+
+gesture_recognizer_asl_8 - ASL v8
+(18% val_data)
+_dropout_rate = 0.075
+_layer_width = [128, 64, 32]
+_learning_rate = 0.001
+_batch_size = 16
+_epochs = 60
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.975
+_gamma = 2
+loss: 0.0305 - categorical_accuracy: 0.9749
+Test loss:0.030466746538877487, Test accuracy:0.9748848676681519
+
+gesture_recognizer_asl_9 - ASL v9
+(18% val_data)
+?
+
