@@ -175,7 +175,7 @@ class Ui_MainWindow(object):
         self.spinBox2.setFont(font3)
         self.spinBox2.setCursor(QCursor(Qt.CursorShape.SizeVerCursor))
         self.spinBox2.setMaximum(100)
-        self.spinBox2.setValue(75)
+        self.spinBox2.setValue(65)
 
         self.gridLayout.addWidget(self.spinBox2, 1, 1, 1, 1)
 
@@ -190,7 +190,7 @@ class Ui_MainWindow(object):
         self.spinBox1.setCursor(QCursor(Qt.CursorShape.SizeVerCursor))
         self.spinBox1.setWrapping(False)
         self.spinBox1.setMaximum(100)
-        self.spinBox1.setValue(75)
+        self.spinBox1.setValue(65)
 
         self.gridLayout.addWidget(self.spinBox1, 0, 1, 1, 1)
 
@@ -204,7 +204,7 @@ class Ui_MainWindow(object):
         self.spinBox3.setFont(font3)
         self.spinBox3.setCursor(QCursor(Qt.CursorShape.SizeVerCursor))
         self.spinBox3.setMaximum(100)
-        self.spinBox3.setValue(75)
+        self.spinBox3.setValue(55)
 
         self.gridLayout.addWidget(self.spinBox3, 2, 1, 1, 1)
 
@@ -218,7 +218,7 @@ class Ui_MainWindow(object):
         self.spinBox6.setFont(font3)
         self.spinBox6.setCursor(QCursor(Qt.CursorShape.SizeVerCursor))
         self.spinBox6.setMaximum(100)
-        self.spinBox6.setValue(75)
+        self.spinBox6.setValue(60)
 
         self.gridLayout.addWidget(self.spinBox6, 3, 1, 1, 1)
 
@@ -242,14 +242,14 @@ class Ui_MainWindow(object):
         self.spinBox5.setObjectName(u"spinBox5")
         self.spinBox5.setMinimum(1)
         self.spinBox5.setMaximum(500)
-        self.spinBox5.setValue(149)
+        self.spinBox5.setValue(150)
 
         self.gridLayout_2.addWidget(self.spinBox5, 1, 1, 1, 1)
 
         self.spinBox4 = QSpinBox(self.gridLayoutWidget_2)
         self.spinBox4.setObjectName(u"spinBox4")
         self.spinBox4.setMaximum(105)
-        self.spinBox4.setValue(70)
+        self.spinBox4.setValue(90)
 
         self.gridLayout_2.addWidget(self.spinBox4, 0, 1, 1, 1)
 
@@ -259,14 +259,14 @@ class Ui_MainWindow(object):
         self.pushButton4.setStyleSheet(u"file:///C:/Users/Kamil/Downloads/Chatbee.qss")
         self.horizontalLayoutWidget = QWidget(self.centralwidget)
         self.horizontalLayoutWidget.setObjectName(u"horizontalLayoutWidget")
-        self.horizontalLayoutWidget.setGeometry(QRect(650, 310, 231, 181))
+        self.horizontalLayoutWidget.setGeometry(QRect(650, 310, 231, 208))
         self.horizontalLayout = QHBoxLayout(self.horizontalLayoutWidget)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
         self.label_7 = QLabel(self.horizontalLayoutWidget)
         self.label_7.setObjectName(u"label_7")
         font4 = QFont()
-        font4.setPointSize(128)
+        font4.setPointSize(116)
         font4.setBold(True)
         self.label_7.setFont(font4)
         self.label_7.setFrameShape(QFrame.Shape.NoFrame)
@@ -276,6 +276,11 @@ class Ui_MainWindow(object):
 
         self.progressBar = QProgressBar(self.horizontalLayoutWidget)
         self.progressBar.setObjectName(u"progressBar")
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
+        sizePolicy1.setHorizontalStretch(0)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.progressBar.sizePolicy().hasHeightForWidth())
+        self.progressBar.setSizePolicy(sizePolicy1)
         self.progressBar.setValue(0)
         self.progressBar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.progressBar.setTextVisible(True)

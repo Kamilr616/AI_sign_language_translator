@@ -4,6 +4,7 @@ from recognizer import GestureRecognizerApp
 from gui import *
 from speaker import TextToSpeech
 
+MODEL_PATH = '../models/gesture_recognizer_asl_6.task'
 
 class MainApp(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -44,7 +45,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.recognizer_app.close()
 
         self.recognizer_app = GestureRecognizerApp(
-            model='../models/gesture_recognizer_asl_mp.task',
+            model=MODEL_PATH,
             num_hands=1,
             min_hand_detection_confidence=(self.spinBox1.value() / 100.0),
             min_hand_presence_confidence=(self.spinBox2.value() / 100.0),

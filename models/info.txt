@@ -1,0 +1,108 @@
+gesture_recognizer_std - default google gestures
+
+gesture_recognizer_rps - example rock paper siscors
+(10% val_data)
+default mediapipe HParams
+
+gesture_recognizer_asl_mp - ASL default
+(10% val_data)
+default mediapipe HParams
+loss: 0.2174 - categorical_accuracy: 0.9096
+Test loss:0.21743923425674438, Test accuracy:0.909562885761261
+
+gesture_recognizer_asl_1 - ASL v1 
+(10% val_data)
+_dropout_rate = 0.2
+_layer_width = [128, 64, 32]
+_learning_rate = 0.001
+_batch_size = 16
+_epochs = 50
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.99
+_gamma = 2
+loss: 0.0494 - categorical_accuracy: 0.9678
+Test loss:0.049389954656362534, Test accuracy:0.9678446054458618
+
+gesture_recognizer_asl_2 - ASL v2
+(10% val_data)
+_dropout_rate = 0.1
+_layer_width = [128, 64]
+_learning_rate = 0.001
+_batch_size = 16
+_epochs = 100
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.9
+_gamma = 2
+loss: 0.0347 - categorical_accuracy: 0.9799
+Test loss:0.0346670038998127, Test accuracy:0.9799028635025024
+
+gesture_recognizer_asl_3 - ASL v3
+(10% val_data)
+_dropout_rate = 0.2
+_layer_width = [256, 128]
+_learning_rate = 0.001
+_batch_size = 32
+_epochs = 50
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.9
+_gamma = 2
+loss: 0.0390 - categorical_accuracy: 0.9750
+Test loss:0.03900642693042755, Test accuracy:0.9750460386276245
+
+gesture_recognizer_asl_4 - ASL v4
+(16% val_data)
+_dropout_rate = 0.2
+_layer_width = [128, 64, 32]
+_learning_rate = 0.001
+_batch_size = 32
+_epochs = 50
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.95
+_gamma = 2
+0.97?
+
+gesture_recognizer_asl_5 - ASL v5
+(18% val_data)
+_dropout_rate = 0.1
+_layer_width = [128, 64]
+_learning_rate = 0.001
+_batch_size = 32
+_epochs = 50
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.95
+_gamma = 2
+loss: 0.0424 - categorical_accuracy: 0.9711
+Test loss:0.042438142001628876, Test accuracy:0.9711176156997681
+
+gesture_recognizer_asl_6 - ASL v6
+(18% val_data)
+_dropout_rate = 0.075
+_layer_width = [128, 64]
+_learning_rate = 0.001
+_batch_size = 16
+_epochs = 70
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.95
+_gamma = 2
+loss: 0.0260 - categorical_accuracy: 0.9799
+Test loss:0.02597758360207081, Test accuracy:0.9799079298973083
+
+gesture_recognizer_asl_7 - ASL v7
+(18% val_data)
+_dropout_rate = 0.075
+_layer_width = [128, 64]
+_learning_rate = 0.001
+_batch_size = 16
+_epochs = 60
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.9
+_gamma = 2
+loss: 0.0283 - categorical_accuracy: 0.9757
+Test loss:0.02830398455262184, Test accuracy:0.975722074508667

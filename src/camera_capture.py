@@ -40,15 +40,18 @@ class AsyncCamera:
         Signal the capture thread to stop.
         """
         self.q2.put(0)
+        self.t.join()
 
     def is_ended(self):
         """
         Check if the capture has ended.
-
         Returns:
-            bool: Always returns False (placeholder for actual implementation).
+            bool: Returns False if thread has ended.
         """
-        return False
+        if not self.t.is_alive():
+            return True
+        else:
+            return False
 
     @staticmethod
     def func(q, q2, fd, opt):
@@ -75,12 +78,12 @@ class AsyncCamera:
             while v.isOpened():
                 # Read a frame from the video capture
                 stat, src = v.read()
+                if not q2.empty():
+                    return
                 if stat:
                     if q.empty():
                         src = cv2.cvtColor(src, cv2.COLOR_BGR2RGB)
                         q.put((time.time(), src))
-                    if not q2.empty():
-                        return
         except Exception as e:
             print(e)
 

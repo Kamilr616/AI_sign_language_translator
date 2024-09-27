@@ -71,7 +71,7 @@ class GestureRecognizerApp(QObject):
         # MediaPipe drawing and gesture recognizer setup
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
-
+        
         # Custom landmarks
         self.drawing_styles = custom_landmarks
 
@@ -79,11 +79,6 @@ class GestureRecognizerApp(QObject):
         """
         Initialize the camera and gesture recognizer.
         """
-        self.cap = AsyncCamera(self.camera_id, fps=30, width=self.width, height=self.height, format='mjpeg')
-
-        if self.cap.is_ended():
-            return  # raise IOError(f"Cannot open camera {self.camera_id}")
-
         classifier_options = processors.ClassifierOptions(
             display_names_locale=None,
             max_results=1,
@@ -104,6 +99,11 @@ class GestureRecognizerApp(QObject):
             custom_gesture_classifier_options=classifier_options
         )
         self.recognizer = vision.GestureRecognizer.create_from_options(options)
+
+        self.cap = AsyncCamera(self.camera_id, fps=30, width=self.width, height=self.height, format='mjpeg')
+
+        if self.cap.is_ended():
+            return  # TODO: Exception ?(raise IOError(f"Cannot open camera {self.camera_id}"))
 
     def save_result(self, result: vision.GestureRecognizerResult, output_image: mp.Image, timestamp_ms: int):
         """
