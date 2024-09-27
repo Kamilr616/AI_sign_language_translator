@@ -90,4 +90,19 @@ _steps_per_epoch = None
 _shuffle = True
 _lr_decay = 0.95
 _gamma = 2
+loss: 0.0260 - categorical_accuracy: 0.9799
+Test loss:0.02597758360207081, Test accuracy:0.9799079298973083
 
+gesture_recognizer_asl_7 - ASL v7
+(18% val_data)
+_dropout_rate = 0.075
+_layer_width = [128, 64]
+_learning_rate = 0.001
+_batch_size = 16
+_epochs = 60
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.9
+_gamma = 2
+loss: 0.0283 - categorical_accuracy: 0.9757
+Test loss:0.02830398455262184, Test accuracy:0.975722074508667
