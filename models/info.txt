@@ -1,9 +1,3 @@
-gesture_recognizer_std - default google gestures
-
-gesture_recognizer_rps - example rock paper siscors
-(10% val_data)
-default mediapipe HParams
-
 gesture_recognizer_asl_mp - ASL default
 (10% val_data)
 default mediapipe HParams
@@ -176,7 +170,6 @@ _gamma = 2
 loss: 0.0259 - categorical_accuracy: 0.9770
 Test loss:0.025937218219041824, Test accuracy:0.9769778251647949
 
-
 gesture_recognizer_asl_13 - ASL v13
 (18% val_data)
 _dropout_rate = 0.05
@@ -188,3 +181,34 @@ _steps_per_epoch = None
 _shuffle = True
 _lr_decay = 0.98
 _gamma = 2
+loss: 0.0296 - categorical_accuracy: 0.9815
+Test loss:0.0295949075371027, Test accuracy:0.98146653175354
+
+gesture_recognizer_asl_14 - ASL v14
+(18% val_data)
+_dropout_rate = 0.1
+_layer_width = [128, 64, 32]
+_learning_rate = 0.001
+_batch_size = 16
+_epochs = 70
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.95
+_gamma = 2
+loss: 0.0296 - categorical_accuracy: 0.9815
+Test loss:0.0295949075371027, Test accuracy:0.98146653175354
+
+gesture_recognizer_asl_15 - ASL v15
+(18% val_data)
+_dropout_rate = 0.075
+_layer_width = [128, 64, 32]
+_learning_rate = 0.001
+_batch_size = 16
+_epochs = 70
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.99
+_gamma = 2
+loss: 0.0273 - categorical_accuracy: 0.9807
+Test loss:0.02727150171995163, Test accuracy:0.9806607365608215
+

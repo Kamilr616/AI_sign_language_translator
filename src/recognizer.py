@@ -1,10 +1,10 @@
 import time
-import mediapipe as mp
 import numpy as np
 import custom_landmarks
 import warnings
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtGui import QPixmap, QImage
+from mediapipe import solutions, Image, ImageFormat
 from mediapipe.framework.formats import landmark_pb2
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
@@ -68,8 +68,8 @@ class GestureRecognizerApp(QObject):
         self.start_time = time.time()
 
         # MediaPipe drawing and gesture recognizer setup
-        self.mp_hands = mp.solutions.hands
-        self.mp_drawing = mp.solutions.drawing_utils
+        self.mp_hands = solutions.hands
+        self.mp_drawing = solutions.drawing_utils
 
         # Custom landmarks
         self.drawing_styles = custom_landmarks
@@ -102,7 +102,7 @@ class GestureRecognizerApp(QObject):
         if self.cap.is_ended():
             return  # TODO: Exception ?(raise IOError(f"Cannot open camera {self.camera_id}"))
 
-    def save_result(self, result: vision.GestureRecognizerResult, output_image: mp.Image, timestamp_ms: int):
+    def save_result(self, result: vision.GestureRecognizerResult, output_image: Image, timestamp_ms: int):
         """
         Callback to save the recognition result.
 
@@ -149,7 +149,7 @@ class GestureRecognizerApp(QObject):
 
         try:
             rgb_image = image[..., ::-1].astype(np.uint8)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
+            mp_image = Image(image_format=ImageFormat.SRGB, data=rgb_image)
             self.recognizer.recognize_async(mp_image, cap_timestamp // 1_000_000)
         except Exception as e:
             warnings.warn(f"Exception in recognizer: {e}")

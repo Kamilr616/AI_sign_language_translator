@@ -210,18 +210,18 @@ def main():
     """
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--model', help='Name of gesture recognition model.',
-                        default='../models/gesture_recognizer_asl_mp.task')
+                        default='../models/gesture_recognizer_asl_13.task')
     parser.add_argument('--numHands', help='Max number of hands that can be detected by the recognizer.', default=1,
                         type=int)
     parser.add_argument('--minHandDetectionConfidence',
                         help='The minimum confidence score for hand detection to be considered successful.',
-                        default=0.75, type=float)
+                        default=0.65, type=float)
     parser.add_argument('--minHandPresenceConfidence',
                         help='The minimum confidence score of hand presence score in the hand landmark detection.',
-                        default=0.75, type=float)
+                        default=0.65, type=float)
     parser.add_argument('--minTrackingConfidence',
                         help='The minimum confidence score for the hand tracking to be considered successful.',
-                        default=0.75, type=float)
+                        default=0.65, type=float)
     parser.add_argument('--cameraId', help='Id of camera.', default=0, type=int)
     parser.add_argument('--frameWidth', help='Width of frame to capture from camera.', default=640, type=int)
     parser.add_argument('--frameHeight', help='Height of frame to capture from camera.', default=480, type=int)

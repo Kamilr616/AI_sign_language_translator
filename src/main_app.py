@@ -3,7 +3,7 @@ from gui import *
 from speaker import TextToSpeech
 from camera_capture import AsyncCamera
 
-MODEL_PATH = '../models/gesture_recognizer_asl_6.task'
+MODEL_PATH = '../models/gesture_recognizer_asl_13.task'
 CAMERA_ID = 0
 CAMERA_WIDTH = 640
 CAMERA_HEIGHT = 480
