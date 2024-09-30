@@ -50,7 +50,8 @@ class TextToSpeech:
         try:
             self.engine.runAndWait()
         except RuntimeError:
-            warnings.warn('Wait for the speech to finish')
+            return
+            # TODO: Handle the exception
 
     def stop(self):
         """Stop the speech synthesis."""

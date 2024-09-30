@@ -1,14 +1,16 @@
 import time
 import mediapipe as mp
+import numpy as np
 import custom_landmarks
 import warnings
-from camera_capture import AsyncCamera
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtGui import QPixmap, QImage
 from mediapipe.framework.formats import landmark_pb2
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.components import processors
+
+from camera_capture import AsyncCamera
 
 
 def convert_frame_qpixmap(frame):
@@ -33,8 +35,8 @@ class GestureRecognizerApp(QObject):
     result_ready_signal = Signal(object, list, list, float)
 
     def __init__(self, model: str, num_hands: int, min_hand_detection_confidence: float,
-                 min_hand_presence_confidence: float, min_tracking_confidence: float, score_treshold: float,
-                 camera_id: int, width: int, height: int):
+                 min_hand_presence_confidence: float, min_tracking_confidence: float, score_confidence: float,
+                 camera: AsyncCamera):
         """
         Initialize the gesture recognizer application with MediaPipe.
 
@@ -44,10 +46,8 @@ class GestureRecognizerApp(QObject):
             min_hand_detection_confidence (float): Minimum confidence for hand detection.
             min_hand_presence_confidence (float): Minimum confidence for hand presence.
             min_tracking_confidence (float): Minimum confidence for tracking.
-            score_treshold (float): Score threshold for gesture classification.
-            camera_id (int): Camera ID to use.
-            width (int): Width of the camera frame.
-            height (int): Height of the camera frame.
+            score_confidence (float): Score threshold for gesture classification.
+            camera (AsyncCamera): The camera object for capturing frames.
         """
         super().__init__()
 
@@ -57,13 +57,10 @@ class GestureRecognizerApp(QObject):
         self.min_hand_detection_confidence = min_hand_detection_confidence
         self.min_hand_presence_confidence = min_hand_presence_confidence
         self.min_tracking_confidence = min_tracking_confidence
-        self.camera_id = camera_id
-        self.width = width
-        self.height = height
-        self.score_treshold = score_treshold
+        self.score_confidence = score_confidence
 
         self.recognizer = None
-        self.cap = None
+        self.cap = camera
 
         # Initialize state variables
         self.counter = 0
@@ -73,18 +70,18 @@ class GestureRecognizerApp(QObject):
         # MediaPipe drawing and gesture recognizer setup
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
-        
+
         # Custom landmarks
         self.drawing_styles = custom_landmarks
 
     def start(self):
         """
-        Initialize the camera and gesture recognizer.
+        Initialize the gesture recognizer with the specified model and options.
         """
         classifier_options = processors.ClassifierOptions(
             display_names_locale=None,
             max_results=1,
-            score_threshold=self.score_treshold,
+            score_threshold=self.score_confidence,
             category_allowlist=None,
             category_denylist=['space', 'del']
         )
@@ -102,8 +99,6 @@ class GestureRecognizerApp(QObject):
         )
         self.recognizer = vision.GestureRecognizer.create_from_options(options)
 
-        self.cap = AsyncCamera(self.camera_id, fps=30, width=self.width, height=self.height, format='mjpeg')
-
         if self.cap.is_ended():
             return  # TODO: Exception ?(raise IOError(f"Cannot open camera {self.camera_id}"))
 
@@ -119,8 +114,10 @@ class GestureRecognizerApp(QObject):
         frame, text, category_name, latest_fps = self.process_single_recognition_result(
             output_image.numpy_view().copy(), result)
         self.result_ready_signal.emit(convert_frame_qpixmap(frame), text, category_name, latest_fps)
-        self.recognize_frame()
         self.calculate_fps()
+
+        if self.recognizer:
+            self.recognize_frame()
 
     def calculate_fps(self):
         """
@@ -143,34 +140,19 @@ class GestureRecognizerApp(QObject):
         if not cap_timestamp:
             return None
 
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
-
-        if cap_timestamp <= self.last_timestamp:
-            self.recognize_frame()
-            return None
+        # Ensure the timestamp is monotonically increasing
+        while cap_timestamp <= self.last_timestamp:
+            cap_timestamp, image = self.cap.read()
+            print(f"Skipping frame: {cap_timestamp}")
 
         self.last_timestamp = cap_timestamp
 
         try:
+            rgb_image = image[..., ::-1].astype(np.uint8)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_image)
             self.recognizer.recognize_async(mp_image, cap_timestamp // 1_000_000)
         except Exception as e:
             warnings.warn(f"Exception in recognizer: {e}")
-
-    def get_frame(self):
-        """
-        Capture a frame from the camera.
-
-        Returns:
-            QPixmap: The captured frame in QPixmap format.
-        """
-        if not self.cap:
-            return None
-
-        cap_timestamp, image = self.cap.read()
-        if not cap_timestamp:
-            return None
-
-        return convert_frame_qpixmap(image)
 
     def process_single_recognition_result(self, frame, result):
         """
@@ -215,10 +197,6 @@ class GestureRecognizerApp(QObject):
         """
         Release resources.
         """
-        if not self.cap.is_ended():
-            self.cap.destroy()
-            self.cap = None
-
         if self.recognizer:
             self.recognizer.close()
             self.recognizer = None

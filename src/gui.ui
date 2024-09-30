@@ -500,7 +500,7 @@
     <normaloff>assets/ans.ico</normaloff>assets/ans.ico</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QPushButton" name="startButton">
+   <widget class="QPushButton" name="pushButton_plus">
     <property name="geometry">
      <rect>
       <x>660</x>
@@ -519,7 +519,7 @@
      <string>+</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton2">
+   <widget class="QPushButton" name="pushButton_speak">
     <property name="geometry">
      <rect>
       <x>650</x>
@@ -538,7 +538,7 @@
      <string>Speak</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label">
+   <widget class="QLabel" name="label_displayFrame">
     <property name="geometry">
      <rect>
       <x>0</x>
@@ -554,7 +554,7 @@
      <string>No frame</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label2">
+   <widget class="QLabel" name="label_recognitionInfo">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -576,7 +576,7 @@
      <string>No info</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="checkBox">
+   <widget class="QCheckBox" name="checkBox_speak">
     <property name="geometry">
      <rect>
       <x>660</x>
@@ -616,7 +616,7 @@
      <bool>false</bool>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton3">
+   <widget class="QPushButton" name="pushButton_resetRecognizer">
     <property name="geometry">
      <rect>
       <x>730</x>
@@ -626,7 +626,7 @@
      </rect>
     </property>
     <property name="text">
-     <string>Reset NN</string>
+     <string>Reset Recognizer</string>
     </property>
    </widget>
    <widget class="QWidget" name="gridLayoutWidget">
@@ -638,16 +638,16 @@
       <height>134</height>
      </rect>
     </property>
-    <layout class="QGridLayout" name="gridLayout">
+    <layout class="QGridLayout" name="gridLayout_recognizerConfig">
      <item row="1" column="0">
-      <widget class="QLabel" name="label_3">
+      <widget class="QLabel" name="label_presence">
        <property name="text">
         <string>Presence </string>
        </property>
       </widget>
      </item>
      <item row="1" column="1">
-      <widget class="QSpinBox" name="spinBox2">
+      <widget class="QSpinBox" name="spinBox_presence">
        <property name="font">
         <font>
          <pointsize>10</pointsize>
@@ -674,14 +674,14 @@
       </widget>
      </item>
      <item row="0" column="0">
-      <widget class="QLabel" name="label_2">
+      <widget class="QLabel" name="label_detection">
        <property name="text">
         <string>Detection</string>
        </property>
       </widget>
      </item>
      <item row="0" column="1">
-      <widget class="QSpinBox" name="spinBox1">
+      <widget class="QSpinBox" name="spinBox_detection">
        <property name="font">
         <font>
          <pointsize>10</pointsize>
@@ -714,14 +714,14 @@
       </widget>
      </item>
      <item row="2" column="0">
-      <widget class="QLabel" name="label_4">
+      <widget class="QLabel" name="label_tracking">
        <property name="text">
         <string>Tracking</string>
        </property>
       </widget>
      </item>
      <item row="2" column="1">
-      <widget class="QSpinBox" name="spinBox3">
+      <widget class="QSpinBox" name="spinBox_tracking">
        <property name="font">
         <font>
          <pointsize>10</pointsize>
@@ -748,14 +748,14 @@
       </widget>
      </item>
      <item row="3" column="0">
-      <widget class="QLabel" name="label_8">
+      <widget class="QLabel" name="label_treshold">
        <property name="text">
         <string>Treshold</string>
        </property>
       </widget>
      </item>
      <item row="3" column="1">
-      <widget class="QSpinBox" name="spinBox6">
+      <widget class="QSpinBox" name="spinBox_treshold">
        <property name="font">
         <font>
          <pointsize>10</pointsize>
@@ -792,23 +792,23 @@
       <height>61</height>
      </rect>
     </property>
-    <layout class="QGridLayout" name="gridLayout_2">
+    <layout class="QGridLayout" name="gridLayout_ttsConfig">
      <item row="1" column="0">
-      <widget class="QLabel" name="label_6">
+      <widget class="QLabel" name="label_ttsRate">
        <property name="text">
         <string>Rate</string>
        </property>
       </widget>
      </item>
      <item row="0" column="0">
-      <widget class="QLabel" name="label_5">
+      <widget class="QLabel" name="label_volume">
        <property name="text">
         <string>Volume</string>
        </property>
       </widget>
      </item>
      <item row="1" column="1">
-      <widget class="QSpinBox" name="spinBox5">
+      <widget class="QSpinBox" name="spinBox_ttsRate">
        <property name="minimum">
         <number>1</number>
        </property>
@@ -821,7 +821,7 @@
       </widget>
      </item>
      <item row="0" column="1">
-      <widget class="QSpinBox" name="spinBox4">
+      <widget class="QSpinBox" name="spinBox_volume">
        <property name="suffix">
         <string>%</string>
        </property>
@@ -835,7 +835,7 @@
      </item>
     </layout>
    </widget>
-   <widget class="QPushButton" name="pushButton4">
+   <widget class="QPushButton" name="pushButton_resetTTS">
     <property name="geometry">
      <rect>
       <x>730</x>
@@ -860,9 +860,9 @@
       <height>208</height>
      </rect>
     </property>
-    <layout class="QHBoxLayout" name="horizontalLayout">
+    <layout class="QHBoxLayout" name="horizontalLayout_displaySign">
      <item>
-      <widget class="QLabel" name="label_7">
+      <widget class="QLabel" name="label_displaySign">
        <property name="font">
         <font>
          <pointsize>116</pointsize>
@@ -881,7 +881,7 @@
       </widget>
      </item>
      <item>
-      <widget class="QProgressBar" name="progressBar">
+      <widget class="QProgressBar" name="progressBar_1">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
          <horstretch>0</horstretch>
@@ -904,7 +904,7 @@
      </item>
     </layout>
    </widget>
-   <widget class="QLabel" name="label_9">
+   <widget class="QLabel" name="label_displayFPS">
     <property name="geometry">
      <rect>
       <x>660</x>
@@ -928,7 +928,7 @@
      <string>No FPS</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_10">
+   <widget class="QLabel" name="label_logoKI">
     <property name="geometry">
      <rect>
       <x>820</x>
@@ -945,6 +945,34 @@
     </property>
     <property name="scaledContents">
      <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_resetCap">
+    <property name="geometry">
+     <rect>
+      <x>650</x>
+      <y>150</y>
+      <width>71</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="text">
+     <string>Reset Cap</string>
+    </property>
+    <property name="autoDefault">
+     <bool>false</bool>
+    </property>
+    <property name="default">
+     <bool>false</bool>
+    </property>
+    <property name="flat">
+     <bool>false</bool>
     </property>
    </widget>
   </widget>
