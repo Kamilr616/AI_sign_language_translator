@@ -1,4 +1,3 @@
-import warnings
 import pyttsx3
 import threading
 
