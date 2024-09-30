@@ -4,14 +4,14 @@ import cv2
 import time
 import warnings
 
-
 class AsyncCamera:
-    def __init__(self, fd=1, **kwargs):
+    def __init__(self, fd=1, queue_size=10, **kwargs):
         """
         Initialize the AsyncCamera instance.
 
         Args:
             fd (int): File descriptor for the camera. Defaults to 1.
+            queue_size (int): Maximum number of frames to store in the queue.
             **kwargs: Additional keyword arguments to set camera properties.
         """
         # Set attributes from kwargs
@@ -26,13 +26,15 @@ class AsyncCamera:
         s_int(self, "width")
         s_int(self, "height")
 
-        # Initialize queues for frame processing
-        self.q = queue.Queue()
+        # Initialize queues for frame processing with a defined size
+        self.q = queue.Queue(maxsize=queue_size)
         self.q2 = queue.Queue()
 
         # Start the camera capture thread
         self.t = threading.Thread(target=AsyncCamera.func, args=(
-        self.q, self.q2, fd, {"fps": self.fps, "width": self.width, "height": self.height, "format": self.format}))
+            self.q, self.q2, fd, {"fps": self.fps, "width": self.width, "height": self.height, "format": self.format}
+        ))
+        self.t.daemon = True
         self.t.start()
         self.current = None
 
@@ -49,10 +51,7 @@ class AsyncCamera:
         Returns:
             bool: Returns False if thread has ended.
         """
-        if not self.t.is_alive():
-            return True
-        else:
-            return False
+        return not self.t.is_alive()
 
     @staticmethod
     def func(q, q2, fd, opt):
@@ -65,13 +64,14 @@ class AsyncCamera:
             fd (int): File descriptor for the camera.
             opt (dict): Dictionary of camera options.
         """
+        v = None
         try:
             # Open the video capture with the given file descriptor
             v = cv2.VideoCapture(fd)
             # Set video capture properties
             v.set(cv2.CAP_PROP_FOURCC,
                   (ord(opt['format'][0]) << 0) + (ord(opt['format'][1]) << 8) + (ord(opt['format'][2]) << 16) + (
-                              ord(opt['format'][3]) << 24))
+                          ord(opt['format'][3]) << 24))
             v.set(cv2.CAP_PROP_FPS, opt["fps"])
             v.set(cv2.CAP_PROP_FRAME_WIDTH, opt["width"])
             v.set(cv2.CAP_PROP_FRAME_HEIGHT, opt["height"])
@@ -79,14 +79,23 @@ class AsyncCamera:
             while v.isOpened():
                 if not q2.empty():
                     return
+
                 # Read a frame from the video capture
                 stat, src = v.read()
                 if stat:
-                    if q.empty():
-                        src = cv2.cvtColor(src, cv2.COLOR_BGR2RGB)
+                    if not q.full():
+                        # Add new frame to the queue
                         q.put((time.time_ns(), src))
+                    else:
+                        # Discard the oldest frame and add the new one
+                        q.get()
+                        q.put((time.time_ns(), src))
+
         except Exception as e:
             warnings.warn(f"Exception in camera capture: {e}")
+        finally:
+            if v is not None:  # Check if v was successfully assigned
+                v.release()  # Release the video capture object when done
 
     def read(self):
         """
