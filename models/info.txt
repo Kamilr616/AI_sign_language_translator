@@ -162,3 +162,29 @@ _gamma = 2
 loss: 0.0449 - categorical_accuracy: 0.9718
 Test loss:0.04492926970124245, Test accuracy:0.9717969298362732
 
+gesture_recognizer_asl_12 - ASL v12
+(18% val_data)
+_dropout_rate = 0.075
+_layer_width = [128, 64]
+_learning_rate = 0.001
+_batch_size = 16
+_epochs = 70
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.975
+_gamma = 2
+loss: 0.0259 - categorical_accuracy: 0.9770
+Test loss:0.025937218219041824, Test accuracy:0.9769778251647949
+
+
+gesture_recognizer_asl_13 - ASL v13
+(18% val_data)
+_dropout_rate = 0.05
+_layer_width = [128, 64, 32]
+_learning_rate = 0.001
+_batch_size = 16
+_epochs = 70
+_steps_per_epoch = None
+_shuffle = True
+_lr_decay = 0.98
+_gamma = 2
