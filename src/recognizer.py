@@ -12,7 +12,6 @@ from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.components import processors
 
 
-
 def convert_frame_qpixmap(frame):
     """
     Convert a frame to QPixmap format.
