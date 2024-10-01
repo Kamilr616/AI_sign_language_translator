@@ -2,6 +2,7 @@ import time
 import numpy as np
 import custom_landmarks
 import warnings
+from camera_capture import AsyncCamera
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtGui import QPixmap, QImage
 from mediapipe import solutions, Image, ImageFormat
@@ -10,7 +11,6 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.components import processors
 
-from camera_capture import AsyncCamera
 
 
 def convert_frame_qpixmap(frame):
