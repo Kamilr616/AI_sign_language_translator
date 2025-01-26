@@ -5,7 +5,7 @@ import threading
 class TextToSpeech:
     def __init__(self, rate=150, volume=1.0):
         """Initialize the TextToSpeech engine with the given rate and volume."""
-        self.engine = pyttsx3.init()
+        self.engine = pyttsx3.init()    # TODO: pyttsx3.init(driverName='sapi5')
         self.set_rate(rate)
         self.set_volume(volume)
         self._thread = None

@@ -4,16 +4,18 @@ from speaker import TextToSpeech
 from camera_capture import AsyncCamera
 
 MODEL_PATH = '../models/gesture_recognizer_asl_13.task'
-CAMERA_ID = 0
-CAMERA_WIDTH = 640
-CAMERA_HEIGHT = 480
+#CAMERA_ID = 0
+# CAMERA_WIDTH = 640
+# CAMERA_HEIGHT = 480
 CAMERA_FPS = 30
+QUEUE_SIZE = 10
+
 
 
 class MainApp(QMainWindow, Ui_MainWindow):
     def __init__(self):
         """
-        Initialize the main application window and connect UI elements to their respective methods.
+        Initialize the main application window and connect UI elements to their methods.
         """
         super(MainApp, self).__init__()
         self.setupUi(self)
@@ -22,13 +24,14 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.recognizer_app = None
         self.tts_app = None
         self.checkbox_1_flag = False
+        self.const_recognize = False
 
-        # Connect UI elements to their respective methods
+        # Connect UI elements to their methods
         self.checkBox_speak.stateChanged.connect(self.checkbox_speak_change)
         self.pushButton_plus.clicked.connect(self.pushbutton_plus_click)
         self.pushButton_resetRecognizer.clicked.connect(self.reset_recognizer)
         self.pushButton_resetTTS.clicked.connect(self.reset_tts)
-        self.pushButton_speak.clicked.connect(self.pushbutton_speak_click)
+        #self.pushButton_speak.clicked.connect(self.pushbutton_speak_click)
         self.pushButton_resetCap.clicked.connect(self.pushbutton_reset_cap_click)
 
     def reset_camera(self):
@@ -39,10 +42,10 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.camera_app.destroy()
             self.camera_app = None
         try:
-            self.camera_app = AsyncCamera(fd=CAMERA_ID, queue_size=5, fps=CAMERA_FPS, width=CAMERA_WIDTH,
-                                          height=CAMERA_HEIGHT, format='mjpeg')
+            self.camera_app = AsyncCamera(fd=self.spinBox_cameraID.value(), queue_size=QUEUE_SIZE, fps=CAMERA_FPS, width=self.spinBox_camera_width.value(),
+                                          height=self.spinBox_camera_height.value(), format='mjpeg')
         except Exception as e:
-            print(f"Error resetting camera: {e}")
+            print(f"Error while resetting camera: {e}")
 
     def reset_tts(self):
         """
@@ -109,24 +112,28 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.label_displayFPS.setText(f'{latest_fps:.1f} FPS')
 
         if text and scores:
-            self.label_recognitionInfo.setText(f'Sign: {text[0]} ({scores[0]:.0%}) - Hand: {text[1]} ({scores[1]:.0%})')
-            self.label_displaySign.setText(text[0])
+            self.label_recognitionInfo.setText(f'{text[1]} {scores[1]:.0%}')
+            if text[0] != "":
+                self.label_displaySign.setText(text[0])
+            else:
+                self.label_displaySign.setText('?')
             self.progressBar_1.setValue(scores[0] * 100)
 
             if self.checkbox_1_flag:
                 self.translate_to_speech(text[0])
         else:
-            self.label_recognitionInfo.setText('No info')
+            self.label_recognitionInfo.setText('Not detected')
             self.label_displaySign.setText('-')
             self.progressBar_1.setValue(0)
 
-    def translate_to_speech(self, data):
+
+    def translate_to_speech(self, data=""):
         """
         Translate the recognized gesture text to speech.
 
         Args:
             data (str): The recognized gesture text.
-        """
+         """
         if self.tts_app is not None:
             self.tts_app.speak(data)
 
@@ -146,13 +153,15 @@ class MainApp(QMainWindow, Ui_MainWindow):
         """
         Placeholder for future functionality.
         """
-        pass
+        self.const_recognize = not self.const_recognize
 
     def pushbutton_reset_cap_click(self):
         """
         Reset Camera.
         """
-        pass
+        self.recognizer_app.close()
+        self.reset_camera()
+        self.reset_recognizer()
 
     def closeEvent(self, event):
         """

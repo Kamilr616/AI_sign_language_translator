@@ -1,4 +1,6 @@
 import time
+from time import sleep
+
 import numpy as np
 import custom_landmarks
 import warnings
@@ -112,8 +114,8 @@ class GestureRecognizerApp(QObject):
         """
         frame, text, category_name, latest_fps = self.process_single_recognition_result(
             output_image.numpy_view().copy(), result)
-        self.result_ready_signal.emit(convert_frame_qpixmap(frame), text, category_name, latest_fps)
         self.calculate_fps()
+        self.result_ready_signal.emit(convert_frame_qpixmap(frame), text, category_name, self.fps)
 
         if self.recognizer:
             self.recognize_frame()
@@ -151,7 +153,7 @@ class GestureRecognizerApp(QObject):
             mp_image = Image(image_format=ImageFormat.SRGB, data=rgb_image)
             self.recognizer.recognize_async(mp_image, cap_timestamp // 1_000_000)
         except Exception as e:
-            warnings.warn(f"Exception in recognizer: {e}")
+             warnings.warn(f"Exception in recognizer: {e}")
 
     def process_single_recognition_result(self, frame, result):
         """
