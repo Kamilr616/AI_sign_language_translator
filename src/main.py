@@ -10,8 +10,8 @@ def main():
     Main function to start the application.
     """
     app = QApplication(sys.argv)
-    app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyside6', palette=DarkPalette))
     if app:
+        app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyside6', palette=DarkPalette))
         window = MainApp()
         window.start()
         window.show()

@@ -983,7 +983,7 @@
       </rect>
      </property>
      <property name="title">
-      <string>Predicted Sign</string>
+      <string>Predicted sign</string>
      </property>
      <widget class="QLabel" name="label_displaySign">
       <property name="geometry">
@@ -1107,7 +1107,7 @@
       </rect>
      </property>
      <property name="title">
-      <string>Recognition Rate</string>
+      <string>Recognition rate</string>
      </property>
      <widget class="QLabel" name="label_displayFPS">
       <property name="geometry">

@@ -1,6 +1,4 @@
 import time
-from time import sleep
-
 import numpy as np
 import custom_landmarks
 import warnings
