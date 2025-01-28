@@ -33,7 +33,7 @@ class GestureRecognizerApp(QObject):
     """
     A class to represent the gesture recognizer application.
     """
-    result_ready_signal = Signal(object, list, list, float)
+    result_ready_signal = Signal(object, list, list, int)
 
     def __init__(self, model: str, num_hands: int, min_hand_detection_confidence: float,
                  min_hand_presence_confidence: float, min_tracking_confidence: float, score_confidence: float,
@@ -65,7 +65,7 @@ class GestureRecognizerApp(QObject):
 
         # Initialize state variables
         self.counter = 0
-        self.fps = 0.0
+        self.fps = 0
         self.start_time = time.time()
 
         # MediaPipe drawing and gesture recognizer setup
@@ -101,7 +101,7 @@ class GestureRecognizerApp(QObject):
         self.recognizer = vision.GestureRecognizer.create_from_options(options)
 
         if self.cap.is_ended():
-            return  # TODO: Exception ?(raise IOError(f"Cannot open camera {self.camera_id}"))
+            return None
 
     def save_result(self, result: vision.GestureRecognizerResult, output_image: Image, timestamp_ms: int):
         """
@@ -124,27 +124,24 @@ class GestureRecognizerApp(QObject):
         """
         Calculate the frames per second (FPS).
         """
-        if self.counter % 10 == 0:
-            self.fps = 10.0 / (time.time() - self.start_time)
+        if self.counter % 15 == 0:
+            new_fps = 15.0 / (time.time() - self.start_time)
             self.start_time = time.time()
+            self.fps = int(new_fps)
+
         self.counter += 1
+
+        # new_time = time.time()
+        # new_fps  = 1 / (new_time - self.start_time)
+        # self.fps = int(new_fps)
+        # self.start_time = new_time
 
     def recognize_frame(self):
         """
         Capture a frame from the camera and run gesture recognition.
         """
-        if not self.cap:
+        if self.cap.is_ended() or self.recognizer is None:
             return None
-
-        # if not cap_timestamp:
-        #     return None
-
-        # Ensure the timestamp is monotonically increasing
-        # while cap_timestamp <= self.last_timestamp:
-        #     cap_timestamp, image = self.cap.read()
-        #     print(f"Skipping frame: {cap_timestamp}")
-        #
-        # self.last_timestamp = cap_timestamp
 
         image = self.cap.read()
 
@@ -152,12 +149,11 @@ class GestureRecognizerApp(QObject):
             try:
                 mp_image = Image(image_format=ImageFormat.SRGB, data=image.astype(np.uint8))
                 self.recognizer.recognize_async(mp_image, time.time_ns() // 1_000_000)
-                cv2.imshow("Frame", image)
-            except Exception as e:
-                 warnings.warn(f"Exception in recognizer: {e}")
+            except Exception:
+                 warnings.warn("Exception in recognizer")
         else:
-            print("None img")
-            self.recognize_frame()
+            warnings.warn("No image to recognize.")
+            return None
 
     def process_single_recognition_result(self, frame, result):
         """
@@ -204,4 +200,4 @@ class GestureRecognizerApp(QObject):
         """
         if self.recognizer:
             self.recognizer.close()
-            #self.recognizer = None
+            self.recognizer = None

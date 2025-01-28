@@ -30,33 +30,37 @@ class AsyncCamera:
         """
         try:
             self.cap = cv2.VideoCapture()
-            self.configure(**kwargs)
-        except Exception as e:
-            warnings.warn(f"Error while opening the camera: {e.args}")
+            self.open(kwargs["fd"])
+        except Exception:
+            warnings.warn("Error while opening the camera")
             self.destroy()
         finally:
-            self.open(kwargs["fd"])
+            self.configure(**kwargs)
+
+    def settings(self):
+        if self.cap:
+            self.cap.set(cv2.CAP_PROP_SETTINGS, 1)
 
     def configure(self, **kwargs):
         try:
             self.cap.set(cv2.CAP_PROP_FPS, 30)
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, kwargs["width"])
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, kwargs["height"])
-            # self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 1)
-            # self.cap.set(cv2.CAP_PROP_CONTRAST, 1)
-            # self.cap.set(cv2.CAP_PROP_SATURATION, 1)
-            # self.cap.set(cv2.CAP_PROP_HUE, 1)
-            # self.cap.set(cv2.CAP_PROP_GAIN, 1)
-            # self.cap.set(cv2.CAP_PROP_EXPOSURE , 1)
-        except Exception as e:
-            warnings.warn(f"Error while configuring the camera: {e.args}")
+            # self.cap.set(cv2.CAP_PROP_BRIGHTNESS, 50)
+            # self.cap.set(cv2.CAP_PROP_CONTRAST, 50)
+            # self.cap.set(cv2.CAP_PROP_SATURATION, 50)
+            # self.cap.set(cv2.CAP_PROP_HUE, 0)
+            # self.cap.set(cv2.CAP_PROP_AUTO_WB, 1)
+            #self.cap.set(cv2.CAP_PROP_SETTINGS, 1)
+        except Exception:
+            warnings.warn("Error while configuring the camera")
             self.destroy()
 
     def open(self, fd):
         try:
             self.cap.open(fd, cv2.CAP_DSHOW)
-        except Exception as e:
-            warnings.warn(f"Error while opening the camera: {e.args}")
+        except Exception:
+            warnings.warn("Error while opening the camera")
             self.destroy()
 
     def destroy(self):

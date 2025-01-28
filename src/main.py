@@ -13,10 +13,9 @@ def main():
     if app:
         app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyside6', palette=DarkPalette))
         window = MainApp()
-        window.show()
         window.init_camera()
         window.start()
-
+        window.show()
     sys.exit(app.exec())
 
 
