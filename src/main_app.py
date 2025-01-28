@@ -1,15 +1,12 @@
+from mediapipe.tasks.python.benchmark.benchmark_utils import average
+
 from recognizer import GestureRecognizerApp
 from gui import *
 from speaker import TextToSpeech
 from camera import *
 
 MODEL_PATH = '../models/gesture_recognizer_asl_13.task'
-#CAMERA_ID = 0
-# CAMERA_WIDTH = 640
-# CAMERA_HEIGHT = 480
 CAMERA_FPS = 30
-#QUEUE_SIZE = 10
-
 
 
 class MainApp(QMainWindow, Ui_MainWindow):
@@ -23,15 +20,20 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.camera_app = None
         self.recognizer_app = None
         self.tts_app = None
-        self.checkbox_1_flag = False
+        self.last_results = []
 
         # Connect UI elements to their methods
-        self.checkBox_speak.stateChanged.connect(self.checkbox_speak_change)
-        self.pushButton_plus.clicked.connect(self.pushbutton_plus_click)
+        #self.pushButton_plus.clicked.connect(self.pushbutton_plus_click)
         self.pushButton_resetRecognizer.clicked.connect(self.reset_recognizer)
         self.pushButton_resetTTS.clicked.connect(self.reset_tts)
-        #self.pushButton_speak.clicked.connect(self.pushbutton_speak_click)
         self.pushButton_resetCap.clicked.connect(self.pushbutton_reset_cap_click)
+        self.spinBox_avg_count.valueChanged.connect(self.last_results.clear)
+        self.pushButton_camera_settings.clicked.connect(self.pushbutton_camera_settings_click)
+
+
+    def pushbutton_camera_settings_click(self):
+        if self.camera_app:
+            self.camera_app.settings()
 
     def init_camera(self):
         try:
@@ -45,8 +47,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
         Reset the camera application with new settings.
         """
         try:
-            self.camera_app.configure(width=self.spinBox_camera_width.value(), height=self.spinBox_camera_height.value())
             self.camera_app.open(fd=self.spinBox_cameraID.value())
+            self.camera_app.configure(width=self.spinBox_camera_width.value(), height=self.spinBox_camera_height.value())
+
         except Exception as e:
             print(f"Error while resetting camera: {e.args}")
 
@@ -98,6 +101,25 @@ class MainApp(QMainWindow, Ui_MainWindow):
         if not self.recognizer_app:
             self.reset_recognizer()
 
+    def calculate_common_sign_and_average(self):
+        """
+        Calculate the most common sign and the average score for that sign.
+
+        Returns:
+            tuple: A tuple containing the most common sign (str) and its average score (float).
+        """
+        if not self.last_results:
+            return "", 0.0
+
+        if len(self.last_results) > self.spinBox_avg_count.value():
+            self.last_results.pop(0)
+
+        most_common_sign, _ = max(set(self.last_results), key=self.last_results.count)
+        scores_for_common_sign = [score for sign, score in self.last_results if sign == most_common_sign]
+        average_score = sum(scores_for_common_sign) / len(scores_for_common_sign)
+
+        return most_common_sign, average_score
+
     def update_frame(self, frame, text, scores, latest_fps):
         """
         Update the UI with the processed frame and recognized gesture text.
@@ -112,18 +134,26 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.label_displayFrame.setPixmap(frame)
 
         if latest_fps:
-            self.label_displayFPS.setText(f'{latest_fps:.1f} FPS')
+            self.label_displayFPS.setText(f'{latest_fps} FPS')
 
         if text and scores:
             self.label_recognitionInfo.setText(f'{text[1]} {scores[1]:.0%}')
-            if text[0] != "":
-                self.label_displaySign.setText(text[0])
+
+            if self.checkBox_avg_sign.isChecked():
+                self.last_results.append((text[0], scores[0]))
+                result_sign, average_score = self.calculate_common_sign_and_average()
+            else:
+                result_sign = text[0]
+                average_score = scores[0]
+
+            if result_sign != "":
+                self.label_displaySign.setText(result_sign)
             else:
                 self.label_displaySign.setText('?')
-            self.progressBar_1.setValue(scores[0] * 100)
+            self.progressBar_1.setValue(average_score * 100)
 
-            if self.checkbox_1_flag:
-                self.translate_to_speech(text[0])
+            if self.checkBox_speak.isChecked():
+                self.translate_to_speech(result_sign)
         else:
             self.label_recognitionInfo.setText('Not detected')
             self.label_displaySign.setText('-')
@@ -140,31 +170,11 @@ class MainApp(QMainWindow, Ui_MainWindow):
         if self.tts_app is not None:
             self.tts_app.speak(data)
 
-    def checkbox_speak_change(self):
-        """
-        Toggle the auto mode for text-to-speech.
-        """
-        self.checkbox_1_flag = not self.checkbox_1_flag
-
-    # def pushbutton_speak_click(self):
-    #     """
-    #     Manually trigger text-to-speech translation.
-    #     """
-    #     self.translate_to_speech(self.label_displaySign.text())
-
-    def pushbutton_plus_click(self):
-        """
-        Placeholder for future functionality.
-        """
-        self.recognizer_app.recognize_frame()
-
     def pushbutton_reset_cap_click(self):
         """
         Reset Camera.
         """
-        self.recognizer_app.close()
         self.reset_camera()
-        self.recognizer_app.start()
         self.recognizer_app.recognize_frame()
 
     def closeEvent(self, event):
