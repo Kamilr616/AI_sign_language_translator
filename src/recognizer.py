@@ -1,8 +1,10 @@
 import time
+
+import cv2
 import numpy as np
 import custom_landmarks
 import warnings
-from camera_capture import AsyncCamera
+from camera import AsyncCamera
 from PySide6.QtCore import Signal, QObject
 from PySide6.QtGui import QPixmap, QImage
 from mediapipe import solutions, Image, ImageFormat
@@ -134,24 +136,28 @@ class GestureRecognizerApp(QObject):
         if not self.cap:
             return None
 
-        cap_timestamp, image = self.cap.read()
-
-        if not cap_timestamp:
-            return None
+        # if not cap_timestamp:
+        #     return None
 
         # Ensure the timestamp is monotonically increasing
-        while cap_timestamp <= self.last_timestamp:
-            cap_timestamp, image = self.cap.read()
-            print(f"Skipping frame: {cap_timestamp}")
+        # while cap_timestamp <= self.last_timestamp:
+        #     cap_timestamp, image = self.cap.read()
+        #     print(f"Skipping frame: {cap_timestamp}")
+        #
+        # self.last_timestamp = cap_timestamp
 
-        self.last_timestamp = cap_timestamp
+        image = self.cap.read()
 
-        try:
-            rgb_image = image[..., ::-1].astype(np.uint8)
-            mp_image = Image(image_format=ImageFormat.SRGB, data=rgb_image)
-            self.recognizer.recognize_async(mp_image, cap_timestamp // 1_000_000)
-        except Exception as e:
-             warnings.warn(f"Exception in recognizer: {e}")
+        if image is not None:
+            try:
+                mp_image = Image(image_format=ImageFormat.SRGB, data=image.astype(np.uint8))
+                self.recognizer.recognize_async(mp_image, time.time_ns() // 1_000_000)
+                cv2.imshow("Frame", image)
+            except Exception as e:
+                 warnings.warn(f"Exception in recognizer: {e}")
+        else:
+            print("None img")
+            self.recognize_frame()
 
     def process_single_recognition_result(self, frame, result):
         """
@@ -198,4 +204,4 @@ class GestureRecognizerApp(QObject):
         """
         if self.recognizer:
             self.recognizer.close()
-            self.recognizer = None
+            #self.recognizer = None
