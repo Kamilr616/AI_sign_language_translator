@@ -1,5 +1,3 @@
-from mediapipe.tasks.python.benchmark.benchmark_utils import average
-
 from recognizer import GestureRecognizerApp
 from gui import *
 from speaker import TextToSpeech
@@ -29,6 +27,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.pushButton_resetCap.clicked.connect(self.pushbutton_reset_cap_click)
         self.spinBox_avg_count.valueChanged.connect(self.last_results.clear)
         self.pushButton_camera_settings.clicked.connect(self.pushbutton_camera_settings_click)
+        self.spinBox_cameraID.setMaximum(count_available_cameras() -1)
 
 
     def pushbutton_camera_settings_click(self):
@@ -37,8 +36,8 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
     def init_camera(self):
         try:
-            self.camera_app = AsyncCamera(fd=self.spinBox_cameraID.value(), width=self.spinBox_camera_width.value(),
-                                          height=self.spinBox_camera_height.value())
+            self.camera_app = CameraApp(fd=self.spinBox_cameraID.value(), width=self.spinBox_camera_width.value(),
+                                        height=self.spinBox_camera_height.value())
         except Exception as e:
             print(f"Error while init camera: {e.args}")
 
@@ -47,7 +46,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         Reset the camera application with new settings.
         """
         try:
-            self.camera_app.open(fd=self.spinBox_cameraID.value())
+            self.camera_app.open(fd=self.spinBox_cameraID.value(), direct_show=self.checkBox_direct_show.isChecked())
             self.camera_app.configure(width=self.spinBox_camera_width.value(), height=self.spinBox_camera_height.value())
 
         except Exception as e:
@@ -114,9 +113,22 @@ class MainApp(QMainWindow, Ui_MainWindow):
         if len(self.last_results) > self.spinBox_avg_count.value():
             self.last_results.pop(0)
 
-        most_common_sign, _ = max(set(self.last_results), key=self.last_results.count)
-        scores_for_common_sign = [score for sign, score in self.last_results if sign == most_common_sign]
-        average_score = sum(scores_for_common_sign) / len(scores_for_common_sign)
+        # most_common_sign, _ = max(set(self.last_results), key=self.last_results.count)
+        # scores_for_common_sign = [score for sign, score in self.last_results if sign == most_common_sign]
+        # average_score = sum(scores_for_common_sign) / len(scores_for_common_sign)
+        sign_count = {}
+        sign_scores = {}
+
+        for sign, score in self.last_results:
+            if sign in sign_count:
+                sign_count[sign] += 1
+                sign_scores[sign] += score
+            else:
+                sign_count[sign] = 1
+                sign_scores[sign] = score
+
+        most_common_sign = max(sign_count, key=sign_count.get)
+        average_score = sign_scores[most_common_sign] / sign_count[most_common_sign]
 
         return most_common_sign, average_score
 
@@ -130,34 +142,35 @@ class MainApp(QMainWindow, Ui_MainWindow):
             scores (list): Scores of the recognized gestures.
             latest_fps (float): The latest frames per second (FPS) value.
         """
+
         if frame:
             self.label_displayFrame.setPixmap(frame)
 
         if latest_fps:
             self.label_displayFPS.setText(f'{latest_fps} FPS')
+            self.progressBar_fps.setValue(latest_fps)
 
         if text and scores:
-            self.label_recognitionInfo.setText(f'{text[1]} {scores[1]:.0%}')
+            self.label_recognitionInfo.setText(text[1])
+            self.progressBar_hand.setValue(scores[1] * 100)
 
             if self.checkBox_avg_sign.isChecked():
                 self.last_results.append((text[0], scores[0]))
                 result_sign, average_score = self.calculate_common_sign_and_average()
             else:
-                result_sign = text[0]
-                average_score = scores[0]
+                result_sign, average_score = text[0], scores[0]
 
-            if result_sign != "":
-                self.label_displaySign.setText(result_sign)
-            else:
-                self.label_displaySign.setText('?')
+            self.label_displaySign.setText(result_sign)
             self.progressBar_1.setValue(average_score * 100)
 
             if self.checkBox_speak.isChecked():
                 self.translate_to_speech(result_sign)
         else:
             self.label_recognitionInfo.setText('Not detected')
-            self.label_displaySign.setText('-')
+            self.label_displaySign.setText('?')
             self.progressBar_1.setValue(0)
+            self.progressBar_hand.setValue(0)
+
 
 
     def translate_to_speech(self, data=""):
