@@ -785,9 +785,9 @@
      <widget class="QCheckBox" name="checkBox_speak">
       <property name="geometry">
        <rect>
-        <x>10</x>
+        <x>20</x>
         <y>80</y>
-        <width>151</width>
+        <width>131</width>
         <height>51</height>
        </rect>
       </property>
@@ -905,6 +905,9 @@
        </item>
        <item row="1" column="1">
         <widget class="QSpinBox" name="spinBox_camera_width">
+         <property name="suffix">
+          <string> px</string>
+         </property>
          <property name="minimum">
           <number>1</number>
          </property>
@@ -918,6 +921,9 @@
        </item>
        <item row="2" column="1">
         <widget class="QSpinBox" name="spinBox_camera_height">
+         <property name="suffix">
+          <string> px</string>
+         </property>
          <property name="minimum">
           <number>1</number>
          </property>
@@ -1132,10 +1138,13 @@
        <enum>QFrame::Shadow::Plain</enum>
       </property>
       <property name="text">
-       <string>No FPS</string>
+       <string notr="true">No FPS</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+      <property name="textInteractionFlags">
+       <set>Qt::TextInteractionFlag::NoTextInteraction</set>
       </property>
      </widget>
     </widget>
