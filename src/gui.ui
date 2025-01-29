@@ -721,6 +721,22 @@
        </item>
       </layout>
      </widget>
+     <widget class="QPushButton" name="pushButton_model">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>140</y>
+        <width>91</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
+      </property>
+      <property name="text">
+       <string>Model</string>
+      </property>
+     </widget>
     </widget>
     <widget class="QGroupBox" name="groupBox_3">
      <property name="geometry">
@@ -843,16 +859,16 @@
        <string notr="true">file:///C:/Users/Kamil/Downloads/Chatbee.qss</string>
       </property>
       <property name="text">
-       <string>Reset Speaker</string>
+       <string>Reset</string>
       </property>
      </widget>
     </widget>
     <widget class="QPushButton" name="pushButton_resetRecognizer">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>120</x>
        <y>160</y>
-       <width>201</width>
+       <width>101</width>
        <height>31</height>
       </rect>
      </property>
@@ -860,7 +876,7 @@
       <cursorShape>PointingHandCursor</cursorShape>
      </property>
      <property name="text">
-      <string>Reset Recognizer</string>
+      <string>Reset</string>
      </property>
     </widget>
     <widget class="QGroupBox" name="groupBox_4">
@@ -982,7 +998,7 @@
        <cursorShape>PointingHandCursor</cursorShape>
       </property>
       <property name="text">
-       <string>Reset Camera</string>
+       <string>Reset</string>
       </property>
       <property name="autoDefault">
        <bool>false</bool>
@@ -1021,7 +1037,7 @@
       </rect>
      </property>
      <property name="title">
-      <string>Result</string>
+      <string>Results</string>
      </property>
      <widget class="QWidget" name="gridLayoutWidget_4">
       <property name="geometry">
@@ -1089,7 +1105,7 @@
      <cursorShape>BlankCursor</cursorShape>
     </property>
     <property name="title">
-     <string>Result</string>
+     <string>Results</string>
     </property>
     <widget class="QGroupBox" name="groupBox_7">
      <property name="geometry">
