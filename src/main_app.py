@@ -1,10 +1,10 @@
+from PySide6.QtWidgets import QFileDialog
 from recognizer import GestureRecognizerApp
 from gui import *
-from speaker import TextToSpeech
+from speaker import SpeakerApp
 from camera import *
 
 MODEL_PATH = '../models/gesture_recognizer_asl_13.task'
-CAMERA_FPS = 30
 
 
 class MainApp(QMainWindow, Ui_MainWindow):
@@ -19,6 +19,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.recognizer_app = None
         self.tts_app = None
         self.last_results = []
+        self.model_path = MODEL_PATH
 
         # Connect UI elements to their methods
         #self.pushButton_plus.clicked.connect(self.pushbutton_plus_click)
@@ -27,8 +28,14 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.pushButton_resetCap.clicked.connect(self.pushbutton_reset_cap_click)
         self.spinBox_avg_count.valueChanged.connect(self.last_results.clear)
         self.pushButton_camera_settings.clicked.connect(self.pushbutton_camera_settings_click)
-        self.spinBox_cameraID.setMaximum(count_available_cameras() -1)
+        #self.spinBox_cameraID.setMaximum(count_available_cameras() -1)
+        self.pushButton_model.clicked.connect(self.open_file_dialog)
 
+    def open_file_dialog(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Choose model file", "../models", "Files .task (*.task)")
+
+        if file_path:
+            self.model_path = file_path
 
     def pushbutton_camera_settings_click(self):
         if self.camera_app:
@@ -36,6 +43,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
     def init_camera(self):
         try:
+            self.spinBox_cameraID.setMaximum(count_available_cameras() - 1)
             self.camera_app = CameraApp(fd=self.spinBox_cameraID.value(), width=self.spinBox_camera_width.value(),
                                         height=self.spinBox_camera_height.value())
         except Exception as e:
@@ -46,6 +54,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         Reset the camera application with new settings.
         """
         try:
+            self.spinBox_cameraID.setMaximum(count_available_cameras() - 1)
             self.camera_app.open(fd=self.spinBox_cameraID.value(), direct_show=self.checkBox_direct_show.isChecked())
             self.camera_app.configure(width=self.spinBox_camera_width.value(), height=self.spinBox_camera_height.value())
 
@@ -59,7 +68,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         if self.tts_app is not None:
             self.tts_app.stop()
 
-        self.tts_app = TextToSpeech(
+        self.tts_app = SpeakerApp(
             rate=self.spinBox_ttsRate.value(),
             volume=(self.spinBox_volume.value() / 100.0))
 
@@ -83,8 +92,8 @@ class MainApp(QMainWindow, Ui_MainWindow):
                 score_confidence=(self.spinBox_treshold.value() / 100.0),
                 camera=self.camera_app
             )
-            self.recognizer_app.result_ready_signal.connect(self.update_frame)
-            self.recognizer_app.start()
+            self.recognizer_app.result_ready_signal.connect(self.process_result_and_frame)
+            self.recognizer_app.create_recognizer()
             self.recognizer_app.recognize_frame()
 
     def start(self):
@@ -132,7 +141,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
         return most_common_sign, average_score
 
-    def update_frame(self, frame, text, scores, latest_fps):
+    def process_result_and_frame(self, frame, text, scores, latest_fps):
         """
         Update the UI with the processed frame and recognized gesture text.
 
@@ -140,7 +149,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
             frame (QPixmap): The processed frame.
             text (list): Recognized gesture text.
             scores (list): Scores of the recognized gestures.
-            latest_fps (float): The latest frames per second (FPS) value.
+            latest_fps (int): The latest frames per second (FPS) value.
         """
 
         if frame:
@@ -170,8 +179,6 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.label_displaySign.setText('?')
             self.progressBar_1.setValue(0)
             self.progressBar_hand.setValue(0)
-
-
 
     def translate_to_speech(self, data=""):
         """

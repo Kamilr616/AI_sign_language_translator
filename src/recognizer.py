@@ -1,12 +1,9 @@
 import time
-from PySide6.QtCore import QSize, Qt
-
-import cv2
 import numpy as np
 import custom_landmarks
 import warnings
 from camera import CameraApp
-from PySide6.QtCore import Signal, QObject
+from PySide6.QtCore import Signal, QObject, QSize, Qt
 from PySide6.QtGui import QPixmap, QImage
 from mediapipe import solutions, Image, ImageFormat
 from mediapipe.framework.formats import landmark_pb2
@@ -15,7 +12,7 @@ from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.components import processors
 
 
-def create_qpixmap(frame):
+def create_scaled_qpixmap(frame):
     """
     Convert a frame to QPixmap format and scale it to 640x480 only if needed.
 
@@ -30,7 +27,7 @@ def create_qpixmap(frame):
     image = QImage(frame.data, w, h, ch * w, QImage.Format_RGB888)
 
     if (w, h) != (640, 480):
-        scaled_image = image.scaled(QSize(640, 480))
+        scaled_image = image.scaled(QSize(640, 480), Qt.KeepAspectRatio, Qt.FastTransformation),
     else:
         scaled_image = image
 
@@ -72,7 +69,7 @@ class GestureRecognizerApp(QObject):
         self.cap = camera
 
         # Initialize state variables
-        self.counter = 0
+        self.fps_counter = 0
         self.fps = 0
         self.start_time = time.time()
 
@@ -83,7 +80,7 @@ class GestureRecognizerApp(QObject):
         # Custom landmarks
         self.drawing_styles = custom_landmarks
 
-    def start(self):
+    def create_recognizer(self):
         """
         Initialize the gesture recognizer with the specified model and options.
         """
@@ -103,15 +100,15 @@ class GestureRecognizerApp(QObject):
             min_hand_detection_confidence=self.min_hand_detection_confidence,
             min_hand_presence_confidence=self.min_hand_presence_confidence,
             min_tracking_confidence=self.min_tracking_confidence,
-            result_callback=self.save_result,
+            result_callback=self.handle_result,
             custom_gesture_classifier_options=classifier_options
         )
         self.recognizer = vision.GestureRecognizer.create_from_options(options)
 
-        if self.cap.is_ended():
+        if self.cap.is_closed():
             return None
 
-    def save_result(self, result: vision.GestureRecognizerResult, output_image: Image, timestamp_ms: int):
+    def handle_result(self, result: vision.GestureRecognizerResult, output_image: Image, timestamp_ms: int):
         """
         Callback to save the recognition result.
 
@@ -120,10 +117,10 @@ class GestureRecognizerApp(QObject):
             output_image (mp.Image): The output image.
             timestamp_ms (int): The timestamp of the result.
         """
-        frame, text, category_name, latest_fps = self.process_single_recognition_result(
+        frame, text, category_name = self.process_recognition_result(
             output_image.numpy_view().copy(), result)
         self.calculate_fps()
-        self.result_ready_signal.emit(create_qpixmap(frame), text, category_name, self.fps)
+        self.result_ready_signal.emit(create_scaled_qpixmap(frame), text, category_name, self.fps)
 
         if self.recognizer:
             self.recognize_frame()
@@ -132,23 +129,18 @@ class GestureRecognizerApp(QObject):
         """
         Calculate the frames per second (FPS).
         """
-        if self.counter % 15 == 0:
-            new_fps = 15.0 / (time.time() - self.start_time)
+        if self.fps_counter % 5 == 0:
+            latest_fps_value = 5.0 / (time.time() - self.start_time)
             self.start_time = time.time()
-            self.fps = int(new_fps)
+            self.fps = latest_fps_value
 
-        self.counter += 1
-
-        # new_time = time.time()
-        # new_fps  = 1 / (new_time - self.start_time)
-        # self.fps = int(new_fps)
-        # self.start_time = new_time
+        self.fps_counter += 1
 
     def recognize_frame(self):
         """
         Capture a frame from the camera and run gesture recognition.
         """
-        if self.cap.is_ended() or self.recognizer is None:
+        if self.cap.is_closed() or self.recognizer is None:
             return None
 
         timestamp, image = self.cap.read()
@@ -167,7 +159,7 @@ class GestureRecognizerApp(QObject):
             warnings.warn("No image to recognize.")
             return None
 
-    def process_single_recognition_result(self, frame, result):
+    def process_recognition_result(self, frame, result):
         """
         Process the recognition result and draw landmarks on the frame.
 
@@ -176,11 +168,10 @@ class GestureRecognizerApp(QObject):
             result (vision.GestureRecognizerResult): The recognition result.
 
         Returns:
-            tuple: Processed frame, text annotations, scores, and latest FPS.
+            tuple: Processed frame, text annotations, scores.
         """
         text = []
         scores = []
-        latest_fps = self.fps
 
         if result.hand_landmarks:
             hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
@@ -204,7 +195,7 @@ class GestureRecognizerApp(QObject):
                 text = [category_name, handedness_category_name]
                 scores = [gesture_score, handedness_score]
 
-        return frame, text, scores, latest_fps
+        return frame, text, scores
 
     def close(self):
         """
