@@ -1,5 +1,7 @@
+cd .\src
+
 # Activate the virtual environment
-.\venv\Scripts\Activate
+..\venv\Scripts\Activate
 
 # Run the Python script
-python .\src\main.py
+python .\main.py
