@@ -1,11 +1,12 @@
 import pyttsx3
 import threading
 
+ENGINE = r'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens\TTS_MS_EN-US_ZIRA_11.0'
 
 class SpeakerApp:
-    def __init__(self, rate=150, volume=1.0):
+    def __init__(self, rate=150, volume=0.8):
         """Initialize the TextToSpeech engine with the given rate and volume."""
-        self.engine = pyttsx3.init()    # TODO: pyttsx3.init(driverName='sapi5')
+        self.engine = pyttsx3.init()
         self.set_rate(rate)
         self.set_volume(volume)
         self._thread = None
@@ -23,15 +24,13 @@ class SpeakerApp:
 
     def _set_default_voice(self):
         """Set the default voice."""
-        self.engine.setProperty('voice',
-                                r'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Speech\Voices\Tokens\TTS_MS_EN-US_ZIRA_11.0')
+        self.engine.setProperty('voice', ENGINE)
 
     def speak(self, text):
         """Speak the given text, managing concurrent speech requests."""
         with self._lock:
             if self._thread and self._thread.is_alive():
                 self._stop_event.set()  # Signal the current speech to stop
-                # self._thread.join()  # Commented out to avoid blocking
 
             self._stop_event.clear()
             self._thread = threading.Thread(target=self._speak, args=(text,))

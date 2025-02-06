@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import custom_landmarks
-import warnings
+import logging
 from camera import CameraApp
 from PySide6.QtCore import Signal, QObject, QSize, Qt
 from PySide6.QtGui import QPixmap, QImage
@@ -12,22 +12,21 @@ from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.components import processors
 
 
-def create_scaled_qpixmap(frame):
+def create_scaled_qpixmap(frame: np.ndarray) -> QPixmap:
     """
-    Convert a frame to QPixmap format and scale it to 640x480 only if needed.
+    Converts a NumPy frame to QPixmap format and scales it to 640x480 only if needed.
 
     Args:
-        frame (numpy.ndarray): The frame to convert.
+        frame (numpy.ndarray): The frame to convert (RGB).
 
     Returns:
-        QPixmap: The converted QPixmap.
+        QPixmap: The converted and possibly scaled QPixmap.
     """
-
     h, w, ch = frame.shape
     image = QImage(frame.data, w, h, ch * w, QImage.Format_RGB888)
 
     if (w, h) != (640, 480):
-        scaled_image = image.scaled(QSize(640, 480), Qt.KeepAspectRatio, Qt.FastTransformation),
+        scaled_image = image.scaled(QSize(640, 480), Qt.KeepAspectRatio, Qt.FastTransformation)
     else:
         scaled_image = image
 
@@ -89,7 +88,7 @@ class GestureRecognizerApp(QObject):
             max_results=1,
             score_threshold=self.score_confidence,
             category_allowlist=None,
-            category_denylist=['space', 'del']
+            category_denylist=None
         )
 
         base_options = python.BaseOptions(model_asset_path=self.model)
@@ -110,20 +109,24 @@ class GestureRecognizerApp(QObject):
 
     def handle_result(self, result: vision.GestureRecognizerResult, output_image: Image, timestamp_ms: int):
         """
-        Callback to save the recognition result.
+        Callback to process and emit the gesture recognition result.
 
         Args:
-            result (vision.GestureRecognizerResult): The recognition result.
-            output_image (mp.Image): The output image.
-            timestamp_ms (int): The timestamp of the result.
+            result (GestureRecognizerResult): The recognition result containing detected gestures.
+            output_image (Image): The processed output image.
+            timestamp_ms (int): The timestamp of the result in milliseconds.
         """
-        frame, text, category_name = self.process_recognition_result(
-            output_image.numpy_view().copy(), result)
-        self.calculate_fps()
-        self.result_ready_signal.emit(create_scaled_qpixmap(frame), text, category_name, self.fps)
+        try:
+            frame, text, category_name = self.process_recognition_result(
+                output_image.numpy_view().copy(), result
+            )
+            self.calculate_fps()
+            self.result_ready_signal.emit(create_scaled_qpixmap(frame), text, category_name, self.fps)
 
-        if self.recognizer:
-            self.recognize_frame()
+            if self.recognizer:
+                self.recognize_frame()
+        except Exception as e:
+            logging.error(f"Error handling recognition result: {e}")
 
     def calculate_fps(self):
         """
@@ -138,26 +141,31 @@ class GestureRecognizerApp(QObject):
 
     def recognize_frame(self):
         """
-        Capture a frame from the camera and run gesture recognition.
+        Captures a frame from the camera and processes it for gesture recognition.
+
+        Returns:
+            None: The function does not return a value but processes the frame asynchronously.
         """
         if self.cap.is_closed() or self.recognizer is None:
-            return None
+            logging.warning("Camera is not opened or recognizer is not initialized.")
+            return
 
         timestamp, image = self.cap.read()
 
-        # while timestamp <= self.last_timestamp:
-        #     timestamp, image = self.cap.read()
-        #     print(f"Skipping frame: {timestamp}")
+        while timestamp <= self.last_timestamp:
+            logging.warning(f"Skipping outdated frame: {timestamp}")
+            timestamp, image = self.cap.read()
 
         if image is not None:
             try:
                 mp_image = Image(image_format=ImageFormat.SRGB, data=image.astype(np.uint8))
                 self.recognizer.recognize_async(mp_image, timestamp // 1_000_000)
-            except Exception:
-                 warnings.warn("Exception in recognizer")
+            except Exception as e:
+                logging.error(f"Exception in recognizer: {e}")
+            finally:
+                self.last_timestamp = timestamp
         else:
-            warnings.warn("No image to recognize.")
-            return None
+            logging.warning("No valid image to recognize.")
 
     def process_recognition_result(self, frame, result):
         """

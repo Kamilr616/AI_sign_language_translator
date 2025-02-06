@@ -1,10 +1,12 @@
+from PySide6.QtMultimedia import QMediaDevices
 from PySide6.QtWidgets import QFileDialog
 from recognizer import GestureRecognizerApp
 from gui import *
 from speaker import SpeakerApp
 from camera import *
+import logging
 
-MODEL_PATH = '../models/gesture_recognizer_asl_13.task'
+MODEL_PATH = '../models/gesture_recognizer(1).task'
 
 
 class MainApp(QMainWindow, Ui_MainWindow):
@@ -15,27 +17,105 @@ class MainApp(QMainWindow, Ui_MainWindow):
         super(MainApp, self).__init__()
         self.setupUi(self)
 
+        self.driver_names = {}
+        self.driver_names_inv = {}
         self.camera_app = None
         self.recognizer_app = None
         self.tts_app = None
         self.last_results = []
         self.model_path = MODEL_PATH
+        self.last_results_length = 0
 
         # Connect UI elements to their methods
-        #self.pushButton_plus.clicked.connect(self.pushbutton_plus_click)
         self.pushButton_resetRecognizer.clicked.connect(self.reset_recognizer)
         self.pushButton_resetTTS.clicked.connect(self.reset_tts)
         self.pushButton_resetCap.clicked.connect(self.pushbutton_reset_cap_click)
-        self.spinBox_avg_count.valueChanged.connect(self.last_results.clear)
         self.pushButton_camera_settings.clicked.connect(self.pushbutton_camera_settings_click)
-        #self.spinBox_cameraID.setMaximum(count_available_cameras() -1)
         self.pushButton_model.clicked.connect(self.open_file_dialog)
+        #self.comboBox_drivers.currentIndexChanged.connect(self.test)
+        self.horizontalSlider_range.valueChanged.connect(self.update_range)
+
+    def update_range(self):
+        self.label_range_value.setText(str(self.horizontalSlider_range.value()))
+
+        if self.last_results_length > self.horizontalSlider_range.value():
+            self.last_results.clear()
+
+    def calculate_results_length(self):
+        self.last_results_length = len(self.last_results)
+
+        if self.last_results_length > self.horizontalSlider_range.value():
+            self.last_results.pop(0)
+
+    def test(self):
+        print(self.comboBox_drivers.currentIndex())
+        print(self.driver_names_inv.get(self.comboBox_drivers.currentText()))
+
+    def create_drivers_dict(self):
+        self.driver_names = {
+            cv2.CAP_ANY: "Auto",
+            cv2.CAP_VFW: "Video for Windows",
+            cv2.CAP_V4L: "V4L (Linux)",
+            cv2.CAP_V4L2: "V4L2 (Linux)",
+            cv2.CAP_FIREWIRE: "FireWire",
+            cv2.CAP_FIREWARE: "FireWare",
+            cv2.CAP_IEEE1394: "IEEE 1394",
+            cv2.CAP_DC1394: "DC 1394",
+            cv2.CAP_CMU1394: "CMU 1394",
+            cv2.CAP_QT: "QuickTime",
+            cv2.CAP_UNICAP: "Unicap",
+            cv2.CAP_DSHOW: "DirectShow",
+            cv2.CAP_PVAPI: "PvAPI",
+            cv2.CAP_OPENNI: "OpenNI",
+            cv2.CAP_OPENNI_ASUS: "OpenNI (Asus)",
+            cv2.CAP_ANDROID: "Android",
+            cv2.CAP_XIAPI: "XIMEA",
+            cv2.CAP_AVFOUNDATION: "AV Foundation (Mac)",
+            cv2.CAP_GIGANETIX: "Giganetix",
+            cv2.CAP_MSMF: "Media Foundation",
+            cv2.CAP_WINRT: "Windows RT",
+            cv2.CAP_INTELPERC: "Intel Perceptual Computing",
+            cv2.CAP_REALSENSE: "Intel RealSense",
+            cv2.CAP_OPENNI2: "OpenNI2",
+            cv2.CAP_OPENNI2_ASUS: "OpenNI2 (Asus)",
+            cv2.CAP_OPENNI2_ASTRA: "OpenNI2 (Astra)",
+            cv2.CAP_GPHOTO2: "gPhoto2",
+            cv2.CAP_GSTREAMER: "GStreamer",
+            cv2.CAP_FFMPEG: "FFMPEG",
+            cv2.CAP_IMAGES: "Images",
+            cv2.CAP_ARAVIS: "Aravis",
+            cv2.CAP_OPENCV_MJPEG: "OpenCV MJPEG",
+            cv2.CAP_INTEL_MFX: "Intel MFX",
+            cv2.CAP_XINE: "Xine",
+            cv2.CAP_UEYE: "uEye",
+            cv2.CAP_OBSENSOR: "OB Sensor"
+        }
+        self.driver_names_inv = {v: k for k, v in self.driver_names.items()}
+
+    def populate_camera_drivers(self):
+        self.comboBox_drivers.clear()
+        self.comboBox_drivers.addItem(self.driver_names.get(0, "ANY"))
+        drivers = cv2.videoio_registry.getCameraBackends()
+
+        for driver in drivers:
+            name = self.driver_names.get(driver, f"Unknown ({driver})")
+            self.comboBox_drivers.addItem(name)
+        self.comboBox_drivers.setCurrentIndex(0)
+
+    def populate_cameras(self):
+        cameras = QMediaDevices.videoInputs()
+        self.comboBox_cameras.clear()
+
+        for index, cam in enumerate(cameras):
+            self.comboBox_cameras.addItem(cam.description(), index)
+        self.comboBox_cameras.setCurrentIndex(0)
 
     def open_file_dialog(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Choose model file", "../models", "Files .task (*.task)")
 
         if file_path:
             self.model_path = file_path
+            self.reset_recognizer()
 
     def pushbutton_camera_settings_click(self):
         if self.camera_app:
@@ -43,8 +123,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
     def init_camera(self):
         try:
-            self.spinBox_cameraID.setMaximum(count_available_cameras() - 1)
-            self.camera_app = CameraApp(fd=self.spinBox_cameraID.value(), width=self.spinBox_camera_width.value(),
+            self.populate_cameras()
+            self.populate_camera_drivers()
+            self.camera_app = CameraApp(fd=self.comboBox_cameras.currentIndex(), width=self.spinBox_camera_width.value(),
                                         height=self.spinBox_camera_height.value())
         except Exception as e:
             print(f"Error while init camera: {e.args}")
@@ -54,8 +135,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         Reset the camera application with new settings.
         """
         try:
-            self.spinBox_cameraID.setMaximum(count_available_cameras() - 1)
-            self.camera_app.open(fd=self.spinBox_cameraID.value(), direct_show=self.checkBox_direct_show.isChecked())
+            self.camera_app.open(fd=self.comboBox_cameras.currentIndex(), camera_driver=self.driver_names_inv.get(self.comboBox_drivers.currentText()))
             self.camera_app.configure(width=self.spinBox_camera_width.value(), height=self.spinBox_camera_height.value())
 
         except Exception as e:
@@ -84,7 +164,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
         if self.camera_app is not None:
             self.recognizer_app = GestureRecognizerApp(
-                model=MODEL_PATH,
+                model=self.model_path,
                 num_hands=1,
                 min_hand_detection_confidence=(self.spinBox_detection.value() / 100.0),
                 min_hand_presence_confidence=(self.spinBox_presence.value() / 100.0),
@@ -100,6 +180,8 @@ class MainApp(QMainWindow, Ui_MainWindow):
         """
         Start the gesture recognizer application if not already started.
         """
+        self.create_drivers_dict()
+
         if not self.camera_app:
             self.init_camera()
 
@@ -109,6 +191,8 @@ class MainApp(QMainWindow, Ui_MainWindow):
         if not self.recognizer_app:
             self.reset_recognizer()
 
+        self.update_range()
+
     def calculate_common_sign_and_average(self):
         """
         Calculate the most common sign and the average score for that sign.
@@ -116,11 +200,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
         Returns:
             tuple: A tuple containing the most common sign (str) and its average score (float).
         """
-        if not self.last_results:
+        self.calculate_results_length()
+        if self.last_results_length < 1:
             return "", 0.0
-
-        if len(self.last_results) > self.spinBox_avg_count.value():
-            self.last_results.pop(0)
 
         # most_common_sign, _ = max(set(self.last_results), key=self.last_results.count)
         # scores_for_common_sign = [score for sign, score in self.last_results if sign == most_common_sign]
@@ -137,7 +219,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
                 sign_scores[sign] = score
 
         most_common_sign = max(sign_count, key=sign_count.get)
-        average_score = sign_scores[most_common_sign] / sign_count[most_common_sign]
+        average_score = sign_scores[most_common_sign] / self.last_results_length
 
         return most_common_sign, average_score
 

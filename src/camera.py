@@ -1,34 +1,23 @@
+import logging
 import cv2
 import time
-import warnings
-from PySide6.QtMultimedia import QMediaDevices
-
-
-def count_available_cameras():
-    """
-    Sprawdza liczbę dostępnych kamer w systemie za pomocą Qt.
-
-    Returns:
-        int: Liczba dostępnych kamer.
-    """
-    cameras = QMediaDevices.videoInputs()
-    return len(cameras)
 
 
 class CameraApp:
     def __init__(self, **kwargs):
         """
-        Initialize the Camera instance.
+        Initializes the CameraApp instance.
 
         Args:
-            **kwargs: Additional keyword arguments to set camera properties.
+            **kwargs: Keyword arguments for configuring the camera.
+                      Expected keys:
+                      - fd (int or str): File descriptor or device index.
         """
-
         try:
             self.cap = cv2.VideoCapture()
             self.open(kwargs["fd"])
         except Exception:
-            warnings.warn("Error while opening the camera")
+            logging.error("Error while initializing the camera")
             self.destroy()
         finally:
             self.configure(**kwargs)
@@ -44,19 +33,14 @@ class CameraApp:
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, kwargs["height"])
             #self.cap.set(cv2.CAP_PROP_SETTINGS, 1)
         except Exception:
-            warnings.warn("Error while configuring the camera")
+            logging.error("Error while configuring the camera")
             self.destroy()
 
-    def open(self, fd, direct_show=True):
-        #CAP_MSMF
-        if direct_show:
-            camera_backend = cv2.CAP_DSHOW
-        else:
-            camera_backend = cv2.CAP_ANY
+    def open(self, fd=0, camera_driver=cv2.CAP_DSHOW):
         try:
-            self.cap.open(fd, camera_backend)
+            self.cap.open(fd, camera_driver)
         except Exception:
-            warnings.warn("Error while opening the camera")
+            logging.error("Error while opening the camera")
             self.destroy()
 
     def destroy(self):
@@ -68,9 +52,22 @@ class CameraApp:
         return not self.cap.isOpened()
 
     def read(self):
+        """
+        Captures a frame from the camera.
+
+        Returns:
+            tuple: A tuple containing:
+                - int: The current timestamp in nanoseconds.
+                - numpy.ndarray or None: The captured frame in RGB format,
+                  or None if the capture failed.
+        """
         if self.cap.isOpened():
             ret, frame = self.cap.read()
             if ret:
-                return time.time_ns(), frame[..., ::-1]
+                return time.time_ns(), cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             else:
-                return time.time_ns(), None
+                logging.warning("Failed to capture frame.")
+        else:
+            logging.warning("Camera is not opened.")
+
+        return time.time_ns(), None
