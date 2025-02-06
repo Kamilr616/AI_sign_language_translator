@@ -6,7 +6,8 @@ from speaker import SpeakerApp
 from camera import *
 import logging
 
-MODEL_PATH = '../models/gesture_recognizer(1).task'
+
+MODEL_PATH = '../models/gesture_recognizer_asl_0.task'
 
 
 class MainApp(QMainWindow, Ui_MainWindow):

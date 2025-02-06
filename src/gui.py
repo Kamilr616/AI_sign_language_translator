@@ -25,7 +25,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1171, 786)
+        MainWindow.resize(1171, 782)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -231,6 +231,7 @@ class Ui_MainWindow(object):
         font1.setPointSize(10)
         self.spinBox_presence.setFont(font1)
         self.spinBox_presence.setCursor(QCursor(Qt.CursorShape.SizeVerCursor))
+        self.spinBox_presence.setMinimum(1)
         self.spinBox_presence.setMaximum(100)
         self.spinBox_presence.setValue(65)
 
@@ -245,6 +246,7 @@ class Ui_MainWindow(object):
         self.spinBox_treshold.setObjectName(u"spinBox_treshold")
         self.spinBox_treshold.setFont(font1)
         self.spinBox_treshold.setCursor(QCursor(Qt.CursorShape.SizeVerCursor))
+        self.spinBox_treshold.setMinimum(1)
         self.spinBox_treshold.setMaximum(100)
         self.spinBox_treshold.setValue(60)
 
@@ -260,6 +262,7 @@ class Ui_MainWindow(object):
         self.spinBox_detection.setFont(font1)
         self.spinBox_detection.setCursor(QCursor(Qt.CursorShape.SizeVerCursor))
         self.spinBox_detection.setWrapping(False)
+        self.spinBox_detection.setMinimum(1)
         self.spinBox_detection.setMaximum(100)
         self.spinBox_detection.setValue(65)
 
@@ -269,6 +272,7 @@ class Ui_MainWindow(object):
         self.spinBox_tracking.setObjectName(u"spinBox_tracking")
         self.spinBox_tracking.setFont(font1)
         self.spinBox_tracking.setCursor(QCursor(Qt.CursorShape.SizeVerCursor))
+        self.spinBox_tracking.setMinimum(1)
         self.spinBox_tracking.setMaximum(100)
         self.spinBox_tracking.setValue(55)
 
@@ -294,7 +298,9 @@ class Ui_MainWindow(object):
         self.gridLayout_ttsConfig.setContentsMargins(0, 0, 0, 0)
         self.spinBox_volume = QSpinBox(self.gridLayoutWidget_2)
         self.spinBox_volume.setObjectName(u"spinBox_volume")
+        self.spinBox_volume.setMinimum(1)
         self.spinBox_volume.setMaximum(105)
+        self.spinBox_volume.setSingleStep(10)
         self.spinBox_volume.setValue(90)
 
         self.gridLayout_ttsConfig.addWidget(self.spinBox_volume, 0, 1, 1, 1)
@@ -308,6 +314,7 @@ class Ui_MainWindow(object):
         self.spinBox_ttsRate.setObjectName(u"spinBox_ttsRate")
         self.spinBox_ttsRate.setMinimum(1)
         self.spinBox_ttsRate.setMaximum(500)
+        self.spinBox_ttsRate.setSingleStep(10)
         self.spinBox_ttsRate.setValue(150)
 
         self.gridLayout_ttsConfig.addWidget(self.spinBox_ttsRate, 1, 1, 1, 1)
@@ -354,8 +361,9 @@ class Ui_MainWindow(object):
         self.gridLayout.setContentsMargins(0, 0, 0, 0)
         self.spinBox_camera_height = QSpinBox(self.gridLayoutWidget_3)
         self.spinBox_camera_height.setObjectName(u"spinBox_camera_height")
-        self.spinBox_camera_height.setMinimum(1)
-        self.spinBox_camera_height.setMaximum(720)
+        self.spinBox_camera_height.setMinimum(120)
+        self.spinBox_camera_height.setMaximum(1080)
+        self.spinBox_camera_height.setSingleStep(10)
         self.spinBox_camera_height.setValue(480)
 
         self.gridLayout.addWidget(self.spinBox_camera_height, 1, 1, 1, 1)
@@ -372,8 +380,9 @@ class Ui_MainWindow(object):
 
         self.spinBox_camera_width = QSpinBox(self.gridLayoutWidget_3)
         self.spinBox_camera_width.setObjectName(u"spinBox_camera_width")
-        self.spinBox_camera_width.setMinimum(1)
-        self.spinBox_camera_width.setMaximum(1280)
+        self.spinBox_camera_width.setMinimum(160)
+        self.spinBox_camera_width.setMaximum(1920)
+        self.spinBox_camera_width.setSingleStep(10)
         self.spinBox_camera_width.setValue(640)
 
         self.gridLayout.addWidget(self.spinBox_camera_width, 0, 1, 1, 1)
@@ -397,7 +406,7 @@ class Ui_MainWindow(object):
         self.comboBox_cameras.setObjectName(u"comboBox_cameras")
         self.comboBox_cameras.setGeometry(QRect(10, 80, 181, 22))
         self.comboBox_cameras.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
-        self.comboBox_cameras.setMaxVisibleItems(8)
+        self.comboBox_cameras.setMaxVisibleItems(4)
         self.comboBox_cameras.setMaxCount(10)
         self.comboBox_cameras.setDuplicatesEnabled(True)
         self.comboBox_drivers = QComboBox(self.groupBox_4)
@@ -405,7 +414,7 @@ class Ui_MainWindow(object):
         self.comboBox_drivers.setGeometry(QRect(10, 110, 181, 22))
         self.comboBox_drivers.setCursor(QCursor(Qt.CursorShape.ClosedHandCursor))
         self.comboBox_drivers.setMaxVisibleItems(8)
-        self.comboBox_drivers.setMaxCount(10)
+        self.comboBox_drivers.setMaxCount(30)
         self.groupBox_11 = QGroupBox(self.groupBox)
         self.groupBox_11.setObjectName(u"groupBox_11")
         self.groupBox_11.setGeometry(QRect(660, 20, 141, 181))
@@ -550,6 +559,7 @@ class Ui_MainWindow(object):
         self.label_displayFrame.setObjectName(u"label_displayFrame")
         self.label_displayFrame.setGeometry(QRect(10, 20, 640, 480))
         self.label_displayFrame.setFrameShape(QFrame.Shape.Box)
+        self.label_displayFrame.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.groupBox_10 = QGroupBox(self.centralwidget)
         self.groupBox_10.setObjectName(u"groupBox_10")
         self.groupBox_10.setGeometry(QRect(850, 530, 311, 221))

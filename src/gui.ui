@@ -1069,6 +1069,9 @@
          <property name="prefix">
           <string/>
          </property>
+         <property name="minimum">
+          <number>1</number>
+         </property>
          <property name="maximum">
           <number>100</number>
          </property>
@@ -1103,6 +1106,9 @@
          </property>
          <property name="prefix">
           <string/>
+         </property>
+         <property name="minimum">
+          <number>1</number>
          </property>
          <property name="maximum">
           <number>100</number>
@@ -1145,6 +1151,9 @@
          <property name="prefix">
           <string/>
          </property>
+         <property name="minimum">
+          <number>1</number>
+         </property>
          <property name="maximum">
           <number>100</number>
          </property>
@@ -1172,6 +1181,9 @@
          </property>
          <property name="prefix">
           <string/>
+         </property>
+         <property name="minimum">
+          <number>1</number>
          </property>
          <property name="maximum">
           <number>100</number>
@@ -1234,8 +1246,14 @@
          <property name="suffix">
           <string>%</string>
          </property>
+         <property name="minimum">
+          <number>1</number>
+         </property>
          <property name="maximum">
           <number>105</number>
+         </property>
+         <property name="singleStep">
+          <number>10</number>
          </property>
          <property name="value">
           <number>90</number>
@@ -1256,6 +1274,9 @@
          </property>
          <property name="maximum">
           <number>500</number>
+         </property>
+         <property name="singleStep">
+          <number>10</number>
          </property>
          <property name="value">
           <number>150</number>
@@ -1382,10 +1403,13 @@
           <string> px</string>
          </property>
          <property name="minimum">
-          <number>1</number>
+          <number>120</number>
          </property>
          <property name="maximum">
-          <number>720</number>
+          <number>1080</number>
+         </property>
+         <property name="singleStep">
+          <number>10</number>
          </property>
          <property name="value">
           <number>480</number>
@@ -1412,10 +1436,13 @@
           <string> px</string>
          </property>
          <property name="minimum">
-          <number>1</number>
+          <number>160</number>
          </property>
          <property name="maximum">
-          <number>1280</number>
+          <number>1920</number>
+         </property>
+         <property name="singleStep">
+          <number>10</number>
          </property>
          <property name="value">
           <number>640</number>
@@ -1490,7 +1517,7 @@
        <number>-1</number>
       </property>
       <property name="maxVisibleItems">
-       <number>8</number>
+       <number>4</number>
       </property>
       <property name="maxCount">
        <number>10</number>
@@ -1524,7 +1551,7 @@
        <number>8</number>
       </property>
       <property name="maxCount">
-       <number>10</number>
+       <number>30</number>
       </property>
       <property name="placeholderText">
        <string>Select driver</string>
