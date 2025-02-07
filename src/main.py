@@ -5,6 +5,7 @@ import qdarkstyle
 from qdarkstyle import DarkPalette
 import logging
 
+
 def main():
     """
     Main function to start the application.

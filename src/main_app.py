@@ -6,7 +6,6 @@ from speaker import SpeakerApp
 from camera import *
 import logging
 
-
 MODEL_PATH = '../models/gesture_recognizer_asl_0.task'
 
 
@@ -27,32 +26,35 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.model_path = MODEL_PATH
         self.last_results_length = 0
 
-        # Connect UI elements to their methods
         self.pushButton_resetRecognizer.clicked.connect(self.reset_recognizer)
         self.pushButton_resetTTS.clicked.connect(self.reset_tts)
         self.pushButton_resetCap.clicked.connect(self.pushbutton_reset_cap_click)
         self.pushButton_camera_settings.clicked.connect(self.pushbutton_camera_settings_click)
         self.pushButton_model.clicked.connect(self.open_file_dialog)
-        #self.comboBox_drivers.currentIndexChanged.connect(self.test)
         self.horizontalSlider_range.valueChanged.connect(self.update_range)
 
     def update_range(self):
+        """
+        Update the range label and clear results if necessary.
+        """
         self.label_range_value.setText(str(self.horizontalSlider_range.value()))
 
         if self.last_results_length > self.horizontalSlider_range.value():
             self.last_results.clear()
 
     def calculate_results_length(self):
+        """
+        Calculate the length of the last results and remove the oldest result if necessary.
+        """
         self.last_results_length = len(self.last_results)
 
         if self.last_results_length > self.horizontalSlider_range.value():
             self.last_results.pop(0)
 
-    def test(self):
-        print(self.comboBox_drivers.currentIndex())
-        print(self.driver_names_inv.get(self.comboBox_drivers.currentText()))
-
     def create_drivers_dict(self):
+        """
+        Create a dictionary of camera drivers and their corresponding names.
+        """
         self.driver_names = {
             cv2.CAP_ANY: "Auto",
             cv2.CAP_VFW: "Video for Windows",
@@ -94,6 +96,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.driver_names_inv = {v: k for k, v in self.driver_names.items()}
 
     def populate_camera_drivers(self):
+        """
+        Populate the camera drivers combo box with available drivers.
+        """
         self.comboBox_drivers.clear()
         self.comboBox_drivers.addItem(self.driver_names.get(0, "ANY"))
         drivers = cv2.videoio_registry.getCameraBackends()
@@ -104,6 +109,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.comboBox_drivers.setCurrentIndex(0)
 
     def populate_cameras(self):
+        """
+        Populate the cameras combo box with available cameras.
+        """
         cameras = QMediaDevices.videoInputs()
         self.comboBox_cameras.clear()
 
@@ -112,6 +120,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.comboBox_cameras.setCurrentIndex(0)
 
     def open_file_dialog(self):
+        """
+        Open a file dialog to select a model file and reset the recognizer with the new model.
+        """
         file_path, _ = QFileDialog.getOpenFileName(self, "Choose model file", "../models", "Files .task (*.task)")
 
         if file_path:
@@ -119,28 +130,34 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.reset_recognizer()
 
     def pushbutton_camera_settings_click(self):
+        """
+        Open the camera settings dialog.
+        """
         if self.camera_app:
             self.camera_app.settings()
 
     def init_camera(self):
+        """
+        Initialize the camera application with the selected settings.
+        """
         try:
             self.populate_cameras()
             self.populate_camera_drivers()
             self.camera_app = CameraApp(fd=self.comboBox_cameras.currentIndex(), width=self.spinBox_camera_width.value(),
                                         height=self.spinBox_camera_height.value())
         except Exception as e:
-            print(f"Error while init camera: {e.args}")
+            logging.error(f"Error while initializing camera: {e.args}")
 
     def reset_camera(self):
         """
-        Reset the camera application with new settings.
+        Reset the camera application with new settings and start recognizing frames.
         """
         try:
             self.camera_app.open(fd=self.comboBox_cameras.currentIndex(), camera_driver=self.driver_names_inv.get(self.comboBox_drivers.currentText()))
             self.camera_app.configure(width=self.spinBox_camera_width.value(), height=self.spinBox_camera_height.value())
 
         except Exception as e:
-            print(f"Error while resetting camera: {e.args}")
+            logging.error(f"Error while resetting camera: {e.args}")
 
     def reset_tts(self):
         """
@@ -202,12 +219,10 @@ class MainApp(QMainWindow, Ui_MainWindow):
             tuple: A tuple containing the most common sign (str) and its average score (float).
         """
         self.calculate_results_length()
+
         if self.last_results_length < 1:
             return "", 0.0
 
-        # most_common_sign, _ = max(set(self.last_results), key=self.last_results.count)
-        # scores_for_common_sign = [score for sign, score in self.last_results if sign == most_common_sign]
-        # average_score = sum(scores_for_common_sign) / len(scores_for_common_sign)
         sign_count = {}
         sign_scores = {}
 

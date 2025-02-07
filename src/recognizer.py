@@ -56,27 +56,22 @@ class GestureRecognizerApp(QObject):
         """
         super().__init__()
 
-        self.last_timestamp = 0
         self.model = model
         self.num_hands = num_hands
         self.min_hand_detection_confidence = min_hand_detection_confidence
         self.min_hand_presence_confidence = min_hand_presence_confidence
         self.min_tracking_confidence = min_tracking_confidence
         self.score_confidence = score_confidence
-
         self.recognizer = None
         self.cap = camera
 
-        # Initialize state variables
+        self.last_timestamp = 0
         self.fps_counter = 0
         self.fps = 0
         self.start_time = time.time()
 
-        # MediaPipe drawing and gesture recognizer setup
         self.mp_hands = solutions.hands
         self.mp_drawing = solutions.drawing_utils
-
-        # Custom landmarks
         self.drawing_styles = custom_landmarks
 
     def create_recognizer(self):

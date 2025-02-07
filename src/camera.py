@@ -31,7 +31,6 @@ class CameraApp:
             self.cap.set(cv2.CAP_PROP_FPS, 30)
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, kwargs["width"])
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, kwargs["height"])
-            #self.cap.set(cv2.CAP_PROP_SETTINGS, 1)
         except Exception:
             logging.error("Error while configuring the camera")
             self.destroy()
