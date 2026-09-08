@@ -220,10 +220,15 @@ Parametry: `stable_frames` (liczba klatek, przez które znak musi być pokazany,
 
 ### 4.9 `src/corrector.py` — `WordCorrector`
 
-Dopasowuje każdy zakończony wyraz do słownika częstości SymSpell z 82 765 angielskimi słowami, dołączonego do pakietu `symspellpy` (licencja MIT), i zastępuje nieznany wyraz najbliższym znanym, przy równej odległości edycyjnej wybierając częstszy:
+Dopasowuje każdy zakończony wyraz do słownika częstości SymSpell z 82 765 angielskimi słowami, dołączonego do pakietu `symspellpy` (licencja MIT), i zastępuje nieznany wyraz najbliższym znanym. SymSpell tylko generuje kandydatów (każde słowo słownika w zasięgu odległości edycyjnej); wybór między nimi robi odległość, która wie, jak myli się alfabet palcowy:
+
+- `weighted_distance(signed, candidate)` — odległość optymalnego dopasowania ciągów, w której podmiana litery na inną z tej samej grupy mylonych układów dłoni (`aemnst`, `uvrk`, `kp`, `ghq`, `co`, `dx`, `df`, `iyj`, `wf`) oraz podwojenie litery albo zgubienie jednej z podwojonej pary kosztują pół edycji; pozostałe podmiany, wstawienia, usunięcia i przestawienia sąsiednich liter kosztują jeden. Kandydaci są porządkowani tą odległością, a potem częstością, więc `HELO` staje się `HELLO` (pół edycji), a nie częstszym `HELP` (pełna edycja), a `NANE` staje się `NAME`.
+- Zlepione wyrazy — gdy dłoń nie odpoczęła między wyrazami, pokazany wyraz o co najmniej 6 literach jest też próbowany jako podział na słowa ze słownika (`word_segmentation`); podział kosztuje jeden za każdą wstawioną spację i wygrywa tylko wtedy, gdy jest tańszy od najlepszej korekty jednowyrazowej, a każdy kawałek jest znanym słowem (z pojedynczych liter tylko `a` i `i`). `HELLOYOU` staje się `HELLO YOU`, `CALLME` staje się `CALL ME`, a `HELLLO` zostaje pojedynczym `HELLO`.
+
+API:
 
 - `load_async()` — ładuje wbudowany słownik w wątku będącym demonem (około sekundy); `load(path)` ładuje własny plik `słowo liczność` synchronicznie i zwraca, czy się udało.
-- `correct(word)` — zwraca najbliższe słowo ze słownika, zachowując wielkość liter wejścia; wyraz znany, krótszy niż 3 litery albo zawierający znaki inne niż litery wraca bez zmian, podobnie jak każdy wyraz, dopóki słownik nie jest załadowany (`ready` równe `False`) albo gdy `symspellpy` nie jest zainstalowane. Wyrazy do 4 liter są poprawiane jedną edycją, dłuższe najwyżej dwiema.
+- `correct(word)` — zwraca najbliższe słowo ze słownika albo kilka słów dla zlepionego wejścia, zachowując wielkość liter wejścia; wyraz znany, krótszy niż 3 litery albo zawierający znaki inne niż litery wraca bez zmian, podobnie jak każdy wyraz, dopóki słownik nie jest załadowany (`ready` równe `False`) albo gdy `symspellpy` nie jest zainstalowane. Wyrazy do 4 liter są poprawiane jedną edycją, dłuższe najwyżej dwiema.
 - `from_words(counts)` — buduje gotowy korektor z mapowania `{słowo: częstość}`, na potrzeby testów i własnych słowników.
 
 `MainApp` tworzy korektor w konstruktorze, a ładowanie uruchamia w `start()`, więc okno budowane w testach nie dotyka pliku słownika.
