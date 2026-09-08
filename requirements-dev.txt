@@ -1,5 +1,5 @@
 -r src/requirements.txt
 
-pytest>=8.3,<9
+pytest>=9.0.3,<10
 pyinstaller>=6.11,<7
 pip-audit>=2.9,<3
