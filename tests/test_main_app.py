@@ -127,6 +127,67 @@ def test_no_sign_frames_vote_in_the_window(application):
 
     assert window.label_displaySign.text() == '?'
     assert window.progressBar_1.value() == 0
-    assert set(window.tts_app.spoken) == {'A'}
+    assert window.tts_app.spoken == []
+    window.tts_app = None
+    window.close()
+
+
+def feed(window, sign, frames):
+    for _ in range(frames):
+        if sign is None:
+            window.process_result_and_frame(None, [], [], 20)
+        else:
+            window.process_result_and_frame(None, [sign, 'Right'], [0.9 if sign else 0.0, 0.99], 20)
+
+
+def test_a_letter_is_spoken_once_after_it_is_stable(application):
+    window = make_window(application)
+
+    feed(window, 'A', main_app.SPEECH_STABLE_FRAMES - 1)
+    assert window.tts_app.spoken == []
+    feed(window, 'A', 10)
+
+    assert window.tts_app.spoken == ['A']
+    window.tts_app = None
+    window.close()
+
+
+def test_a_new_stable_letter_is_spoken_but_a_flicker_is_not(application):
+    window = make_window(application)
+
+    feed(window, 'A', 3)
+    feed(window, 'B', 1)
+    feed(window, 'A', 3)
+    feed(window, 'B', 3)
+
+    assert window.tts_app.spoken == ['A', 'B']
+    window.tts_app = None
+    window.close()
+
+
+def test_resting_the_hand_rearms_the_same_letter(application):
+    window = make_window(application)
+
+    feed(window, 'A', 3)
+    feed(window, '', 3)
+    feed(window, 'A', 3)
+    feed(window, None, 3)
+    feed(window, 'A', 3)
+
+    assert window.tts_app.spoken == ['A', 'A', 'A']
+    window.tts_app = None
+    window.close()
+
+
+def test_nothing_is_spoken_while_the_checkbox_is_off(application):
+    window = make_window(application, speak=False)
+
+    feed(window, 'A', 5)
+    assert window.tts_app.spoken == []
+
+    window.checkBox_speak.setChecked(True)
+    feed(window, 'A', 1)
+
+    assert window.tts_app.spoken == ['A']
     window.tts_app = None
     window.close()

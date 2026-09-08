@@ -101,7 +101,7 @@ sequenceDiagram
     MP-->>MP: handle_result(wynik, obraz, ts): zwolnienie slotu,<br/>rysowanie szkieletu, obliczenie FPS
     MP--)M: result_ready_signal.emit(obraz, tekst, wyniki, fps)
     Note over M: głosowanie w oknie przesuwnym,<br/>aktualizacja etykiet i pasków
-    M--)T: speak(litera)  [jeśli włączone]
+    M--)T: speak(litera)  [jeśli włączone, raz na stabilną literę]
 ```
 
 Najważniejsze szczegóły:
@@ -111,7 +111,7 @@ Najważniejsze szczegóły:
 - **Backpressure i świeżość** — jednocześnie może być w toku tylko jedno `recognize_async()`. Gdy wynik oczekuje, świeżo odczytana klatka czeka najwyżej 15 ms na zwolnienie slotu; w przeciwnym razie jest porzucana i czytana jest kolejna, więc do MediaPipe trafia zawsze najnowsza klatka, a opóźnienie nie rośnie, gdy wnioskowanie jest wolniejsze od kamery. Strażnik zwalnia slot, jeśli wynik nie nadejdzie w ciągu 2 s.
 - **Odzyskiwanie** — zamknięta kamera albo nieudany odczyt są ponawiane co 50 ms w wątku przechwytywania, z jednym wpisem w logu na epizod awarii. `CameraApp` serializuje każde wywołanie `VideoCapture` blokadą, więc *Reset kamery* z wątku GUI nie może wejść w wyścig z trwającym odczytem; reset wstrzymuje wątek roboczy, otwiera urządzenie ponownie i uruchamia wątek na nowo, a ten odpytuje kamerę, aż będzie dostępna.
 - **Pomiar FPS** — obliczany po każdym pełnym oknie 5 klatek jako `5 / Δt` (`calculate_fps`, `src/recognizer.py`).
-- **Współbieżność TTS** — `SpeakerApp` uruchamia jeden długożyjący wątek roboczy będący demonem, który przez cały czas życia jest właścicielem silnika pyttsx3 i obsługuje jego zewnętrzną pętlę zdarzeń (`startLoop(False)` oraz cykliczne `iterate()`), czekając na callback `finished-utterance`, zanim pobierze kolejny tekst; pozwala to również uniknąć regresji `runAndWait()` w pyttsx3 2.99, która anulowała każdą wypowiedź po pierwszej. `speak(text)` nie blokuje wywołującego: dodaje tekst do kolejki, a oczekujące żądania są redukowane tak, że wypowiadany jest tylko najnowszy tekst; żądania są ignorowane, gdy wątek roboczy nie działa (`src/speaker.py`).
+- **Współbieżność TTS** — `SpeakerApp` uruchamia jeden długożyjący wątek roboczy będący demonem, który przez cały czas życia jest właścicielem silnika pyttsx3 i obsługuje jego zewnętrzną pętlę zdarzeń (`startLoop(False)` oraz cykliczne `iterate()`), czekając na callback `finished-utterance`, zanim pobierze kolejny tekst; pozwala to również uniknąć regresji `runAndWait()` w pyttsx3 2.99, która anulowała każdą wypowiedź po pierwszej. `speak(text)` nie blokuje wywołującego: dodaje tekst do kolejki, a oczekujące żądania są redukowane tak, że wypowiadany jest tylko najnowszy tekst; żądania są ignorowane, gdy wątek roboczy nie działa (`src/speaker.py`). `MainApp.update_speech` wywołuje `speak()` raz na literę, gdy ta utrzyma się na ekranie przez `SPEECH_STABLE_FRAMES` (3) kolejne klatki; stabilny „brak znaku" uzbraja ją ponownie, więc ta sama litera pokazana po raz drugi jest znów wypowiadana, a jednoklatkowe migotanie nigdy nie trafia do syntezatora.
 - **Zamykanie** — `MainApp.closeEvent` odłącza sygnał, zamyka rozpoznawanie (które najpierw zatrzymuje wątek przechwytywania, a potem MediaPipe), zwalnia kamerę i zatrzymuje silnik TTS — w tej kolejności.
 
 ### 3.3 Przetwarzanie końcowe wyników (wygładzanie)
@@ -266,7 +266,7 @@ Wszystkie parametry można zmieniać z poziomu GUI w trakcie działania; zmiany 
 |---|---|---|
 | Wygładzanie wł./wył. | Pole *Average sign* | Włącza głosowanie większościowe w oknie przesuwnym |
 | Rozmiar okna | Suwak *Range* | Liczba ostatnich wyników użytych do głosowania |
-| Mowa wł./wył. | Pole *Speak* | Wypowiada każdą rozpoznaną literę |
+| Mowa wł./wył. | Pole *Speak* | Wypowiada literę raz, gdy utrzyma się na ekranie przez 3 kolejne klatki; ta sama litera jest wypowiadana ponownie po odpoczynku dłoni albo po pokazaniu innej litery |
 | Tempo / głośność | Pola TTS | Tempo mowy pyttsx3 (słowa/min) i głośność (%) |
 
 ## 7. Uruchamianie i wdrożenie
