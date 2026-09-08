@@ -111,7 +111,7 @@ Najważniejsze szczegóły:
 - **Backpressure i świeżość** — jednocześnie może być w toku tylko jedno `recognize_async()`. Gdy wynik oczekuje, świeżo odczytana klatka czeka najwyżej 15 ms na zwolnienie slotu; w przeciwnym razie jest porzucana i czytana jest kolejna, więc do MediaPipe trafia zawsze najnowsza klatka, a opóźnienie nie rośnie, gdy wnioskowanie jest wolniejsze od kamery. Strażnik zwalnia slot, jeśli wynik nie nadejdzie w ciągu 2 s.
 - **Odzyskiwanie** — zamknięta kamera albo nieudany odczyt są ponawiane co 50 ms w wątku przechwytywania, z jednym wpisem w logu na epizod awarii. `CameraApp` serializuje każde wywołanie `VideoCapture` blokadą, więc *Reset kamery* z wątku GUI nie może wejść w wyścig z trwającym odczytem; reset wstrzymuje wątek roboczy, otwiera urządzenie ponownie i uruchamia wątek na nowo, a ten odpytuje kamerę, aż będzie dostępna.
 - **Pomiar FPS** — obliczany po każdym pełnym oknie 5 klatek jako `5 / Δt` (`calculate_fps`, `src/recognizer.py`).
-- **Współbieżność TTS** — `SpeakerApp` uruchamia jeden długożyjący wątek roboczy będący demonem, który przez cały czas życia jest właścicielem silnika pyttsx3 i obsługuje jego zewnętrzną pętlę zdarzeń (`startLoop(False)` oraz cykliczne `iterate()`), czekając na callback `finished-utterance`, zanim pobierze kolejny tekst; pozwala to również uniknąć regresji `runAndWait()` w pyttsx3 2.99, która anulowała każdą wypowiedź po pierwszej. `speak(text)` nie blokuje wywołującego: dodaje tekst do kolejki, a oczekujące żądania są redukowane tak, że wypowiadany jest tylko najnowszy tekst; żądania są ignorowane, gdy wątek roboczy nie działa (`src/speaker.py`). `MainApp.update_speech` wywołuje `speak()` raz na literę, gdy ta utrzyma się na ekranie przez `SPEECH_STABLE_FRAMES` (3) kolejne klatki; stabilny „brak znaku" uzbraja ją ponownie, więc ta sama litera pokazana po raz drugi jest znów wypowiadana, a jednoklatkowe migotanie nigdy nie trafia do syntezatora.
+- **Współbieżność TTS** — `SpeakerApp` uruchamia jeden długożyjący wątek roboczy będący demonem, który przez cały czas życia jest właścicielem silnika pyttsx3 i obsługuje jego zewnętrzną pętlę zdarzeń (`startLoop(False)` oraz cykliczne `iterate()`), czekając na callback `finished-utterance`, zanim pobierze kolejny tekst; pozwala to również uniknąć regresji `runAndWait()` w pyttsx3 2.99, która anulowała każdą wypowiedź po pierwszej. `speak(text)` nie blokuje wywołującego: dodaje tekst do kolejki, a oczekujące żądania są redukowane tak, że wypowiadany jest tylko najnowszy tekst; żądania są ignorowane, gdy wątek roboczy nie działa (`src/speaker.py`). `MainApp.update_text` wywołuje `speak()` raz na literę zapisaną przez `TextComposer` (patrz 3.3), czyli gdy ta utrzyma się na ekranie przez `STABLE_FRAMES` (3) kolejne klatki; odpoczynek dłoni uzbraja ją ponownie, więc ta sama litera pokazana po raz drugi jest znów wypowiadana, a jednoklatkowe migotanie nigdy nie trafia do syntezatora.
 - **Zamykanie** — `MainApp.closeEvent` odłącza sygnał, zamyka rozpoznawanie (które najpierw zatrzymuje wątek przechwytywania, a potem MediaPipe), zwalnia kamerę i zatrzymuje silnik TTS — w tej kolejności.
 
 ### 3.3 Przetwarzanie końcowe wyników (wygładzanie)
@@ -122,6 +122,8 @@ Surowe klasyfikacje pojedynczych klatek są niestabilne. Po włączeniu pola *Av
 2. `calculate_common_sign_and_average` (`src/main_app.py`) wybiera **najczęstszy** znak w oknie (głosowanie większościowe) i raportuje **średni wynik próbek sklasyfikowanych jako ten znak**.
 
 Klatka, w której dłoń jest widoczna, ale żaden znak nie przekracza progu, głosuje jako pusty znak; gdy wygrywa, okno pokazuje `?`. Zmniejszenie okna poniżej bieżącej liczby zapamiętanych wyników albo przełączenie pola *Average sign* czyści okno (`clear_results`), aby nieaktualne głosy nie kształtowały kolejnego wyniku.
+
+**Składanie słów.** Znak wyświetlany w każdej klatce (po wygładzeniu, albo pusty ciąg, gdy nic nie jest pokazane) trafia też do `TextComposer` (`src/composer.py`, bez zależności od Qt). Litera zostaje zapisana w pasku *Text*, gdy utrzyma się na ekranie przez `STABLE_FRAMES` (3) kolejne klatki; dłuższe trzymanie jej nie powtarza, pokazanie jej ponownie po krótkim odpoczynku zapisuje ją jeszcze raz, a jednoklatkowe migotanie jest ignorowane. Odpoczynek dłoni przez `REST_FRAMES_FOR_SPACE` (30) kolejnych klatek, czyli około sekundy, kończy wyraz pojedynczą spacją. W modelach z 29 klasami klasy `space` i `del` wstawiają spację i usuwają ostatni znak. Każda zapisana litera jest jednocześnie tą, która trafia do TTS, więc wypowiadane jest dokładnie to, co zapisane; spacje i usunięcia są bezgłośne. Przycisk *Clear* opróżnia pasek (`clear_text`).
 
 ## 4. Opis modułów
 
@@ -141,8 +143,11 @@ Tworzy `QApplication`, konfiguruje `logging` (poziom INFO, UTF-8), nakłada arku
 | `reset_tts()` | Buduje od nowa `SpeakerApp` z wybranym tempem i głośnością |
 | `open_file_dialog()` | Pozwala wybrać plik modelu `.task`; wyzwala `reset_recognizer()` |
 | `populate_cameras()` / `populate_camera_drivers()` | Enumeruje urządzenia wideo (`QMediaDevices.videoInputs()`) i backendy OpenCV (`cv2.videoio_registry.getCameraBackends()`) |
-| `process_result_and_frame(frame, text, scores, fps)` | Slot Qt: wyświetla klatkę z adnotacjami, FPS, ręczność i pewność; stosuje wygładzanie; przekazuje literę do TTS |
+| `process_result_and_frame(frame, text, scores, fps)` | Slot Qt: wyświetla klatkę z adnotacjami, FPS, ręczność i pewność; stosuje wygładzanie; przekazuje wyświetlany znak do składania słów |
 | `calculate_common_sign_and_average()` | Głosowanie większościowe + średni wynik w oknie przesuwnym |
+| `clear_results()` | Opróżnia okno przesuwne (przy przełączeniu *Average sign* albo zmniejszeniu zakresu) |
+| `update_text(sign)` | Zasila `TextComposer`; zapisuje nowo ustabilizowaną literę w pasku *Text* i wypowiada ją |
+| `clear_text()` | Opróżnia pasek *Text* (przycisk *Clear*) |
 | `closeEvent(event)` | Uporządkowane zwolnienie zasobów |
 
 Modelem domyślnym jest `models/gesture_recognizer_asl_0.task`. Jego ścieżka bezwzględna jest wyznaczana z katalogu repozytorium dla kodu źródłowego albo z katalogu pakietu PyInstaller dla wydania, więc start nie zależy od katalogu roboczego wywołującego.
@@ -188,13 +193,23 @@ Synteza mowy offline oparta na `pyttsx3`:
 
 ### 4.7 `src/gui.py` / `src/gui.ui`
 
-`gui.ui` to definicja okna głównego z Qt Designera (1171×782, rozmiar stały); `gui.py` jest z niej generowany kompilatorem UI Qt i **nie należy edytować go ręcznie**. Po zmianie projektu należy wygenerować go ponownie:
+`gui.ui` to definicja okna głównego z Qt Designera (1171×842, rozmiar stały); `gui.py` jest z niej generowany kompilatorem UI Qt i **nie należy edytować go ręcznie**. Po zmianie projektu należy wygenerować go ponownie:
 
 ```bash
 pyside6-uic src/gui.ui -o src/gui.py
 ```
 
 Okno zawiera podgląd wideo (`label_displayFrame`, 640×480), panel wyników (rozpoznany znak, ręczność, paski pewności, pasek FPS) oraz zakładki ustawień (kamera, rozpoznawanie, TTS, wyniki).
+
+### 4.8 `src/composer.py` — `TextComposer`
+
+Zamienia wyświetlany w kolejnych klatkach znak na tekst, tak jak robi to osoba czytająca alfabet palcowy; nie zależy od Qt:
+
+- `feed(sign)` — rozlicza jedną klatkę; zwraca właśnie zapisaną literę, `' '` dla spacji, `'del'` dla usunięcia albo `None`, gdy nic się nie zmieniło.
+- `clear()` — zapomina tekst i składaną literę.
+- `text` — złożony tekst, przycięty do najnowszych `max_length` (60) znaków.
+
+Parametry: `stable_frames` (liczba klatek, przez które znak musi być pokazany, zanim zostanie zapisany), `rest_frames` (liczba klatek bez znaku, która kończy wyraz spacją), `max_length`.
 
 ## 5. Potok treningu modelu
 
@@ -268,6 +283,7 @@ Wszystkie parametry można zmieniać z poziomu GUI w trakcie działania; zmiany 
 | Rozmiar okna | Suwak *Range* | Liczba ostatnich wyników użytych do głosowania |
 | Mowa wł./wył. | Pole *Speak* | Wypowiada literę raz, gdy utrzyma się na ekranie przez 3 kolejne klatki; ta sama litera jest wypowiadana ponownie po odpoczynku dłoni albo po pokazaniu innej litery |
 | Tempo / głośność | Pola TTS | Tempo mowy pyttsx3 (słowa/min) i głośność (%) |
+| Tekst | Pasek *Text* + przycisk *Clear* | Litery zapisywane po ustabilizowaniu (3 klatki); odpoczynek przez 30 klatek kończy wyraz spacją; klasy `space`/`del` modeli z 29 klasami wstawiają spację / usuwają znak |
 
 ## 7. Uruchamianie i wdrożenie
 
@@ -317,5 +333,5 @@ licencjami i metadanymi budowy w katalogu głównym pakietu.
 **Możliwe rozszerzenia**
 
 - Modele czasowe (np. LSTM/transformer na sekwencjach punktów charakterystycznych) umożliwiające obsługę znaków dynamicznych.
-- Składanie słów: łączenie rozpoznanych liter w wyrazy z buforem tekstowym na ekranie i korekcją słownikową.
+- Korekcja słownikowa i uzupełnianie złożonych wyrazów (np. dopasowanie do listy słów) oraz wypowiadanie całych słów zamiast pojedynczych liter.
 - Wsparcie innych narodowych alfabetów migowych (np. PJM) po ponownym treningu na odpowiednim zbiorze danych.
