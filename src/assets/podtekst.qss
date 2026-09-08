@@ -1,0 +1,389 @@
+/* PodTeksT noir theme: deep navy ground, blue to violet accents, mono labels.
+   Image URLs are relative to the application directory (src/ in source runs,
+   the bundle root in packaged runs), like the pixmaps in gui.ui. */
+
+QMainWindow, QWidget#centralwidget, QGraphicsView {
+    background-color: #070a12;
+    border: none;
+}
+QWidget {
+    color: #dfe6f5;
+    font-family: "Segoe UI";
+    font-size: 10pt;
+    selection-background-color: #3b82f6;
+    selection-color: #ffffff;
+}
+QToolTip {
+    background-color: #0f1628;
+    color: #e6ebf5;
+    border: 1px solid #2a3558;
+    padding: 4px 6px;
+}
+
+/* Header */
+QLabel#label_title {
+    color: #f4f6fb;
+    font-family: "Bahnschrift";
+    font-size: 17pt;
+    font-weight: 700;
+}
+QLabel#label_subtitle, QLabel#label_patchedBy {
+    color: #7f8fb0;
+    font-family: "JetBrains Mono";
+    font-size: 8pt;
+    font-weight: 700;
+}
+
+/* Cards */
+QGroupBox {
+    background-color: #0c1120;
+    border: 1px solid #1b2540;
+    border-top: 2px solid #64748b;
+    border-radius: 12px;
+    margin-top: 12px;
+    padding-top: 4px;
+    font-family: "JetBrains Mono";
+    font-size: 8pt;
+    font-weight: 700;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 14px;
+    top: 2px;
+    padding: 0 6px;
+    background-color: #070a12;
+    color: #64748b;
+}
+QGroupBox QGroupBox {
+    background-color: #0f1628;
+    border: 1px solid #22305a;
+    border-top: 2px solid #64748b;
+}
+QGroupBox QGroupBox::title {
+    background-color: #0c1120;
+}
+QGroupBox#groupBox_6, QGroupBox#groupBox_8, QGroupBox#groupBox_text { border-top-color: #3b82f6; }
+QGroupBox#groupBox_6::title, QGroupBox#groupBox_8::title, QGroupBox#groupBox_text::title { color: #3b82f6; }
+QGroupBox#groupBox_5, QGroupBox#groupBox_7 { border-top-color: #a855f7; }
+QGroupBox#groupBox_5::title, QGroupBox#groupBox_7::title { color: #a855f7; }
+QGroupBox#groupBox_9, QGroupBox#groupBox_transcript { border-top-color: #22c55e; }
+QGroupBox#groupBox_9::title, QGroupBox#groupBox_transcript::title { color: #22c55e; }
+QGroupBox#groupBox_10 { border-top-color: #f59e0b; }
+QGroupBox#groupBox_10::title { color: #f59e0b; }
+
+/* Live view and the big letter */
+QLabel#label_displayFrame {
+    background-color: #05070d;
+    border: 1px solid #2a3558;
+    border-radius: 12px;
+    color: #4b5877;
+    font-family: "JetBrains Mono";
+}
+QLabel#label_displaySign {
+    color: #c084fc;
+    background-color: qradialgradient(cx: 0.5, cy: 0.5, radius: 0.9, fx: 0.5, fy: 0.5, stop: 0 #191c3d, stop: 1 #0a0e1a);
+    border: 1px solid #2a3558;
+    border-radius: 16px;
+    font-family: "Bahnschrift";
+    font-size: 260pt;
+    font-weight: 700;
+}
+QLabel#label_recognitionInfo, QLabel#label_displayFPS {
+    color: #f4f6fb;
+    font-family: "JetBrains Mono";
+    font-size: 15pt;
+    font-weight: 800;
+}
+QLabel#label_text {
+    background-color: #0a0e1a;
+    border: 1px solid #2a3558;
+    border-radius: 10px;
+    color: #f4f6fb;
+    padding-left: 8px;
+}
+QLabel#label {
+    color: #f4f6fb;
+    font-family: "Bahnschrift";
+    font-size: 22pt;
+    font-weight: 600;
+}
+
+/* Progress bars */
+QProgressBar {
+    background-color: #121a2e;
+    border: 1px solid #1b2540;
+    border-radius: 8px;
+    text-align: center;
+    color: #f4f6fb;
+    font-family: "JetBrains Mono";
+    font-weight: 700;
+}
+QProgressBar::chunk {
+    border-radius: 7px;
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #3b82f6, stop: 1 #a855f7);
+}
+QProgressBar#progressBar_1 {
+    border-radius: 12px;
+    font-size: 10pt;
+}
+QProgressBar#progressBar_1::chunk {
+    border-radius: 11px;
+    background-color: qlineargradient(x1: 0, y1: 1, x2: 0, y2: 0, stop: 0 #3b82f6, stop: 1 #a855f7);
+}
+QProgressBar#progressBar_fps::chunk {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #22c55e, stop: 1 #3b82f6);
+}
+
+/* Controls */
+QPushButton {
+    background-color: #141c33;
+    border: 1px solid #2a3558;
+    border-radius: 9px;
+    padding: 4px 12px;
+    color: #e6ebf5;
+    font-weight: 600;
+}
+QPushButton:hover {
+    background-color: #1c2745;
+    border-color: #3b82f6;
+}
+QPushButton:pressed {
+    background-color: #0f1628;
+    border-color: #a855f7;
+}
+QPushButton:disabled {
+    color: #5b6784;
+    border-color: #1b2540;
+}
+QCheckBox {
+    spacing: 8px;
+    color: #dfe6f5;
+}
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 1px solid #2a3558;
+    background-color: #0f1628;
+}
+QCheckBox::indicator:hover {
+    border-color: #3b82f6;
+}
+QCheckBox::indicator:checked {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1, stop: 0 #3b82f6, stop: 1 #a855f7);
+    border-color: #6d8bff;
+    image: url(assets/check.svg);
+}
+QSpinBox, QComboBox {
+    background-color: #0f1628;
+    border: 1px solid #2a3558;
+    border-radius: 8px;
+    padding: 2px 8px;
+    color: #f4f6fb;
+    font-family: "JetBrains Mono";
+    font-size: 9pt;
+}
+QSpinBox:focus, QComboBox:focus, QComboBox:on {
+    border-color: #3b82f6;
+}
+QSpinBox::up-button, QSpinBox::down-button {
+    width: 16px;
+    border: none;
+    background-color: transparent;
+}
+QSpinBox::up-arrow {
+    image: url(assets/chevron-up.svg);
+    width: 10px;
+    height: 10px;
+}
+QSpinBox::down-arrow {
+    image: url(assets/chevron-down.svg);
+    width: 10px;
+    height: 10px;
+}
+QComboBox::drop-down {
+    border: none;
+    width: 24px;
+}
+QComboBox::down-arrow {
+    image: url(assets/chevron-down.svg);
+    width: 12px;
+    height: 12px;
+}
+QComboBox QAbstractItemView {
+    background-color: #0f1628;
+    border: 1px solid #2a3558;
+    color: #f4f6fb;
+    selection-background-color: #1c2745;
+    outline: none;
+    padding: 4px;
+}
+QSlider::groove:horizontal {
+    height: 4px;
+    background-color: #1b2540;
+    border-radius: 2px;
+}
+QSlider::sub-page:horizontal {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #3b82f6, stop: 1 #a855f7);
+    border-radius: 2px;
+}
+QSlider::handle:horizontal {
+    width: 14px;
+    height: 14px;
+    margin: -6px 0;
+    border-radius: 8px;
+    background-color: #f4f6fb;
+    border: 2px solid #3b82f6;
+}
+QSlider::handle:horizontal:hover {
+    border-color: #a855f7;
+}
+QLabel#label_range_value {
+    color: #a855f7;
+    font-family: "JetBrains Mono";
+    font-weight: 800;
+}
+
+/* Transcript */
+QPlainTextEdit {
+    background-color: #0a0e1a;
+    border: 1px solid #1b2540;
+    border-radius: 10px;
+    color: #cbd5ea;
+    font-family: "JetBrains Mono";
+    font-size: 10pt;
+    padding: 6px;
+}
+QScrollBar:vertical {
+    background-color: transparent;
+    width: 8px;
+    margin: 4px 0;
+}
+QScrollBar::handle:vertical {
+    background-color: #2a3558;
+    border-radius: 4px;
+    min-height: 24px;
+}
+QScrollBar::handle:vertical:hover {
+    background-color: #3b82f6;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background-color: transparent;
+}
+
+/* Status bar and dialogs */
+QStatusBar {
+    background-color: #070a12;
+    color: #7f8fb0;
+    font-family: "JetBrains Mono";
+    font-size: 9pt;
+    border-top: 1px solid #1b2540;
+}
+QStatusBar::item {
+    border: none;
+}
+QMessageBox, QFileDialog, QDialog {
+    background-color: #0c1120;
+}
+QMessageBox QLabel, QFileDialog QLabel {
+    color: #f4f6fb;
+}
+QLineEdit, QTreeView, QListView {
+    background-color: #0f1628;
+    border: 1px solid #2a3558;
+    border-radius: 6px;
+    color: #f4f6fb;
+}
+QHeaderView::section {
+    background-color: #141c33;
+    color: #dfe6f5;
+    border: none;
+    padding: 4px;
+}
+
+/* Board chrome: screen pills, the view pill, key hints and the header line */
+QPushButton[screenPill="true"] {
+    background-color: #0f1628;
+    border: 1px solid #2a3558;
+    border-radius: 17px;
+    padding: 4px 14px;
+    color: #9fb0d0;
+    font-family: "JetBrains Mono";
+    font-size: 9pt;
+    font-weight: 800;
+}
+QPushButton[screenPill="true"]:hover {
+    border-color: #3b82f6;
+    color: #f4f6fb;
+}
+QPushButton[screenPill="true"]:checked {
+    background-color: #e6ebf5;
+    border-color: #e6ebf5;
+    color: #0b0f1d;
+}
+QLabel#label_keys {
+    color: #4b5877;
+    font-family: "JetBrains Mono";
+    font-size: 8pt;
+    font-weight: 700;
+}
+QFrame#line_header {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #3b82f6, stop: 0.5 #a855f7, stop: 1 #070a12);
+    border: none;
+}
+QMenu {
+    background-color: #0f1628;
+    border: 1px solid #2a3558;
+    border-radius: 10px;
+    padding: 6px;
+    color: #f4f6fb;
+    font-family: "JetBrains Mono";
+    font-size: 9pt;
+}
+QMenu::item {
+    padding: 6px 28px 6px 12px;
+    border-radius: 6px;
+}
+QMenu::item:selected {
+    background-color: #1c2745;
+}
+QMenu::separator {
+    height: 1px;
+    background-color: #2a3558;
+    margin: 6px 4px;
+}
+QMenu::indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1px solid #2a3558;
+    background-color: #0a0e1a;
+    margin-left: 6px;
+}
+QMenu::indicator:checked {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1, stop: 0 #3b82f6, stop: 1 #a855f7);
+    border-color: #6d8bff;
+    image: url(assets/check.svg);
+}
+QPushButton#pushButton_saveTranscript, QPushButton#pushButton_model {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #3b82f6, stop: 1 #a855f7);
+    border: none;
+    color: #ffffff;
+}
+QPushButton#pushButton_saveTranscript:hover, QPushButton#pushButton_model:hover {
+    background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #5b9dff, stop: 1 #c084fc);
+}
+
+/* The text bar floating over the preview on the live screen, like subtitles */
+QGroupBox#groupBox_text[overlay="true"] {
+    background-color: rgba(7, 10, 18, 205);
+    border: 1px solid rgba(59, 130, 246, 110);
+    border-top: 2px solid rgba(59, 130, 246, 200);
+}
+QGroupBox#groupBox_text[overlay="true"] QLabel#label_text {
+    background-color: rgba(10, 14, 26, 160);
+}

@@ -1,6 +1,9 @@
 import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
+import board
 import main_app
 from corrector import WordCorrector
 from main_app import MainApp
@@ -71,7 +74,7 @@ def test_invalid_model_keeps_previous_recognizer(application, monkeypatch):
 def test_window_scales_the_scene_to_its_size(application):
     window = MainApp()
     width, height = window.design_size.width(), window.design_size.height()
-    assert (width, height) == (1171, 981)
+    assert (width, height) == (1920, 1080)
     window.show()
 
     window.resize(width * 2, height * 2 + window.statusBar().height())
@@ -86,7 +89,7 @@ def test_window_scales_the_scene_to_its_size(application):
 
     assert doubled == pytest.approx(2.0, abs=0.05)
     assert halved == pytest.approx(0.5, abs=0.05)
-    assert window.label_displayFrame.size().width() == 640
+    assert window.label_displayFrame.size().width() == board.preview_rect(window.layout_rects["camera"])[2]
     window.close()
 
 
@@ -448,4 +451,148 @@ def test_no_completions_while_correction_is_off(application):
 
     assert window.statusBar().currentMessage() == ''
     window.tts_app = None
+    window.close()
+
+
+def card_widgets(window):
+    return {
+        'camera': window.groupBox_6, 'text': window.groupBox_text, 'transcript': window.groupBox_transcript,
+        'results': window.groupBox_5, 'settings': window.groupBox, 'author': window.groupBox_10,
+    }
+
+
+def shown(window):
+    return {card for card, widget in card_widgets(window).items() if not widget.isHidden()}
+
+
+def test_the_studio_screen_is_the_default_and_pills_switch_screens(application):
+    window = MainApp()
+
+    assert window.screen_name == 'studio'
+    assert window.pushButton_screenStudio.isChecked()
+    assert shown(window) == set(board.CARDS)
+
+    window.pushButton_screenLive.click()
+    assert window.screen_name == 'live'
+    assert window.pushButton_screenLive.isChecked() and not window.pushButton_screenStudio.isChecked()
+    assert shown(window) == {'camera', 'text', 'results'}
+    assert window.groupBox_text.property('overlay') is True
+    window.set_screen('studio')
+    assert window.groupBox_text.property('overlay') is False
+    window.set_screen('live')
+
+    window.step_screen(1)
+    assert window.screen_name == 'studio'
+    window.step_screen(1)
+    assert window.screen_name == 'settings'
+    assert shown(window) == {'camera', 'settings', 'author'}
+    window.step_screen(1)
+    assert window.screen_name == 'live'
+    window.step_screen(-1)
+    assert window.screen_name == 'settings'
+    with pytest.raises(ValueError):
+        window.set_screen('gallery')
+    window.close()
+
+
+def test_cards_follow_the_computed_layout(application):
+    window = MainApp()
+    window.set_screen('studio')
+
+    for card, widget in card_widgets(window).items():
+        rect = window.layout_rects[card]
+        assert (widget.x(), widget.y(), widget.width(), widget.height()) == rect
+    preview = board.preview_rect(window.layout_rects['camera'])
+    assert (window.label_displayFrame.width(), window.label_displayFrame.height()) == (preview[2], preview[3])
+    assert window.pushButton_clearText.x() + window.pushButton_clearText.width() == window.groupBox_text.width() - 16
+    window.close()
+
+
+def test_view_toggles_hide_cards_and_widen_the_camera(application):
+    window = MainApp()
+    before = window.groupBox_6.width()
+
+    window._card_actions['results'].setChecked(False)
+    window._card_actions['settings'].setChecked(False)
+    window._card_actions['author'].setChecked(False)
+
+    assert shown(window) == {'camera', 'text', 'transcript'}
+    assert window.groupBox_6.width() > before
+    window.set_card_visible('results', True)
+    assert window._card_actions['results'].isChecked()
+    assert 'results' in shown(window)
+    window.close()
+
+
+def test_hiding_the_interface_moves_the_cards_up_and_escape_brings_it_back(application):
+    window = MainApp()
+    window.set_screen('live')
+    top_with_header = window.groupBox_6.y()
+
+    window.action_interface.setChecked(True)
+    assert window.header_visible is False
+    assert window.label_title.isHidden() and window.pushButton_view.isHidden()
+    assert not window.pushButton_showInterface.isHidden()
+    assert window.groupBox_6.y() < top_with_header
+
+    window.leave_fullscreen()
+    assert window.header_visible is True
+    assert not window.label_title.isHidden()
+    assert window.pushButton_showInterface.isHidden()
+    assert window.groupBox_6.y() == top_with_header
+
+    window.action_interface.setChecked(True)
+    window.pushButton_showInterface.click()
+    assert window.header_visible is True and not window.action_interface.isChecked()
+    window.close()
+
+
+def test_a_long_text_is_elided_on_the_left(application):
+    window = make_window(application, speak=False)
+    window.set_screen('studio')
+
+    for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYABCDEFGHIJKLMNOPQRSTUVWXYABCDEFGHIJ':
+        feed(window, letter, 3)
+        feed(window, '', 3)
+
+    shown_text = window.label_text.text()
+    assert shown_text.endswith('HIJ')
+    assert len(shown_text) < len(window.composer.text)
+    assert shown_text[0] == '\u2026'
+    window.tts_app = None
+    window.close()
+
+
+def test_board_keys_work_through_the_scene_view(application):
+    window = MainApp()
+    window.show()
+    application.processEvents()
+
+    QTest.keyClick(window.scene_view, Qt.Key.Key_1)
+    assert window.screen_name == 'live'
+    QTest.keyClick(window.scene_view, Qt.Key.Key_Right)
+    assert window.screen_name == 'studio'
+    QTest.keyClick(window.scene_view, Qt.Key.Key_H)
+    assert window.header_visible is False
+    QTest.keyClick(window.scene_view, Qt.Key.Key_H)
+    assert window.header_visible is True
+    QTest.keyClick(window.scene_view, Qt.Key.Key_H)
+    QTest.keyClick(window.scene_view, Qt.Key.Key_Escape)
+    assert window.header_visible is True
+    QTest.keyClick(window, Qt.Key.Key_3)
+    assert window.screen_name == 'settings'
+    window.close()
+
+
+def test_keys_typed_into_a_spin_box_do_not_switch_screens(application):
+    window = MainApp()
+    window.show()
+    application.processEvents()
+    window.set_screen('settings')
+    window.spinBox_ttsRate.setFocus()
+    application.processEvents()
+
+    QTest.keyClick(window.scene_view, Qt.Key.Key_1)
+
+    assert window.screen_name == 'settings'
     window.close()

@@ -41,7 +41,7 @@ The recognizable classes are the **24 static letters of the ASL alphabet** (A–
 | Serialization | Locally patched protobuf 4.25.9 | MediaPipe messages; parser-fix backport, using the UPB wheel on Windows x64/Python 3.10+ and a pure-Python fallback elsewhere |
 | ML training | MediaPipe Model Maker, TensorFlow 2 (Google Colab) | Training of the custom classification head |
 | Video I/O | OpenCV (`cv2.VideoCapture`, installed as a MediaPipe dependency) | Camera capture and backend management |
-| GUI | PySide6 ≥ 6.7.3 (Qt for Python), QDarkStyle ≥ 3.2.3 | Main window, video preview, settings panels, dark theme |
+| GUI | PySide6 ≥ 6.7.3 (Qt for Python) | Main window, video preview, settings panels; the dark theme is the project's own stylesheet `src/assets/podtekst.qss` with the bundled JetBrains Mono font (SIL Open Font License) |
 | Camera enumeration | `PySide6.QtMultimedia.QMediaDevices` | Listing available video input devices |
 | TTS | pyttsx3 ≥ 2.98 (SAPI5 on Windows) | Offline speech synthesis |
 | Word correction | symspellpy ≥ 6.10 (SymSpell with its bundled English frequency dictionary) | Correction of finished words |
@@ -131,7 +131,7 @@ A frame in which the hand is visible but no sign passes the threshold votes as a
 
 ### 4.1 `src/main.py` — entry point
 
-Creates the `QApplication`, configures `logging` (INFO level, UTF-8), applies the QDarkStyle stylesheet (`qt_api='pyside6'`, `DarkPalette`), instantiates `MainApp`, calls `start()` and enters the Qt event loop.
+Creates the `QApplication`, configures `logging` (INFO level, UTF-8), registers the bundled fonts (`load_fonts`, `assets/fonts/*.ttf`) and applies the theme stylesheet (`load_theme`, `assets/podtekst.qss`; an unreadable file leaves the default Qt look), instantiates `MainApp`, calls `start()` and enters the Qt event loop.
 
 ### 4.2 `src/main_app.py` — `MainApp`
 
@@ -154,6 +154,11 @@ Creates the `QApplication`, configures `logging` (INFO level, UTF-8), applies th
 | `append_transcript(sentence)` / `flush_sentence()` | Adds a finished sentence to the *Transcript* panel with the time it ended / moves the sentence still in the bar there |
 | `save_transcript()` / `clear_transcript()` | Writes the transcript, with the sentence still in the bar, to a text file chosen in a dialog / empties the panel |
 | `clear_text()` | Empties the *Text* bar (the *Clear* button) |
+| `set_screen(name)` / `step_screen(step)` | Shows the *live*, *studio* or *settings* screen (pills, keys 1/2/3, arrow keys) |
+| `set_card_visible(card, visible)` | Switches a card on or off from the *View* menu |
+| `set_header_visible(visible)` / `set_fullscreen(fullscreen)` / `leave_fullscreen()` | Hides the header strip (H), toggles fullscreen (F), Escape brings both back |
+| `apply_layout()` | Places the cards with `board.compute_layout` and resizes the preview, the text bar and the transcript to their cards |
+| `refresh_text_bar()` | Shows the composed text, elided on the left when it is wider than the bar |
 | `closeEvent(event)` | Orderly resource release |
 
 The default model is `models/gesture_recognizer_asl_0.task`. Its absolute path is derived from the repository root in source runs or from PyInstaller's bundle directory in packaged runs, so startup does not depend on the caller's working directory.
@@ -199,13 +204,13 @@ Offline TTS based on `pyttsx3`:
 
 ### 4.7 `src/gui.py` / `src/gui.ui`
 
-`gui.ui` is the Qt Designer definition of the main window (design canvas 1171×982, widgets placed at absolute positions); `gui.py` is generated from it with the Qt UI compiler and **must not be edited by hand**. At runtime `MainApp._install_scaling_view` moves the central widget into a `QGraphicsView` and `fit_scene` scales the whole scene to the window while keeping its aspect ratio, so the window can be resized or maximized (1440p, high-DPI displays) and every widget follows; the initial size fills about 90% of the available screen, between half and twice the design size. Regenerate after changing the design:
+`gui.ui` is the Qt Designer definition of the main window (a 16:9 board canvas of 1920×1080, widgets placed at absolute positions: a header strip with the title, the screen pills *LIVE* / *STUDIO* / *SETTINGS*, the *VIEW* pill, the key hints and the PodTeksT wordmark, then the cards at their *studio* positions); `gui.py` is generated from it with the Qt UI compiler and **must not be edited by hand**. At runtime `MainApp._install_scaling_view` moves the central widget into a `QGraphicsView` and `fit_scene` scales the whole scene to the window while keeping its aspect ratio, so the window can be resized or maximized (1440p, high-DPI displays) and every widget follows; the initial size fills about 90% of the available screen, between half and twice the design size. Regenerate after changing the design:
 
 ```bash
 pyside6-uic src/gui.ui -o src/gui.py
 ```
 
-The window contains the video preview (`label_displayFrame`, 640×480), the result panel (recognized sign, handedness, confidence progress bars, FPS bar) and a settings tab widget (camera, recognizer, TTS, results), the *Text* bar with *Correct words* and *Clear*, and the *Transcript* panel with *Save* and *Clear*.
+The look is the PodTeksT noir theme (`src/assets/podtekst.qss`): a deep navy ground, cards with a coloured top edge and mono upper-case titles, blue-to-violet progress bars and controls, JetBrains Mono for numbers and labels, Bahnschrift for the title and the predicted letter (falling back to the system sans-serif where it is not installed). Image URLs in the stylesheet, like the pixmaps in `gui.ui`, are relative to the application directory, which `main.py` makes the current directory. The window is a board in the sense of PodTeksT's `BoardShell`: one canvas, no scrolling, screens switched in place. Each screen shows a subset of the cards (see 4.10) and `MainApp.apply_layout` places them at runtime, so a hidden card gives its space to the camera; the header can be hidden (H) and the window can go fullscreen (F). The window contains the video preview (`label_displayFrame`, scaled to its card at 4:3), the result panel (recognized sign, handedness, confidence progress bars, FPS bar) and a settings tab widget (camera, recognizer, TTS, results), the *Text* bar with *Correct words* and *Clear*, and the *Transcript* panel with *Save* and *Clear*.
 
 ### 4.8 `src/composer.py` — `TextComposer`
 
@@ -234,6 +239,10 @@ The API:
 - `complete(prefix, limit=3)` — dictionary words starting with a prefix of at least two letters, most frequent first; the source of the status-bar hints.
 
 `MainApp` creates the corrector in its constructor and starts the load in `start()`, so a window built in tests never touches the dictionary file.
+
+### 4.10 `src/board.py` — screens and layout
+
+Pure geometry, no Qt dependency. The canvas is 1920×1080 with a 40 px margin, a 24 px gap and an 80 px header strip. `cards_on_screen(screen, toggles)` returns the cards a screen shows: *live* keeps the camera and the results, with the text bar floating over the bottom of the preview like subtitles; *studio* every card the user has switched on in the *View* menu; *settings* the settings and author cards next to the camera. `compute_layout(screen, toggles, header_visible)` places them in three columns: the camera, the text bar and the transcript on the left, the results in the middle (a fixed 480 px column) and the settings with the author card on the right (a fixed 512 px column); a missing column widens the camera, a hidden transcript lets the camera grow down, and a hidden header hands its strip to the cards. Only the camera, text and transcript cards are resized; the others keep the size they were designed with in `gui.ui`. `preview_rect(card)` is the largest 4:3 rectangle inside the camera card, matching the 640×480 frames.
 
 ## 5. Model training pipeline
 
@@ -309,6 +318,8 @@ All parameters are adjustable from the GUI at runtime; changes take effect after
 | Rate / volume | TTS spin boxes | pyttsx3 speech rate (wpm) and volume (%) |
 | Text | *Text* bar + *Clear* button | Letters written once stable (3 frames); a rest of 30 frames ends the word with a space; the `space`/`del` classes of the 29-class models insert a space / delete a character; *Correct words* replaces a finished word missing from the English dictionary with the closest known one; while a word is spelled, the status bar lists up to three completions |
 | Transcript | *Transcript* panel + *Save* / *Clear* buttons | A rest of 90 frames ends the sentence and moves it here with the time it ended; *Save* writes the panel, with the sentence still in the bar, to a text file |
+| Screens | *LIVE* / *STUDIO* / *SETTINGS* pills, keys 1 / 2 / 3 and the arrow keys | *Live*: the camera as large as possible with the text bar and the results; *Studio*: every card switched on; *Settings*: the options next to the preview |
+| View | *VIEW* pill or key V | Switches the text bar, transcript, results, settings and author cards on and off; *Hide interface* (H) removes the header strip and leaves a *SHOW UI* pill in the corner, *Fullscreen* (F) fills the screen, Escape brings both back; a right click on the picture opens the menu as well |
 
 ## 7. Running and packaging
 

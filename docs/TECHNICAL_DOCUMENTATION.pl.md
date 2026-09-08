@@ -41,7 +41,7 @@ Rozpoznawane klasy to **24 statyczne litery alfabetu ASL** (A–Y, z pominięcie
 | Serializacja | Lokalnie poprawiony protobuf 4.25.9 | Komunikaty MediaPipe; backport poprawki parsera, wheel UPB dla Windows x64/Python 3.10+ i fallback pure-Python w pozostałych środowiskach |
 | Trening ML | MediaPipe Model Maker, TensorFlow 2 (Google Colab) | Trening własnej głowicy klasyfikacyjnej |
 | Wideo I/O | OpenCV (`cv2.VideoCapture`, instalowany jako zależność MediaPipe) | Przechwytywanie obrazu i zarządzanie backendami |
-| GUI | PySide6 ≥ 6.7.3 (Qt for Python), QDarkStyle ≥ 3.2.3 | Okno główne, podgląd wideo, panele ustawień, ciemny motyw |
+| GUI | PySide6 ≥ 6.7.3 (Qt for Python) | Okno główne, podgląd wideo, panele ustawień; ciemny motyw to własny arkusz projektu `src/assets/podtekst.qss` z dołączoną czcionką JetBrains Mono (SIL Open Font License) |
 | Enumeracja kamer | `PySide6.QtMultimedia.QMediaDevices` | Lista dostępnych urządzeń wideo |
 | TTS | pyttsx3 ≥ 2.98 (SAPI5 w Windows) | Synteza mowy offline |
 | Korekcja słów | symspellpy ≥ 6.10 (SymSpell z wbudowanym angielskim słownikiem częstości) | Korekcja zakończonych wyrazów |
@@ -131,7 +131,7 @@ Klatka, w której dłoń jest widoczna, ale żaden znak nie przekracza progu, g�
 
 ### 4.1 `src/main.py` — punkt wejścia
 
-Tworzy `QApplication`, konfiguruje `logging` (poziom INFO, UTF-8), nakłada arkusz stylów QDarkStyle (`qt_api='pyside6'`, `DarkPalette`), tworzy instancję `MainApp`, wywołuje `start()` i uruchamia pętlę zdarzeń Qt.
+Tworzy `QApplication`, konfiguruje `logging` (poziom INFO, UTF-8), rejestruje dołączone czcionki (`load_fonts`, `assets/fonts/*.ttf`) i nakłada arkusz stylów motywu (`load_theme`, `assets/podtekst.qss`; nieczytelny plik zostawia domyślny wygląd Qt), tworzy instancję `MainApp`, wywołuje `start()` i uruchamia pętlę zdarzeń Qt.
 
 ### 4.2 `src/main_app.py` — `MainApp`
 
@@ -154,6 +154,11 @@ Tworzy `QApplication`, konfiguruje `logging` (poziom INFO, UTF-8), nakłada arku
 | `append_transcript(sentence)` / `flush_sentence()` | Dodaje zakończone zdanie do panelu *Transcript* z godziną zakończenia / przenosi tam zdanie będące jeszcze w pasku |
 | `save_transcript()` / `clear_transcript()` | Zapisuje transkrypt, wraz ze zdaniem z paska, do pliku tekstowego wybranego w oknie dialogowym / opróżnia panel |
 | `clear_text()` | Opróżnia pasek *Text* (przycisk *Clear*) |
+| `set_screen(name)` / `step_screen(step)` | Pokazuje ekran *live*, *studio* albo *settings* (pigułki, klawisze 1/2/3, strzałki) |
+| `set_card_visible(card, visible)` | Włącza albo wyłącza kartę z menu *View* |
+| `set_header_visible(visible)` / `set_fullscreen(fullscreen)` / `leave_fullscreen()` | Chowa pasek nagłówka (H), przełącza pełny ekran (F), Escape przywraca oba |
+| `apply_layout()` | Rozmieszcza karty przez `board.compute_layout` i dopasowuje podgląd, pasek tekstu i transkrypt do ich kart |
+| `refresh_text_bar()` | Pokazuje złożony tekst, z wielokropkiem z lewej, gdy jest szerszy niż pasek |
 | `closeEvent(event)` | Uporządkowane zwolnienie zasobów |
 
 Modelem domyślnym jest `models/gesture_recognizer_asl_0.task`. Jego ścieżka bezwzględna jest wyznaczana z katalogu repozytorium dla kodu źródłowego albo z katalogu pakietu PyInstaller dla wydania, więc start nie zależy od katalogu roboczego wywołującego.
@@ -199,13 +204,13 @@ Synteza mowy offline oparta na `pyttsx3`:
 
 ### 4.7 `src/gui.py` / `src/gui.ui`
 
-`gui.ui` to definicja okna głównego z Qt Designera (płótno projektowe 1171×982, widżety w pozycjach bezwzględnych); `gui.py` jest z niej generowany kompilatorem UI Qt i **nie należy edytować go ręcznie**. W czasie działania `MainApp._install_scaling_view` przenosi widżet centralny do `QGraphicsView`, a `fit_scene` skaluje całą scenę do okna z zachowaniem proporcji, więc okno można zmieniać i maksymalizować (1440p, ekrany high-DPI), a każdy widżet podąża za nim; rozmiar początkowy wypełnia około 90% dostępnego ekranu, między połową a dwukrotnością płótna. Po zmianie projektu należy wygenerować go ponownie:
+`gui.ui` to definicja okna głównego z Qt Designera (płótno tablicy 16:9 o wymiarach 1920×1080, widżety w pozycjach bezwzględnych: pasek nagłówka z tytułem, pigułkami ekranów *LIVE* / *STUDIO* / *SETTINGS*, pigułką *VIEW*, podpowiedziami klawiszy i znakiem PodTeksT, pod nim karty w pozycjach ekranu *studio*); `gui.py` jest z niej generowany kompilatorem UI Qt i **nie należy edytować go ręcznie**. W czasie działania `MainApp._install_scaling_view` przenosi widżet centralny do `QGraphicsView`, a `fit_scene` skaluje całą scenę do okna z zachowaniem proporcji, więc okno można zmieniać i maksymalizować (1440p, ekrany high-DPI), a każdy widżet podąża za nim; rozmiar początkowy wypełnia około 90% dostępnego ekranu, między połową a dwukrotnością płótna. Po zmianie projektu należy wygenerować go ponownie:
 
 ```bash
 pyside6-uic src/gui.ui -o src/gui.py
 ```
 
-Okno zawiera podgląd wideo (`label_displayFrame`, 640×480), panel wyników (rozpoznany znak, ręczność, paski pewności, pasek FPS) oraz zakładki ustawień (kamera, rozpoznawanie, TTS, wyniki), pasek *Text* z polem *Correct words* i przyciskiem *Clear* oraz panel *Transcript* z przyciskami *Save* i *Clear*.
+Wygląd to motyw noir PodTeksT (`src/assets/podtekst.qss`): głęboki granat tła, karty z kolorową górną krawędzią i tytułami wersalikami w kroju mono, paski postępu i kontrolki w gradiencie od błękitu do fioletu, JetBrains Mono dla liczb i etykiet, Bahnschrift dla tytułu i rozpoznanej litery (z systemowym krojem bezszeryfowym tam, gdzie go nie ma). Adresy obrazów w arkuszu, tak jak piksmapy w `gui.ui`, są względne wobec katalogu aplikacji, który `main.py` ustawia jako bieżący. Okno jest tablicą w sensie `BoardShell` z PodTeksT: jedno płótno, brak przewijania, ekrany przełączane w miejscu. Każdy ekran pokazuje podzbiór kart (patrz 4.10), a `MainApp.apply_layout` rozmieszcza je w czasie działania, więc ukryta karta oddaje miejsce kamerze; nagłówek da się schować (H), a okno przełączyć na pełny ekran (F). Okno zawiera podgląd wideo (`label_displayFrame`, skalowany do karty w proporcji 4:3), panel wyników (rozpoznany znak, ręczność, paski pewności, pasek FPS) oraz zakładki ustawień (kamera, rozpoznawanie, TTS, wyniki), pasek *Text* z polem *Correct words* i przyciskiem *Clear* oraz panel *Transcript* z przyciskami *Save* i *Clear*.
 
 ### 4.8 `src/composer.py` — `TextComposer`
 
@@ -234,6 +239,10 @@ API:
 - `complete(prefix, limit=3)` — słowa ze słownika zaczynające się od prefiksu o co najmniej dwóch literach, najczęstsze najpierw; źródło podpowiedzi w pasku stanu.
 
 `MainApp` tworzy korektor w konstruktorze, a ładowanie uruchamia w `start()`, więc okno budowane w testach nie dotyka pliku słownika.
+
+### 4.10 `src/board.py` — ekrany i układ
+
+Czysta geometria, bez zależności od Qt. Płótno ma 1920×1080 z marginesem 40 px, odstępem 24 px i paskiem nagłówka 80 px. `cards_on_screen(screen, toggles)` zwraca karty pokazywane przez ekran: *live* zostawia kamerę i wyniki, a pasek tekstu unosi się nad dolną krawędzią podglądu jak napisy; *studio* każdą kartę włączoną w menu *View*; *settings* karty ustawień i autora obok kamery. `compute_layout(screen, toggles, header_visible)` rozmieszcza je w trzech kolumnach: kamera, pasek tekstu i transkrypt po lewej, wyniki w środku (stała kolumna 480 px) oraz ustawienia z kartą autora po prawej (stała kolumna 512 px); brak kolumny poszerza kamerę, ukryty transkrypt pozwala jej urosnąć w dół, a schowany nagłówek oddaje swój pasek kartom. Zmieniają rozmiar tylko karty kamery, tekstu i transkryptu; pozostałe zachowują rozmiar zaprojektowany w `gui.ui`. `preview_rect(card)` to największy prostokąt 4:3 wewnątrz karty kamery, zgodny z klatkami 640×480.
 
 ## 5. Potok treningu modelu
 
@@ -309,6 +318,8 @@ Wszystkie parametry można zmieniać z poziomu GUI w trakcie działania; zmiany 
 | Tempo / głośność | Pola TTS | Tempo mowy pyttsx3 (słowa/min) i głośność (%) |
 | Tekst | Pasek *Text* + przycisk *Clear* | Litery zapisywane po ustabilizowaniu (3 klatki); odpoczynek przez 30 klatek kończy wyraz spacją; klasy `space`/`del` modeli z 29 klasami wstawiają spację / usuwają znak; pole *Correct words* zastępuje zakończony wyraz spoza angielskiego słownika najbliższym znanym; w trakcie literowania pasek stanu wymienia do trzech dokończeń |
 | Transkrypt | Panel *Transcript* + przyciski *Save* / *Clear* | Odpoczynek przez 90 klatek kończy zdanie i przenosi je tutaj z godziną zakończenia; *Save* zapisuje panel, wraz ze zdaniem będącym jeszcze w pasku, do pliku tekstowego |
+| Ekrany | Pigułki *LIVE* / *STUDIO* / *SETTINGS*, klawisze 1 / 2 / 3 i strzałki | *Live*: kamera możliwie największa z paskiem tekstu i wynikami; *Studio*: każda włączona karta; *Settings*: opcje obok podglądu |
+| Widok | Pigułka *VIEW* albo klawisz V | Włącza i wyłącza karty tekstu, transkryptu, wyników, ustawień i autora; *Hide interface* (H) chowa pasek nagłówka i zostawia w rogu pigułkę *SHOW UI*, *Fullscreen* (F) wypełnia ekran, Escape przywraca oba; menu otwiera też prawy klik na obrazie |
 
 ## 7. Uruchamianie i wdrożenie
 

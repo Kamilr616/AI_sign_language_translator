@@ -40,7 +40,7 @@ Potok rozpoznawania oparty jest na **MediaPipe Gesture Recognizer** z **własnym
 - 🎥 **Elastyczna konfiguracja kamery** — wybór urządzenia, backendu przechwytywania (DirectShow, Media Foundation, V4L2, GStreamer, …), rozdzielczości oraz dostęp do natywnych ustawień sterownika.
 - ⚙️ **Regulowane parametry rozpoznawania** — progi pewności detekcji / obecności / śledzenia dłoni oraz próg klasyfikacji ustawiane z poziomu GUI.
 - 🧩 **Wymienne modele** — dowolny pakiet MediaPipe `.task` można wczytać w trakcie działania aplikacji; w repozytorium dostępne są trzy wytrenowane modele.
-- 🌒 **Nowoczesny ciemny interfejs** — PySide6 + QDarkStyle, ze wskaźnikami FPS, ręczności (lewa/prawa) i pewności rozpoznania na żywo; całe okno skaluje się wraz z rozmiarem, więc można je zmaksymalizować na ekranach 1440p i high-DPI.
+- 🌒 **Interfejs noir** — PySide6 z własnym motywem PodTeksT (granatowe tło, akcenty od błękitu do fioletu, JetBrains Mono), ze wskaźnikami FPS, ręczności (lewa/prawa) i pewności rozpoznania na żywo; okno jest tablicą 16:9 z trzema ekranami (*Live*, *Studio*, *Settings*), menu *View* do włączania i wyłączania kart, chowanym interfejsem i pełnym ekranem, a całość skaluje się wraz z rozmiarem, więc można ją zmaksymalizować na ekranach 1440p i high-DPI.
 
 ## Jak to działa
 
@@ -113,7 +113,7 @@ AI_sign_language_translator/
 | Python | 3.10 lub 3.12 (64-bit; wersje testowane w CI) |
 | System | Windows 10/11 (platforma docelowa) lub Linux |
 | Sprzęt | Kamera internetowa; wystarczy współczesny procesor wielordzeniowy (GPU nie jest wymagane) |
-| Kluczowe pakiety | `mediapipe ≥ 0.10.14, < 0.10.30`, poprawiony `protobuf 4.25.9`, `PySide6 ≥ 6.7.3`, `qdarkstyle ≥ 3.2.3`, `pyttsx3 ≥ 2.98`, `symspellpy ≥ 6.10` |
+| Kluczowe pakiety | `mediapipe ≥ 0.10.14, < 0.10.30`, poprawiony `protobuf 4.25.9`, `PySide6 ≥ 6.7.3`, `pyttsx3 ≥ 2.98`, `symspellpy ≥ 6.10` |
 
 > OpenCV i NumPy są instalowane automatycznie jako zależności MediaPipe.
 > MediaPipe od wersji 0.10.30 nie zawiera starszych helperów rysowania używanych przez niestandardowe style punktów dłoni w tej aplikacji.
@@ -211,6 +211,7 @@ Windows x64.
 6. **Average sign** — włącz wygładzanie po ostatnich *N* wynikach (rozmiar okna ustawiany suwakiem), aby uzyskać stabilniejszy wynik.
 7. Dostosuj progi rozpoznawania, rozdzielczość kamery, backend przechwytywania lub tempo/głośność mowy w panelach ustawień, a następnie zatwierdź odpowiednim przyciskiem **Reset**.
 8. **Model** — w dowolnym momencie wczytaj inny model `.task` z katalogu `models/`.
+9. **Ekrany** — *LIVE* pokazuje kamerę możliwie największą z paskiem tekstu i wynikami, *STUDIO* wszystkie karty, *SETTINGS* opcje obok podglądu (klawisze 1, 2, 3 albo strzałki). **VIEW** (klawisz V) włącza i wyłącza karty tekstu, transkryptu, wyników, ustawień i autora; ukryta karta oddaje miejsce kamerze. **H** chowa interfejs (w rogu zostaje pigułka *SHOW UI*), **F** włącza pełny ekran, **Esc** przywraca oba; menu widoku otwiera też prawy klik na obrazie.
 
 Tablica znaków alfabetu ASL dostępna jest w [`docs/images`](docs/images/asl-sign-language-alphabet-vectors.webp).
 

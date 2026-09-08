@@ -41,7 +41,7 @@ The recognition pipeline is built on **MediaPipe Gesture Recognizer** with a **c
 - 🎥 **Flexible camera configuration** — selection of the capture device, capture backend (DirectShow, Media Foundation, V4L2, GStreamer, …), resolution, and access to native driver settings.
 - ⚙️ **Tunable recognition parameters** — detection / presence / tracking confidence and classification score threshold adjustable from the GUI.
 - 🧩 **Interchangeable models** — any MediaPipe `.task` gesture recognizer bundle can be loaded at runtime via a file dialog; three pre-trained models ship with the repository.
-- 🌒 **Modern dark UI** — PySide6 + QDarkStyle, with live FPS, handedness and confidence indicators; the whole window scales with its size, so it can be maximized on 1440p and high-DPI displays.
+- 🌒 **Noir UI** — PySide6 with the project's own PodTeksT theme (navy ground, blue-to-violet accents, JetBrains Mono), with live FPS, handedness and confidence indicators; the window is a 16:9 board with three screens (*Live*, *Studio*, *Settings*), a *View* menu to switch cards on and off, a hideable interface and fullscreen, and it scales with its size, so it can be maximized on 1440p and high-DPI displays.
 
 ## How it works
 
@@ -114,7 +114,7 @@ AI_sign_language_translator/
 | Python | 3.10 or 3.12 (64-bit; versions tested in CI) |
 | OS | Windows 10/11 (primary target) or Linux |
 | Hardware | Webcam; a modern multi-core CPU is sufficient (no GPU required) |
-| Key packages | `mediapipe ≥ 0.10.14, < 0.10.30`, patched `protobuf 4.25.9`, `PySide6 ≥ 6.7.3`, `qdarkstyle ≥ 3.2.3`, `pyttsx3 ≥ 2.98`, `symspellpy ≥ 6.10` |
+| Key packages | `mediapipe ≥ 0.10.14, < 0.10.30`, patched `protobuf 4.25.9`, `PySide6 ≥ 6.7.3`, `pyttsx3 ≥ 2.98`, `symspellpy ≥ 6.10` |
 
 > OpenCV and NumPy are installed automatically as MediaPipe dependencies.
 > MediaPipe 0.10.30 and newer no longer ship the legacy drawing helpers used by the custom landmark styles in this application.
@@ -211,6 +211,7 @@ ready-to-extract **folder build** packaged as a Windows x64 ZIP.
 6. **Average sign** — enable smoothing over the last *N* results (window size set with the slider) for a more stable output.
 7. Adjust recognition thresholds, camera resolution, capture backend or TTS rate/volume in the settings panels, then press the corresponding **Reset** button to apply.
 8. **Model** — load a different `.task` model from the `models/` directory at any time.
+9. **Screens** — *LIVE* shows the camera as large as possible with the text bar and the results, *STUDIO* every card, *SETTINGS* the options next to the preview (keys 1, 2, 3 or the arrow keys). **VIEW** (key V) switches the text bar, transcript, results, settings and author cards on and off; a hidden card gives its space to the camera. **H** hides the interface (a *SHOW UI* pill stays in the corner), **F** goes fullscreen, **Esc** brings both back; a right click on the picture opens the view menu too.
 
 The reference chart of ASL alphabet signs is available in [`docs/images`](docs/images/asl-sign-language-alphabet-vectors.webp).
 

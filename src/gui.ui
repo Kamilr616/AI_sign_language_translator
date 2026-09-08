@@ -7,8 +7,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1171</width>
-    <height>982</height>
+    <width>1920</width>
+    <height>1080</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -19,8 +19,8 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>680</width>
-    <height>550</height>
+    <width>960</width>
+    <height>540</height>
    </size>
   </property>
   <property name="palette">
@@ -1005,40 +1005,252 @@
    <property name="autoFillBackground">
     <bool>true</bool>
    </property>
+   <widget class="QLabel" name="label_title">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>30</y>
+      <width>760</width>
+      <height>34</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>AI SIGN LANGUAGE TRANSLATOR</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_subtitle">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>66</y>
+      <width>760</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>ASL FINGERSPELLING  /  LIVE CAMERA  /  WORDS  /  VOICE</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_patchedBy">
+    <property name="geometry">
+     <rect>
+      <x>1556</x>
+      <y>44</y>
+      <width>96</width>
+      <height>18</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>PATCHED BY</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter</set>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_logoPodteksT">
+    <property name="geometry">
+     <rect>
+      <x>1664</x>
+      <y>34</y>
+      <width>216</width>
+      <height>42</height>
+     </rect>
+    </property>
+    <property name="toolTip">
+     <string>Patched by PodTeksT</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="pixmap">
+     <pixmap>assets/podtekst-logo.png</pixmap>
+    </property>
+    <property name="scaledContents">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_screenLive">
+    <property name="geometry">
+     <rect>
+      <x>860</x>
+      <y>38</y>
+      <width>110</width>
+      <height>34</height>
+     </rect>
+    </property>
+    <property name="cursor">
+     <cursorShape>PointingHandCursor</cursorShape>
+    </property>
+    <property name="toolTip">
+     <string>Live: the camera as large as possible, with the text bar and the results (key 1)</string>
+    </property>
+    <property name="text">
+     <string>LIVE</string>
+    </property>
+    <property name="checkable">
+     <bool>true</bool>
+    </property>
+    <property name="screenPill" stdset="0">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_screenStudio">
+    <property name="geometry">
+     <rect>
+      <x>978</x>
+      <y>38</y>
+      <width>110</width>
+      <height>34</height>
+     </rect>
+    </property>
+    <property name="cursor">
+     <cursorShape>PointingHandCursor</cursorShape>
+    </property>
+    <property name="toolTip">
+     <string>Studio: every card you have switched on in the view menu (key 2)</string>
+    </property>
+    <property name="text">
+     <string>STUDIO</string>
+    </property>
+    <property name="checkable">
+     <bool>true</bool>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
+    </property>
+    <property name="screenPill" stdset="0">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_screenSettings">
+    <property name="geometry">
+     <rect>
+      <x>1096</x>
+      <y>38</y>
+      <width>120</width>
+      <height>34</height>
+     </rect>
+    </property>
+    <property name="cursor">
+     <cursorShape>PointingHandCursor</cursorShape>
+    </property>
+    <property name="toolTip">
+     <string>Settings: recognizer, speaker and camera options next to the preview (key 3)</string>
+    </property>
+    <property name="text">
+     <string>SETTINGS</string>
+    </property>
+    <property name="checkable">
+     <bool>true</bool>
+    </property>
+    <property name="screenPill" stdset="0">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_view">
+    <property name="geometry">
+     <rect>
+      <x>1240</x>
+      <y>38</y>
+      <width>96</width>
+      <height>34</height>
+     </rect>
+    </property>
+    <property name="cursor">
+     <cursorShape>PointingHandCursor</cursorShape>
+    </property>
+    <property name="toolTip">
+     <string>Choose which cards to show, hide the interface or go fullscreen (key V)</string>
+    </property>
+    <property name="text">
+     <string>VIEW</string>
+    </property>
+    <property name="screenPill" stdset="0">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_keys">
+    <property name="geometry">
+     <rect>
+      <x>860</x>
+      <y>76</y>
+      <width>500</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>1 2 3 SCREENS  /  V VIEW  /  H INTERFACE  /  F FULLSCREEN</string>
+    </property>
+   </widget>
+   <widget class="QFrame" name="line_header">
+    <property name="geometry">
+     <rect>
+      <x>40</x>
+      <y>100</y>
+      <width>1840</width>
+      <height>2</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Shape::NoFrame</enum>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_showInterface">
+    <property name="geometry">
+     <rect>
+      <x>1768</x>
+      <y>40</y>
+      <width>112</width>
+      <height>34</height>
+     </rect>
+    </property>
+    <property name="cursor">
+     <cursorShape>PointingHandCursor</cursorShape>
+    </property>
+    <property name="toolTip">
+     <string>Bring the interface back (also H or Escape)</string>
+    </property>
+    <property name="text">
+     <string>SHOW UI</string>
+    </property>
+    <property name="screenPill" stdset="0">
+     <bool>true</bool>
+    </property>
+   </widget>
    <widget class="QGroupBox" name="groupBox">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>530</y>
-      <width>821</width>
-      <height>221</height>
+      <x>1368</x>
+      <y>120</y>
+      <width>512</width>
+      <height>616</height>
      </rect>
     </property>
     <property name="cursor">
      <cursorShape>WhatsThisCursor</cursorShape>
     </property>
     <property name="title">
-     <string>Settings</string>
+     <string>SETTINGS</string>
     </property>
     <widget class="QGroupBox" name="groupBox_2">
      <property name="geometry">
       <rect>
-       <x>20</x>
-       <y>20</y>
-       <width>211</width>
-       <height>181</height>
+       <x>16</x>
+       <y>36</y>
+       <width>480</width>
+       <height>180</height>
       </rect>
      </property>
      <property name="title">
-      <string>Recognizer</string>
+      <string>RECOGNIZER</string>
      </property>
      <widget class="QWidget" name="gridLayoutWidget">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>191</width>
-        <height>111</height>
+        <x>16</x>
+        <y>30</y>
+        <width>300</width>
+        <height>116</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_recognizerConfig">
@@ -1205,10 +1417,10 @@
      <widget class="QPushButton" name="pushButton_model">
       <property name="geometry">
        <rect>
-        <x>10</x>
+        <x>16</x>
         <y>140</y>
-        <width>91</width>
-        <height>31</height>
+        <width>140</width>
+        <height>32</height>
        </rect>
       </property>
       <property name="cursor">
@@ -1222,22 +1434,22 @@
     <widget class="QGroupBox" name="groupBox_3">
      <property name="geometry">
       <rect>
-       <x>250</x>
-       <y>20</y>
-       <width>171</width>
-       <height>181</height>
+       <x>16</x>
+       <y>232</y>
+       <width>480</width>
+       <height>180</height>
       </rect>
      </property>
      <property name="title">
-      <string>Speaker</string>
+      <string>SPEAKER</string>
      </property>
      <widget class="QWidget" name="gridLayoutWidget_2">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>151</width>
-        <height>58</height>
+        <x>16</x>
+        <y>30</y>
+        <width>300</width>
+        <height>60</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_ttsConfig">
@@ -1295,10 +1507,10 @@
      <widget class="QCheckBox" name="checkBox_speak">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>80</y>
-        <width>141</width>
-        <height>34</height>
+        <x>16</x>
+        <y>96</y>
+        <width>200</width>
+        <height>36</height>
        </rect>
       </property>
       <property name="font">
@@ -1339,10 +1551,10 @@
      <widget class="QComboBox" name="comboBox_speak_unit">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>116</y>
-        <width>151</width>
-        <height>22</height>
+        <x>232</x>
+        <y>100</y>
+        <width>160</width>
+        <height>30</height>
        </rect>
       </property>
       <property name="cursor">
@@ -1365,10 +1577,10 @@
      <widget class="QPushButton" name="pushButton_resetTTS">
       <property name="geometry">
        <rect>
-        <x>10</x>
+        <x>16</x>
         <y>140</y>
-        <width>151</width>
-        <height>31</height>
+        <width>140</width>
+        <height>32</height>
        </rect>
       </property>
       <property name="cursor">
@@ -1385,10 +1597,10 @@
     <widget class="QPushButton" name="pushButton_resetRecognizer">
      <property name="geometry">
       <rect>
-       <x>130</x>
-       <y>160</y>
-       <width>91</width>
-       <height>31</height>
+       <x>188</x>
+       <y>176</y>
+       <width>140</width>
+       <height>32</height>
       </rect>
      </property>
      <property name="cursor">
@@ -1401,22 +1613,22 @@
     <widget class="QGroupBox" name="groupBox_4">
      <property name="geometry">
       <rect>
-       <x>440</x>
-       <y>20</y>
-       <width>201</width>
-       <height>181</height>
+       <x>16</x>
+       <y>428</y>
+       <width>480</width>
+       <height>172</height>
       </rect>
      </property>
      <property name="title">
-      <string>Camera</string>
+      <string>CAMERA</string>
      </property>
      <widget class="QWidget" name="gridLayoutWidget_3">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>181</width>
-        <height>56</height>
+        <x>16</x>
+        <y>30</y>
+        <width>300</width>
+        <height>60</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout">
@@ -1480,10 +1692,10 @@
      <widget class="QPushButton" name="pushButton_camera_settings">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>140</y>
-        <width>81</width>
-        <height>31</height>
+        <x>16</x>
+        <y>132</y>
+        <width>140</width>
+        <height>32</height>
        </rect>
       </property>
       <property name="cursor">
@@ -1496,10 +1708,10 @@
      <widget class="QPushButton" name="pushButton_resetCap">
       <property name="geometry">
        <rect>
-        <x>100</x>
-        <y>140</y>
-        <width>91</width>
-        <height>31</height>
+        <x>172</x>
+        <y>132</y>
+        <width>140</width>
+        <height>32</height>
        </rect>
       </property>
       <property name="sizePolicy">
@@ -1527,10 +1739,10 @@
      <widget class="QComboBox" name="comboBox_cameras">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>80</y>
-        <width>181</width>
-        <height>22</height>
+        <x>16</x>
+        <y>96</y>
+        <width>224</width>
+        <height>30</height>
        </rect>
       </property>
       <property name="cursor">
@@ -1558,10 +1770,10 @@
      <widget class="QComboBox" name="comboBox_drivers">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>110</y>
-        <width>181</width>
-        <height>22</height>
+        <x>248</x>
+        <y>96</y>
+        <width>216</width>
+        <height>30</height>
        </rect>
       </property>
       <property name="cursor">
@@ -1584,25 +1796,305 @@
       </property>
      </widget>
     </widget>
-    <widget class="QGroupBox" name="groupBox_11">
+   </widget>
+   <widget class="QGroupBox" name="groupBox_5">
+    <property name="geometry">
+     <rect>
+      <x>864</x>
+      <y>120</y>
+      <width>480</width>
+      <height>920</height>
+     </rect>
+    </property>
+    <property name="cursor">
+     <cursorShape>BlankCursor</cursorShape>
+    </property>
+    <property name="title">
+     <string>RESULTS</string>
+    </property>
+    <widget class="QGroupBox" name="groupBox_7">
      <property name="geometry">
       <rect>
-       <x>660</x>
-       <y>20</y>
-       <width>141</width>
-       <height>181</height>
+       <x>16</x>
+       <y>36</y>
+       <width>448</width>
+       <height>600</height>
       </rect>
      </property>
      <property name="title">
-      <string>Results</string>
+      <string>PREDICTED SIGN</string>
+     </property>
+     <widget class="QLabel" name="label_displaySign">
+      <property name="geometry">
+       <rect>
+        <x>16</x>
+        <y>36</y>
+        <width>344</width>
+        <height>544</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>400</width>
+        <height>400</height>
+       </size>
+      </property>
+      <property name="font">
+       <font>
+        <family>Calibri</family>
+        <pointsize>224</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Shape::Box</enum>
+      </property>
+      <property name="text">
+       <string>-</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+     </widget>
+     <widget class="QProgressBar" name="progressBar_1">
+      <property name="geometry">
+       <rect>
+        <x>376</x>
+        <y>36</y>
+        <width>56</width>
+        <height>544</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>50</width>
+        <height>400</height>
+       </size>
+      </property>
+      <property name="font">
+       <font>
+        <family>Calibri</family>
+        <pointsize>16</pointsize>
+       </font>
+      </property>
+      <property name="value">
+       <number>0</number>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+      <property name="textVisible">
+       <bool>true</bool>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Orientation::Vertical</enum>
+      </property>
+      <property name="format">
+       <string>%p %</string>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_8">
+     <property name="geometry">
+      <rect>
+       <x>16</x>
+       <y>652</y>
+       <width>216</width>
+       <height>104</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>HAND</string>
+     </property>
+     <widget class="QLabel" name="label_recognitionInfo">
+      <property name="geometry">
+       <rect>
+        <x>12</x>
+        <y>32</y>
+        <width>192</width>
+        <height>34</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>Calibri</family>
+        <pointsize>28</pointsize>
+        <bold>false</bold>
+       </font>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Shape::Box</enum>
+      </property>
+      <property name="text">
+       <string>No info</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+     </widget>
+     <widget class="QProgressBar" name="progressBar_hand">
+      <property name="geometry">
+       <rect>
+        <x>12</x>
+        <y>72</y>
+        <width>192</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>400</width>
+        <height>400</height>
+       </size>
+      </property>
+      <property name="value">
+       <number>0</number>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+      <property name="textVisible">
+       <bool>true</bool>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <property name="invertedAppearance">
+       <bool>false</bool>
+      </property>
+      <property name="format">
+       <string>%p %</string>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_9">
+     <property name="geometry">
+      <rect>
+       <x>248</x>
+       <y>652</y>
+       <width>216</width>
+       <height>104</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>RECOGNITION RATE</string>
+     </property>
+     <widget class="QLabel" name="label_displayFPS">
+      <property name="geometry">
+       <rect>
+        <x>12</x>
+        <y>32</y>
+        <width>192</width>
+        <height>34</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>Calibri</family>
+        <pointsize>28</pointsize>
+        <bold>false</bold>
+       </font>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Shape::Box</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Shadow::Plain</enum>
+      </property>
+      <property name="text">
+       <string notr="true">No FPS</string>
+      </property>
+      <property name="textFormat">
+       <enum>Qt::TextFormat::MarkdownText</enum>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+      <property name="textInteractionFlags">
+       <set>Qt::TextInteractionFlag::NoTextInteraction</set>
+      </property>
+     </widget>
+     <widget class="QProgressBar" name="progressBar_fps">
+      <property name="geometry">
+       <rect>
+        <x>12</x>
+        <y>72</y>
+        <width>192</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>400</width>
+        <height>400</height>
+       </size>
+      </property>
+      <property name="maximum">
+       <number>30</number>
+      </property>
+      <property name="value">
+       <number>0</number>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+      <property name="textVisible">
+       <bool>false</bool>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <property name="invertedAppearance">
+       <bool>false</bool>
+      </property>
+      <property name="format">
+       <string/>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_11">
+     <property name="geometry">
+      <rect>
+       <x>16</x>
+       <y>772</y>
+       <width>448</width>
+       <height>132</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>SMOOTHING</string>
      </property>
      <widget class="QWidget" name="gridLayoutWidget_4">
       <property name="geometry">
        <rect>
-        <x>10</x>
-        <y>30</y>
-        <width>121</width>
-        <height>81</height>
+        <x>16</x>
+        <y>32</y>
+        <width>200</width>
+        <height>84</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_ttsConfig_2">
@@ -1671,10 +2163,10 @@
      <widget class="QCheckBox" name="checkBox_avg_sign">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>120</y>
-        <width>101</width>
-        <height>41</height>
+        <x>248</x>
+        <y>52</y>
+        <width>180</width>
+        <height>40</height>
        </rect>
       </property>
       <property name="cursor">
@@ -1692,309 +2184,32 @@
      </widget>
     </widget>
    </widget>
-   <widget class="QGroupBox" name="groupBox_5">
-    <property name="geometry">
-     <rect>
-      <x>690</x>
-      <y>10</y>
-      <width>471</width>
-      <height>511</height>
-     </rect>
-    </property>
-    <property name="cursor">
-     <cursorShape>BlankCursor</cursorShape>
-    </property>
-    <property name="title">
-     <string>Results</string>
-    </property>
-    <widget class="QGroupBox" name="groupBox_7">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>451</width>
-       <height>371</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Predicted sign</string>
-     </property>
-     <widget class="QLabel" name="label_displaySign">
-      <property name="geometry">
-       <rect>
-        <x>20</x>
-        <y>20</y>
-        <width>341</width>
-        <height>331</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>400</width>
-        <height>400</height>
-       </size>
-      </property>
-      <property name="font">
-       <font>
-        <family>Calibri</family>
-        <pointsize>224</pointsize>
-        <bold>true</bold>
-       </font>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::Shape::Box</enum>
-      </property>
-      <property name="text">
-       <string>-</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-     </widget>
-     <widget class="QProgressBar" name="progressBar_1">
-      <property name="geometry">
-       <rect>
-        <x>380</x>
-        <y>20</y>
-        <width>50</width>
-        <height>331</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>50</width>
-        <height>400</height>
-       </size>
-      </property>
-      <property name="font">
-       <font>
-        <family>Calibri</family>
-        <pointsize>16</pointsize>
-       </font>
-      </property>
-      <property name="value">
-       <number>0</number>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-      <property name="textVisible">
-       <bool>true</bool>
-      </property>
-      <property name="orientation">
-       <enum>Qt::Orientation::Vertical</enum>
-      </property>
-      <property name="format">
-       <string>%p %</string>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QGroupBox" name="groupBox_8">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>400</y>
-       <width>231</width>
-       <height>101</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Hand</string>
-     </property>
-     <widget class="QLabel" name="label_recognitionInfo">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>211</width>
-        <height>41</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <family>Calibri</family>
-        <pointsize>28</pointsize>
-        <bold>false</bold>
-       </font>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::Shape::Box</enum>
-      </property>
-      <property name="text">
-       <string>No info</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-     </widget>
-     <widget class="QProgressBar" name="progressBar_hand">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>70</y>
-        <width>211</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>400</width>
-        <height>400</height>
-       </size>
-      </property>
-      <property name="value">
-       <number>0</number>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-      <property name="textVisible">
-       <bool>true</bool>
-      </property>
-      <property name="orientation">
-       <enum>Qt::Orientation::Horizontal</enum>
-      </property>
-      <property name="invertedAppearance">
-       <bool>false</bool>
-      </property>
-      <property name="format">
-       <string>%p %</string>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QGroupBox" name="groupBox_9">
-     <property name="geometry">
-      <rect>
-       <x>250</x>
-       <y>400</y>
-       <width>211</width>
-       <height>101</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Recognition rate</string>
-     </property>
-     <widget class="QLabel" name="label_displayFPS">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>191</width>
-        <height>41</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <family>Calibri</family>
-        <pointsize>28</pointsize>
-        <bold>false</bold>
-       </font>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::Shape::Box</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Shadow::Plain</enum>
-      </property>
-      <property name="text">
-       <string notr="true">No FPS</string>
-      </property>
-      <property name="textFormat">
-       <enum>Qt::TextFormat::MarkdownText</enum>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-      <property name="textInteractionFlags">
-       <set>Qt::TextInteractionFlag::NoTextInteraction</set>
-      </property>
-     </widget>
-     <widget class="QProgressBar" name="progressBar_fps">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>70</y>
-        <width>191</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>400</width>
-        <height>400</height>
-       </size>
-      </property>
-      <property name="maximum">
-       <number>30</number>
-      </property>
-      <property name="value">
-       <number>0</number>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-      <property name="textVisible">
-       <bool>false</bool>
-      </property>
-      <property name="orientation">
-       <enum>Qt::Orientation::Horizontal</enum>
-      </property>
-      <property name="invertedAppearance">
-       <bool>false</bool>
-      </property>
-      <property name="format">
-       <string/>
-      </property>
-     </widget>
-    </widget>
-   </widget>
    <widget class="QGroupBox" name="groupBox_6">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>10</y>
-      <width>661</width>
-      <height>511</height>
+      <x>40</x>
+      <y>120</y>
+      <width>800</width>
+      <height>616</height>
      </rect>
     </property>
     <property name="cursor">
      <cursorShape>CrossCursor</cursorShape>
     </property>
     <property name="title">
-     <string>Live view</string>
+     <string>LIVE VIEW</string>
     </property>
     <widget class="QLabel" name="label_displayFrame">
      <property name="geometry">
       <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>640</width>
-       <height>480</height>
+       <x>16</x>
+       <y>36</y>
+       <width>768</width>
+       <height>576</height>
       </rect>
+     </property>
+     <property name="scaledContents">
+      <bool>true</bool>
      </property>
      <property name="frameShape">
       <enum>QFrame::Shape::Box</enum>
@@ -2010,25 +2225,25 @@
    <widget class="QGroupBox" name="groupBox_10">
     <property name="geometry">
      <rect>
-      <x>850</x>
-      <y>530</y>
-      <width>311</width>
-      <height>221</height>
+      <x>1368</x>
+      <y>760</y>
+      <width>512</width>
+      <height>280</height>
      </rect>
     </property>
     <property name="cursor">
      <cursorShape>OpenHandCursor</cursorShape>
     </property>
     <property name="title">
-     <string>Author</string>
+     <string>AUTHOR</string>
     </property>
     <widget class="QLabel" name="label">
      <property name="geometry">
       <rect>
-       <x>20</x>
-       <y>20</y>
-       <width>191</width>
-       <height>91</height>
+       <x>24</x>
+       <y>44</y>
+       <width>260</width>
+       <height>50</height>
       </rect>
      </property>
      <property name="font">
@@ -2048,10 +2263,10 @@
     <widget class="QLabel" name="label_logoKI">
      <property name="geometry">
       <rect>
-       <x>209</x>
-       <y>20</y>
-       <width>91</width>
-       <height>91</height>
+       <x>388</x>
+       <y>40</y>
+       <width>100</width>
+       <height>100</height>
       </rect>
      </property>
      <property name="text">
@@ -2067,10 +2282,10 @@
     <widget class="QLabel" name="label_logo_AT">
      <property name="geometry">
       <rect>
-       <x>20</x>
-       <y>140</y>
-       <width>271</width>
-       <height>61</height>
+       <x>24</x>
+       <y>160</y>
+       <width>320</width>
+       <height>72</height>
       </rect>
      </property>
      <property name="text">
@@ -2087,22 +2302,22 @@
    <widget class="QGroupBox" name="groupBox_text">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>40</x>
       <y>760</y>
-      <width>1151</width>
-      <height>71</height>
+      <width>800</width>
+      <height>96</height>
      </rect>
     </property>
     <property name="title">
-     <string>Text</string>
+     <string>TEXT</string>
     </property>
     <widget class="QLabel" name="label_text">
      <property name="geometry">
       <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>880</width>
-       <height>41</height>
+       <x>16</x>
+       <y>36</y>
+       <width>560</width>
+       <height>44</height>
       </rect>
      </property>
      <property name="font">
@@ -2128,9 +2343,9 @@
     <widget class="QCheckBox" name="checkBox_correct">
      <property name="geometry">
       <rect>
-       <x>900</x>
-       <y>25</y>
-       <width>141</width>
+       <x>588</x>
+       <y>42</y>
+       <width>120</width>
        <height>31</height>
       </rect>
      </property>
@@ -2150,10 +2365,10 @@
     <widget class="QPushButton" name="pushButton_clearText">
      <property name="geometry">
       <rect>
-       <x>1050</x>
-       <y>25</y>
-       <width>91</width>
-       <height>31</height>
+       <x>712</x>
+       <y>40</y>
+       <width>72</width>
+       <height>34</height>
       </rect>
      </property>
      <property name="text">
@@ -2164,22 +2379,22 @@
    <widget class="QGroupBox" name="groupBox_transcript">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>840</y>
-      <width>1151</width>
-      <height>131</height>
+      <x>40</x>
+      <y>880</y>
+      <width>800</width>
+      <height>160</height>
      </rect>
     </property>
     <property name="title">
-     <string>Transcript</string>
+     <string>TRANSCRIPT</string>
     </property>
     <widget class="QPlainTextEdit" name="plainTextEdit_transcript">
      <property name="geometry">
       <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>1030</width>
-       <height>101</height>
+       <x>16</x>
+       <y>36</y>
+       <width>680</width>
+       <height>108</height>
       </rect>
      </property>
      <property name="font">
@@ -2198,10 +2413,10 @@
     <widget class="QPushButton" name="pushButton_saveTranscript">
      <property name="geometry">
       <rect>
-       <x>1050</x>
-       <y>25</y>
-       <width>91</width>
-       <height>31</height>
+       <x>712</x>
+       <y>40</y>
+       <width>72</width>
+       <height>32</height>
       </rect>
      </property>
      <property name="toolTip">
@@ -2214,10 +2429,10 @@
     <widget class="QPushButton" name="pushButton_clearTranscript">
      <property name="geometry">
       <rect>
-       <x>1050</x>
-       <y>65</y>
-       <width>91</width>
-       <height>31</height>
+       <x>712</x>
+       <y>80</y>
+       <width>72</width>
+       <height>32</height>
       </rect>
      </property>
      <property name="text">
