@@ -204,7 +204,7 @@ The custom model is trained in Google Colab with **MediaPipe Model Maker** (note
 
 - **Source:** [ASL Alphabet — Kaggle `grassknoted/asl-alphabet`](https://www.kaggle.com/datasets/grassknoted/asl-alphabet): ~87,000 RGB images (200×200 px), 29 classes, downloaded via the Kaggle API.
 - **Filtering:** classes *J* and *Z* are removed (dynamic signs requiring motion cannot be represented by a single-frame classifier), as are *del* and *space*. The *nothing* class is renamed to **`none`** — a name required by Model Maker for the background class.
-- **Resulting label set:** 24 letters + `none` = **25 classes**.
+- **Resulting label set:** 24 letters + `none` = **25 classes**. This is the label set of the default model `gesture_recognizer_asl_0.task`; the two historical bundles were exported before this filtering was introduced and keep all 29 classes (see 5.4).
 - **Embedding extraction:** `gesture_recognizer.Dataset.from_folder` runs the MediaPipe hand-landmark model over every image and keeps only images with a detectable hand, converting each into a landmark embedding vector.
 - **Split:** 80% training / 18% validation / 2% test (`split(0.8)` followed by `split(0.9)` of the remainder).
 
@@ -228,13 +228,13 @@ After training, the model is evaluated on the held-out test split (`model.evalua
 
 ### 5.4 Shipped models
 
-| File | Provenance and held-out evaluation | SHA-256 |
-|---|---|---|
-| `models/gesture_recognizer_asl_0.task` | Final notebook export; loss 0.0228059, accuracy 98.1768%; default at startup | `44717cea7089e350dc4fc13a1138c262769a5feccf046d3ff223c427b981fa54` |
-| `models/gesture_recognizer_asl_1.task` | Historical ASL v13 run; loss 0.0295949, accuracy 98.1467% | `d57b4fc4cc84739dc75ebf4ef919d08559b3cfb967fc8e481c4b0f2403ac0688` |
-| `models/gesture_recognizer_asl_mp.task` | Stock MediaPipe Model Maker hyperparameters; loss 0.2174392, accuracy 90.9563% | `64a495eb304e01683d8a54ade9f9a63ff07628641556512e2cccc566b6fd68b1` |
+| File | Provenance and held-out evaluation | Label set (from the bundled `custom_gesture_classifier.tflite`) | SHA-256 |
+|---|---|---|---|
+| `models/gesture_recognizer_asl_0.task` | Final notebook export; loss 0.0228059, accuracy 98.1768%; default at startup | 25 classes: `none`, A–Y without J | `44717cea7089e350dc4fc13a1138c262769a5feccf046d3ff223c427b981fa54` |
+| `models/gesture_recognizer_asl_1.task` | Historical ASL v13 run; loss 0.0295949, accuracy 98.1467% | 29 classes: `none`, A–Z, `del`, `space` | `d57b4fc4cc84739dc75ebf4ef919d08559b3cfb967fc8e481c4b0f2403ac0688` |
+| `models/gesture_recognizer_asl_mp.task` | Stock MediaPipe Model Maker hyperparameters; loss 0.2174392, accuracy 90.9563% | 29 classes: `none`, A–Z, `del`, `space` | `64a495eb304e01683d8a54ade9f9a63ff07628641556512e2cccc566b6fd68b1` |
 
-The v13 and stock-run metrics are preserved in the pre-cleanup `models/info.txt` history. The current artifacts are pinned in [`models/SHA256SUMS.txt`](../models/SHA256SUMS.txt), and CI verifies their bytes. Any shipped or newly trained model can be loaded at runtime via the **Model** button.
+The two 29-class bundles predate the class filtering described in 5.1: they were trained on the whole Kaggle dataset, so the application displays `J`, `Z`, `del` and `space` as signs when they are loaded (and speaks the last two as words). Their accuracy figures are therefore not directly comparable with the default model. The v13 and stock-run metrics are preserved in the pre-cleanup `models/info.txt` history. The current artifacts are pinned in [`models/SHA256SUMS.txt`](../models/SHA256SUMS.txt), and CI verifies their bytes. Any shipped or newly trained model can be loaded at runtime via the **Model** button.
 
 ## 6. Configuration parameters
 
@@ -307,7 +307,7 @@ under `dist/release/`, with the executable, models and runtime dependencies in
 
 **Limitations**
 
-- Only **static** signs are supported — the dynamic letters *J* and *Z* are excluded by design; word-level signing is out of scope.
+- Only **static** signs are supported — the dynamic letters *J* and *Z* are excluded from the default model by design; the two historical bundles contain them as static poses only, which does not capture the motion. Word-level signing is out of scope.
 - Single-hand recognition (`num_hands=1`).
 - Recognition quality depends on lighting and background; the training dataset was collected in relatively uniform conditions.
 - The TTS voice is English-oriented (letter names are spoken in English).

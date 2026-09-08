@@ -204,7 +204,7 @@ Własny model trenowany jest w Google Colab przy użyciu **MediaPipe Model Maker
 
 - **Źródło:** [ASL Alphabet — Kaggle `grassknoted/asl-alphabet`](https://www.kaggle.com/datasets/grassknoted/asl-alphabet): ok. 87 000 obrazów RGB (200×200 px), 29 klas, pobierany przez Kaggle API.
 - **Filtrowanie:** usuwane są klasy *J* i *Z* (znaki dynamiczne, wymagające ruchu, nie mogą być reprezentowane przez klasyfikator pojedynczej klatki) oraz *del* i *space*. Klasa *nothing* zmienia nazwę na **`none`** — nazwa wymagana przez Model Makera dla klasy tła.
-- **Wynikowy zbiór etykiet:** 24 litery + `none` = **25 klas**.
+- **Wynikowy zbiór etykiet:** 24 litery + `none` = **25 klas**. Taki zbiór ma model domyślny `gesture_recognizer_asl_0.task`; dwa historyczne pakiety wyeksportowano przed wprowadzeniem tego filtrowania i zachowują wszystkie 29 klas (patrz 5.4).
 - **Ekstrakcja osadzeń:** `gesture_recognizer.Dataset.from_folder` przetwarza każdy obraz modelem punktów charakterystycznych dłoni MediaPipe i zachowuje tylko obrazy z wykrywalną dłonią, zamieniając każdy na wektor osadzenia punktów.
 - **Podział:** 80% trening / 18% walidacja / 2% test (`split(0.8)`, a następnie `split(0.9)` pozostałej części).
 
@@ -228,13 +228,13 @@ Po treningu model jest oceniany na wydzielonym zbiorze testowym (`model.evaluate
 
 ### 5.4 Modele dołączone do repozytorium
 
-| Plik | Pochodzenie i ewaluacja na zbiorze testowym | SHA-256 |
-|---|---|---|
-| `models/gesture_recognizer_asl_0.task` | Finalny eksport z notebooka; strata 0,0228059, dokładność 98,1768%; model domyślny | `44717cea7089e350dc4fc13a1138c262769a5feccf046d3ff223c427b981fa54` |
-| `models/gesture_recognizer_asl_1.task` | Historyczny przebieg ASL v13; strata 0,0295949, dokładność 98,1467% | `d57b4fc4cc84739dc75ebf4ef919d08559b3cfb967fc8e481c4b0f2403ac0688` |
-| `models/gesture_recognizer_asl_mp.task` | Standardowe hiperparametry MediaPipe Model Maker; strata 0,2174392, dokładność 90,9563% | `64a495eb304e01683d8a54ade9f9a63ff07628641556512e2cccc566b6fd68b1` |
+| Plik | Pochodzenie i ewaluacja na zbiorze testowym | Zbiór etykiet (z dołączonego `custom_gesture_classifier.tflite`) | SHA-256 |
+|---|---|---|---|
+| `models/gesture_recognizer_asl_0.task` | Finalny eksport z notebooka; strata 0,0228059, dokładność 98,1768%; model domyślny | 25 klas: `none`, A–Y bez J | `44717cea7089e350dc4fc13a1138c262769a5feccf046d3ff223c427b981fa54` |
+| `models/gesture_recognizer_asl_1.task` | Historyczny przebieg ASL v13; strata 0,0295949, dokładność 98,1467% | 29 klas: `none`, A–Z, `del`, `space` | `d57b4fc4cc84739dc75ebf4ef919d08559b3cfb967fc8e481c4b0f2403ac0688` |
+| `models/gesture_recognizer_asl_mp.task` | Standardowe hiperparametry MediaPipe Model Maker; strata 0,2174392, dokładność 90,9563% | 29 klas: `none`, A–Z, `del`, `space` | `64a495eb304e01683d8a54ade9f9a63ff07628641556512e2cccc566b6fd68b1` |
 
-Metryki v13 i standardowego wariantu zachowano w historii usuniętego podczas porządkowania pliku `models/info.txt`. Bieżące artefakty przypięto w [`models/SHA256SUMS.txt`](../models/SHA256SUMS.txt), a CI weryfikuje ich zawartość. Każdy dołączony lub nowo wytrenowany model można wczytać przyciskiem **Model**.
+Dwa pakiety z 29 klasami powstały przed filtrowaniem klas opisanym w 5.1: trenowano je na całym zbiorze Kaggle, więc po ich wczytaniu aplikacja pokazuje `J`, `Z`, `del` i `space` jako znaki (a dwa ostatnie wypowiada jako słowa). Ich dokładności nie da się więc wprost porównać z modelem domyślnym. Metryki v13 i standardowego wariantu zachowano w historii usuniętego podczas porządkowania pliku `models/info.txt`. Bieżące artefakty przypięto w [`models/SHA256SUMS.txt`](../models/SHA256SUMS.txt), a CI weryfikuje ich zawartość. Każdy dołączony lub nowo wytrenowany model można wczytać przyciskiem **Model**.
 
 ## 6. Parametry konfiguracyjne
 
@@ -309,7 +309,7 @@ licencjami i metadanymi budowy w katalogu głównym pakietu.
 
 **Ograniczenia**
 
-- Obsługiwane są wyłącznie znaki **statyczne** — dynamiczne litery *J* i *Z* są celowo wyłączone; rozpoznawanie znaków na poziomie słów jest poza zakresem projektu.
+- Obsługiwane są wyłącznie znaki **statyczne** — dynamiczne litery *J* i *Z* są celowo wyłączone z modelu domyślnego; dwa historyczne pakiety zawierają je tylko jako statyczne pozy, co nie oddaje ruchu. Rozpoznawanie znaków na poziomie słów jest poza zakresem projektu.
 - Rozpoznawanie jednej dłoni (`num_hands=1`).
 - Jakość rozpoznawania zależy od oświetlenia i tła; zbiór treningowy zebrano w stosunkowo jednorodnych warunkach.
 - Głos TTS jest zorientowany na język angielski (nazwy liter wypowiadane są po angielsku).

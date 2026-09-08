@@ -214,7 +214,7 @@ Tablica znaków alfabetu ASL dostępna jest w [`docs/images`](docs/images/asl-si
 Model klasyfikacyjny został wytrenowany przy użyciu **MediaPipe Model Maker** w środowisku Google Colab — kompletny, odtwarzalny potok znajduje się w [`notebooks/Custom_gesture_recognizer.ipynb`](notebooks/Custom_gesture_recognizer.ipynb):
 
 - **Zbiór danych:** [ASL Alphabet (Kaggle, grassknoted/asl-alphabet)](https://www.kaggle.com/datasets/grassknoted/asl-alphabet) — ok. 87 000 obrazów o rozdzielczości 200×200 px.
-- **Przygotowanie danych:** usunięcie dynamicznych liter *J* i *Z* oraz klas *del*/*space*; zmiana nazwy klasy *nothing* na `none` (wymóg Model Makera).
+- **Przygotowanie danych:** usunięcie dynamicznych liter *J* i *Z* oraz klas *del*/*space*; zmiana nazwy klasy *nothing* na `none` (wymóg Model Makera). Dotyczy to modelu domyślnego; dwa historyczne pakiety w `models/` powstały przed filtrowaniem i zachowują wszystkie 29 klas (patrz dokumentacja techniczna, sekcja 5.4).
 - **Architektura:** ekstraktor punktów charakterystycznych dłoni MediaPipe + własna, w pełni połączona głowica klasyfikacyjna (`128 → 64 → 32`).
 - **Hiperparametry:** 70 epok, batch 16, learning rate 0.001 ze współczynnikiem zaniku 0.95, dropout 0.075, focal loss γ = 2.
 - **Eksport:** pakiet TensorFlow Lite (`.task`) wykorzystywany bezpośrednio przez aplikację.
