@@ -1,13 +1,15 @@
-from PySide6.QtMultimedia import QMediaDevices
-from PySide6.QtGui import QPixmap
-from PySide6.QtWidgets import QFileDialog, QMessageBox
-from recognizer import GestureRecognizerApp
-from gui import *
-from speaker import SpeakerApp
-from camera import *
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import cv2
+from camera import CameraApp
+from gui import Ui_MainWindow
+from PySide6.QtGui import QPixmap
+from PySide6.QtMultimedia import QMediaDevices
+from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
+from recognizer import GestureRecognizerApp
+from speaker import SpeakerApp
 
 
 PROJECT_ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))

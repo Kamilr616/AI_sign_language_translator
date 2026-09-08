@@ -17,12 +17,11 @@ def main():
 
     app = QApplication(sys.argv)
     logging.basicConfig(encoding='utf-8', level=logging.INFO)
-    if app:
-        app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyside6', palette=DarkPalette))
-        window = MainApp()
-        window.start()
-        window.show()
-        logging.info("Sign language translator application has started!")
+    app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyside6', palette=DarkPalette))
+    window = MainApp()
+    window.start()
+    window.show()
+    logging.info("Sign language translator application has started!")
     sys.exit(app.exec())
 
 
