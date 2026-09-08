@@ -19,6 +19,7 @@ daemon thread; until it is ready, or when ``symspellpy`` is not installed,
 ``correct()`` returns every word unchanged.
 """
 
+import bisect
 import logging
 import threading
 from importlib import resources
@@ -40,6 +41,11 @@ SHORT_WORD_LENGTH = 4
 MIN_SEGMENTATION_LENGTH = 6
 # One-letter segments that are words on their own.
 ONE_LETTER_WORDS = frozenset('ai')
+# Completions are offered from this many letters on, and at most this many.
+MIN_COMPLETION_PREFIX = 2
+MAX_COMPLETIONS = 3
+# Longest run of the sorted word list scanned for one prefix.
+MAX_COMPLETION_SCAN = 4000
 # Static ASL hand shapes that landmark classifiers mix up; a substitution
 # inside a group costs CONFUSION_COST instead of a full edit.
 CONFUSABLE_GROUPS = ('aemnst', 'uvrk', 'kp', 'ghq', 'co', 'dx', 'df', 'iyj', 'wf')
@@ -111,6 +117,7 @@ class WordCorrector:
         """
         self.max_edit_distance = max_edit_distance
         self._symspell = None
+        self._sorted_words = []
         self._ready = threading.Event()
         self._thread = None
 
@@ -125,8 +132,7 @@ class WordCorrector:
         if symspell is not None:
             for word, count in counts.items():
                 symspell.create_dictionary_entry(word.lower(), count)
-            corrector._symspell = symspell
-            corrector._ready.set()
+            corrector._install(symspell)
         return corrector
 
     @property
@@ -171,10 +177,15 @@ class WordCorrector:
             logging.error("Word dictionary could not be read: %s", path or DICTIONARY_FILE)
             return False
 
-        self._symspell = symspell
-        self._ready.set()
+        self._install(symspell)
         logging.info("Word dictionary loaded: %d words", symspell.word_count)
         return True
+
+    def _install(self, symspell):
+        """Publish a loaded dictionary together with its sorted word list."""
+        self._sorted_words = sorted(symspell.words)
+        self._symspell = symspell
+        self._ready.set()
 
     def _create_symspell(self):
         if SymSpell is None:
@@ -207,6 +218,26 @@ class WordCorrector:
         if best is None:
             return word
         return best.upper() if word.isupper() else best
+
+    def complete(self, prefix, limit=MAX_COMPLETIONS):
+        """
+        Dictionary words starting with ``prefix`` (at least two letters), most
+        frequent first; empty while the dictionary is not loaded.
+        """
+        if not self.ready or not prefix or not prefix.isalpha() or len(prefix) < MIN_COMPLETION_PREFIX:
+            return []
+
+        lowered = prefix.lower()
+        words = self._sorted_words
+        counts = self._symspell.words
+        start = bisect.bisect_left(words, lowered)
+        matches = []
+        for word in words[start:start + MAX_COMPLETION_SCAN]:
+            if not word.startswith(lowered):
+                break
+            matches.append(word)
+        matches.sort(key=lambda word: -counts[word])
+        return matches[:limit]
 
     def _closest_word(self, lowered):
         """The candidate with the lowest weighted distance, then the highest frequency."""

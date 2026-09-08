@@ -129,3 +129,28 @@ def test_without_symspellpy_words_pass_through(monkeypatch):
 
     assert fresh.load() is False
     assert WordCorrector.from_words({'hello': 1}).correct('HELLLO') == 'HELLLO'
+
+
+def test_completions_start_with_the_prefix_most_frequent_first():
+    assert make_corrector().complete('HE') == ['help', 'here', 'hello']
+    assert make_corrector().complete('hel') == ['help', 'hello']
+    assert make_corrector().complete('WORL') == ['world']
+
+
+def test_completions_need_two_letters_and_a_loaded_dictionary():
+    assert make_corrector().complete('H') == []
+    assert make_corrector().complete('') == []
+    assert make_corrector().complete('H3') == []
+    assert make_corrector().complete('XQ') == []
+    assert WordCorrector().complete('HE') == []
+
+
+def test_the_bundled_dictionary_completes_common_prefixes():
+    fresh = WordCorrector()
+    fresh.load()
+
+    completions = fresh.complete('THAN')
+
+    assert completions[0] == 'than'
+    assert 'thank' in completions or 'thanks' in completions
+    assert len(completions) == 3
