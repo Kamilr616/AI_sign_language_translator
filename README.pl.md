@@ -54,8 +54,8 @@ flowchart LR
     E -->|rozpoznana litera| G[SpeakerApp<br/>pyttsx3 TTS]
 ```
 
-1. **Przechwytywanie** — `CameraApp` pobiera klatki BGR z wybranej kamery i konwertuje je do RGB wraz ze znacznikiem czasu w nanosekundach.
-2. **Rozpoznawanie** — `GestureRecognizerApp` przekazuje do MediaPipe po jednej klatce. Callback kolejkuje następne przechwycenie w wątku Qt, a krótki timer ponawia chwilowo nieudany odczyt lub wysłanie klatki.
+1. **Przechwytywanie** — `CameraApp` pobiera klatki BGR z wybranej kamery i konwertuje je do RGB wraz z monotonicznym znacznikiem czasu w nanosekundach.
+2. **Rozpoznawanie** — `GestureRecognizerApp` czyta klatki we własnym wątku przechwytywania i przekazuje MediaPipe najnowszą z nich, gdy tylko nie oczekuje żaden wynik, więc GUI nigdy nie czeka na kamerę; chwilowo nieudany odczyt jest ponawiany co 50 ms.
 3. **Przetwarzanie końcowe** — `MainApp` opcjonalnie agreguje ostatnie *N* klasyfikacji, wybierając najczęstszy znak i jego średni wynik.
 4. **Wyjście** — klatka z naniesionym szkieletem dłoni, rozpoznana litera, pewność i FPS są wyświetlane w GUI; litera może być dodatkowo syntezowana do mowy.
 

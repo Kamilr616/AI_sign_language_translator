@@ -339,8 +339,15 @@ class MainApp(QMainWindow, Ui_MainWindow):
     def pushbutton_reset_cap_click(self):
         """
         Reset Camera.
+
+        The capture worker is paused while the device is reopened and restarted
+        afterwards; if the device could not be opened the worker keeps polling,
+        so a later successful reset resumes recognition on its own.
         """
-        if self.reset_camera() and self.recognizer_app is not None:
+        if self.recognizer_app is not None:
+            self.recognizer_app.stop_capture()
+        self.reset_camera()
+        if self.recognizer_app is not None:
             self.recognizer_app.recognize_frame()
 
     def closeEvent(self, event):

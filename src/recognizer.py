@@ -1,15 +1,17 @@
-import time
-import numpy as np
-import custom_landmarks
 import logging
+import threading
+import time
+
+import custom_landmarks
+import numpy as np
 from camera import CameraApp
-from PySide6.QtCore import Signal, QObject, QSize, Qt, QTimer
-from PySide6.QtGui import QImage
-from mediapipe import solutions, Image, ImageFormat
+from mediapipe import Image, ImageFormat, solutions
 from mediapipe.framework.formats import landmark_pb2
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.components import processors
+from PySide6.QtCore import QObject, QSize, Qt, Signal
+from PySide6.QtGui import QImage
 
 
 def create_scaled_qimage(frame: np.ndarray) -> QImage:
@@ -34,9 +36,14 @@ def create_scaled_qimage(frame: np.ndarray) -> QImage:
 class GestureRecognizerApp(QObject):
     """
     A class to represent the gesture recognizer application.
+
+    Frames are read on a dedicated capture thread (``CaptureWorker``) so that
+    neither the Qt main thread nor the MediaPipe callback thread ever blocks on
+    ``cv2.VideoCapture.read()``. At most one ``recognize_async`` call is in
+    flight; while a result is pending the worker keeps reading and drops frames,
+    so the next submission is always the newest frame the camera has produced.
     """
     result_ready_signal = Signal(object, list, list, int)
-    recognize_next_signal = Signal()
 
     def __init__(self, model: str, num_hands: int, min_hand_detection_confidence: float,
                  min_hand_presence_confidence: float, min_tracking_confidence: float, score_confidence: float,
@@ -64,9 +71,21 @@ class GestureRecognizerApp(QObject):
         self.recognizer = None
         self._closing = False
         self._inference_pending = False
-        self._retry_delay_ms = 50
+        self._pending_since = 0.0
+        self._pending_timeout_s = 2.0
+        self._slot_free = threading.Event()
+        self._slot_free.set()
+        # How long a fresh frame waits for the in-flight result before it is
+        # dropped in favour of the next one (about half a frame at 30 FPS).
+        self._drop_after_s = 0.015
+        self._retry_delay_s = 0.05
+        self._capture_thread = None
+        self._stop_capture = threading.Event()
+        self._capture_failing = False
         self.cap = camera
 
+        # Milliseconds of the last frame handed to MediaPipe; the next one is
+        # always at least one millisecond later.
         self.last_timestamp = 0
         self.fps_counter = 0
         self.fps = 0
@@ -75,10 +94,6 @@ class GestureRecognizerApp(QObject):
         self.mp_hands = solutions.hands
         self.mp_drawing = solutions.drawing_utils
         self.drawing_styles = custom_landmarks
-        self.recognize_next_signal.connect(
-            self.recognize_frame,
-            Qt.ConnectionType.QueuedConnection,
-        )
 
     def create_recognizer(self):
         """
@@ -107,19 +122,19 @@ class GestureRecognizerApp(QObject):
         )
         self.recognizer = vision.GestureRecognizer.create_from_options(options)
 
-        if self.cap.is_closed():
-            return None
-
     def handle_result(self, result: vision.GestureRecognizerResult, output_image: Image, timestamp_ms: int):
         """
         Callback to process and emit the gesture recognition result.
+
+        Runs on the MediaPipe worker thread. Releasing the in-flight slot first
+        lets the capture worker submit the next frame while this one is drawn.
 
         Args:
             result (GestureRecognizerResult): The recognition result containing detected gestures.
             output_image (Image): The processed output image.
             timestamp_ms (int): The timestamp of the result in milliseconds.
         """
-        self._inference_pending = False
+        self._release_slot()
         try:
             frame, text, category_name = self.process_recognition_result(
                 output_image.numpy_view().copy(), result
@@ -129,9 +144,6 @@ class GestureRecognizerApp(QObject):
         except Exception as e:
             if not self._closing:
                 logging.error(f"Error handling recognition result: {e}")
-        finally:
-            if self.recognizer and not self._closing:
-                self.recognize_next_signal.emit()
 
     def calculate_fps(self):
         """
@@ -147,48 +159,113 @@ class GestureRecognizerApp(QObject):
         self.start_time = current_time
         self.fps_counter = 0
 
-    def _schedule_retry(self):
-        """Retry capture without blocking the GUI or MediaPipe worker thread."""
-        if self.recognizer and not self._closing:
-            QTimer.singleShot(self._retry_delay_ms, self.recognize_frame)
-
     def recognize_frame(self):
         """
-        Captures a frame from the camera and processes it for gesture recognition.
+        Start the capture loop on its worker thread.
 
-        Returns:
-            None: The function does not return a value but processes the frame asynchronously.
+        Does nothing while the recognizer is closed, not created yet, or the
+        worker is already running, so it is safe to call after every reset.
         """
         if self._closing or self.recognizer is None:
             return
 
-        if self._inference_pending:
+        thread = self._capture_thread
+        if thread is not None and thread.is_alive():
             return
 
-        if self.cap.is_closed():
-            logging.warning("Camera is not opened or recognizer is not initialized.")
-            return
+        self._stop_capture.clear()
+        self._capture_thread = threading.Thread(
+            target=self._capture_loop, name="CaptureWorker", daemon=True)
+        self._capture_thread.start()
 
-        timestamp, image = self.cap.read()
+    def stop_capture(self, timeout=2.0):
+        """
+        Stop the capture loop and wait for the worker to exit.
 
-        while image is not None and timestamp <= self.last_timestamp:
-            logging.warning(f"Skipping outdated frame: {timestamp}")
+        Returns:
+            bool: True when the worker is gone, False when it is still busy in a
+                  blocking camera read after the timeout.
+        """
+        self._stop_capture.set()
+        thread = self._capture_thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout)
+            if thread.is_alive():
+                logging.warning("Capture worker did not stop within %.1fs", timeout)
+                return False
+        self._capture_thread = None
+        return True
+
+    def _capture_loop(self):
+        """Read frames until stopped; submit whenever no result is pending."""
+        while not self._stop_capture.is_set():
+            if self._closing or self.recognizer is None:
+                return
+
+            if self.cap.is_closed():
+                self._note_capture_failure("Camera is not opened.")
+                self._stop_capture.wait(self._retry_delay_s)
+                continue
+
             timestamp, image = self.cap.read()
+            if image is None:
+                self._note_capture_failure("No valid image to recognize.")
+                self._stop_capture.wait(self._retry_delay_s)
+                continue
+            self._capture_failing = False
 
-        if image is not None:
-            try:
-                mp_image = Image(image_format=ImageFormat.SRGB, data=image.astype(np.uint8))
-                self.last_timestamp = timestamp
-                self._inference_pending = True
-                self.recognizer.recognize_async(mp_image, timestamp // 1_000_000)
-            except Exception as e:
-                self._inference_pending = False
-                if not self._closing:
-                    logging.error(f"Exception in recognizer: {e}")
-                    self._schedule_retry()
-        else:
-            logging.warning("No valid image to recognize.")
-            self._schedule_retry()
+            if self._inference_pending and not self._slot_free.wait(self._drop_after_s):
+                if time.monotonic() - self._pending_since < self._pending_timeout_s:
+                    # The previous result is still pending: drop this frame and
+                    # read a fresher one instead of queueing stale frames.
+                    continue
+                logging.warning(
+                    "No result from the recognizer within %.1fs, resuming submission",
+                    self._pending_timeout_s)
+                self._release_slot()
+
+            if not self.submit_frame(image, timestamp):
+                self._stop_capture.wait(self._retry_delay_s)
+
+    def _note_capture_failure(self, message):
+        """Log a capture failure once per failure episode instead of every retry."""
+        if not self._capture_failing:
+            logging.warning(message)
+            self._capture_failing = True
+
+    def _release_slot(self):
+        """Mark the single in-flight inference as finished."""
+        self._inference_pending = False
+        self._slot_free.set()
+
+    def submit_frame(self, image, timestamp_ns):
+        """
+        Hand one RGB frame to MediaPipe.
+
+        MediaPipe requires strictly increasing millisecond timestamps, so the
+        nanosecond capture time is converted and bumped to at least one
+        millisecond after the previous submission.
+
+        Returns:
+            bool: True when the frame was accepted, False on a submission error.
+        """
+        timestamp_ms = max(timestamp_ns // 1_000_000, self.last_timestamp + 1)
+        try:
+            mp_image = Image(
+                image_format=ImageFormat.SRGB,
+                data=np.ascontiguousarray(image, dtype=np.uint8),
+            )
+            self._slot_free.clear()
+            self._inference_pending = True
+            self._pending_since = time.monotonic()
+            self.recognizer.recognize_async(mp_image, timestamp_ms)
+            self.last_timestamp = timestamp_ms
+            return True
+        except Exception as e:
+            self._release_slot()
+            if not self._closing:
+                logging.error(f"Exception in recognizer: {e}")
+            return False
 
     def process_recognition_result(self, frame, result):
         """
@@ -236,10 +313,11 @@ class GestureRecognizerApp(QObject):
 
     def close(self):
         """
-        Release resources.
+        Stop the capture worker and release MediaPipe resources.
         """
         self._closing = True
-        self._inference_pending = False
+        self.stop_capture()
+        self._release_slot()
         if self.recognizer:
             self.recognizer.close()
             self.recognizer = None
