@@ -41,7 +41,7 @@ The recognition pipeline is built on **MediaPipe Gesture Recognizer** with a **c
 - 🎥 **Flexible camera configuration** — selection of the capture device, capture backend (DirectShow, Media Foundation, V4L2, GStreamer, …), resolution, and access to native driver settings.
 - ⚙️ **Tunable recognition parameters** — detection / presence / tracking confidence and classification score threshold adjustable from the GUI.
 - 🧩 **Interchangeable models** — any MediaPipe `.task` gesture recognizer bundle can be loaded at runtime via a file dialog; three pre-trained models ship with the repository.
-- 🌒 **Modern dark UI** — PySide6 + QDarkStyle, with live FPS, handedness and confidence indicators.
+- 🌒 **Modern dark UI** — PySide6 + QDarkStyle, with live FPS, handedness and confidence indicators; the whole window scales with its size, so it can be maximized on 1440p and high-DPI displays.
 
 ## How it works
 
