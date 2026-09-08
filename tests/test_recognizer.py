@@ -88,3 +88,55 @@ def test_fps_waits_for_complete_sample_window(monkeypatch):
 
     app.calculate_fps()
     assert app.fps == 5
+
+
+class FakeCategory:
+    def __init__(self, category_name, score, index=0):
+        self.category_name = category_name
+        self.score = score
+        self.index = index
+
+
+class FakeLandmark:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.z = 0.0
+
+
+class FakeResult:
+    def __init__(self, gesture_categories):
+        self.hand_landmarks = [[FakeLandmark(0.1 + 0.04 * i, 0.5) for i in range(21)]]
+        self.handedness = [[FakeCategory('Right', 0.99)]]
+        self.gestures = [gesture_categories]
+
+
+def make_recognizer_app():
+    return recognizer.GestureRecognizerApp(
+        'unused.task', 1, 0.65, 0.65, 0.55, 0.6, FakeCamera(None)
+    )
+
+
+def test_named_gesture_is_reported_with_handedness():
+    app = make_recognizer_app()
+    frame = np.zeros((48, 64, 3), dtype=np.uint8)
+
+    _, text, scores = app.process_recognition_result(frame, FakeResult([FakeCategory('A', 0.9)]))
+
+    assert text == ['A', 'Right']
+    assert scores == [0.9, 0.99]
+
+
+def test_background_category_is_reported_as_no_sign():
+    app = make_recognizer_app()
+    frame = np.zeros((48, 64, 3), dtype=np.uint8)
+
+    _, text, scores = app.process_recognition_result(
+        frame, FakeResult([FakeCategory('', 0.88, index=-1)])
+    )
+    _, empty_text, empty_scores = app.process_recognition_result(frame, FakeResult([]))
+
+    assert text == ['', 'Right']
+    assert scores == [0.0, 0.99]
+    assert empty_text == ['', 'Right']
+    assert empty_scores == [0.0, 0.99]

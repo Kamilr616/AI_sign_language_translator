@@ -81,3 +81,52 @@ def test_file_dialog_restores_model_path_after_failed_load(application, monkeypa
 
     assert window.model_path == original_model
     window.close()
+
+
+class FakeSpeaker:
+    def __init__(self):
+        self.spoken = []
+
+    def speak(self, text):
+        self.spoken.append(text)
+
+    def stop(self):
+        return False
+
+
+def make_window(application, average=False, speak=True):
+    window = MainApp()
+    window.checkBox_avg_sign.setChecked(average)
+    window.checkBox_speak.setChecked(speak)
+    window.tts_app = FakeSpeaker()
+    return window
+
+
+def test_no_sign_frame_shows_placeholder_and_is_not_spoken(application):
+    window = make_window(application)
+
+    window.process_result_and_frame(None, ['', 'Right'], [0.88, 0.99], 20)
+
+    assert window.label_displaySign.text() == '?'
+    assert window.progressBar_1.value() == 0
+    assert window.label_recognitionInfo.text() == 'Right'
+    assert window.progressBar_hand.value() == 99
+    assert window.tts_app.spoken == []
+    window.tts_app = None
+    window.close()
+
+
+def test_no_sign_frames_vote_in_the_window(application):
+    window = make_window(application, average=True)
+    window.horizontalSlider_range.setValue(3)
+
+    window.process_result_and_frame(None, ['A', 'Right'], [0.9, 0.99], 20)
+    assert window.label_displaySign.text() == 'A'
+    window.process_result_and_frame(None, ['', 'Right'], [0.0, 0.99], 20)
+    window.process_result_and_frame(None, ['', 'Right'], [0.0, 0.99], 20)
+
+    assert window.label_displaySign.text() == '?'
+    assert window.progressBar_1.value() == 0
+    assert set(window.tts_app.spoken) == {'A'}
+    window.tts_app = None
+    window.close()
