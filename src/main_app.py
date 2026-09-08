@@ -3,20 +3,26 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import board
 import cv2
 from camera import CameraApp
 from composer import DELETE_SIGN, SENTENCE_END, TextComposer
 from corrector import WordCorrector
 from gui import Ui_MainWindow
-from PySide6.QtCore import QRectF, QSize, Qt
-from PySide6.QtGui import QGuiApplication, QPainter, QPixmap
+from PySide6.QtCore import QEvent, QRect, QRectF, QSize, Qt
+from PySide6.QtGui import QAction, QGuiApplication, QPainter, QPixmap
 from PySide6.QtMultimedia import QMediaDevices
 from PySide6.QtWidgets import (
+    QAbstractSpinBox,
+    QButtonGroup,
+    QComboBox,
     QFileDialog,
     QFrame,
     QGraphicsScene,
     QGraphicsView,
+    QLineEdit,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QSizePolicy,
 )
@@ -36,6 +42,16 @@ REST_FRAMES_FOR_SPACE = 30
 REST_FRAMES_FOR_SENTENCE = 90
 # Entry of the speech unit combo box that speaks whole words instead of letters.
 SPEAK_WORDS = 'Words'
+# Keys of the board: screens, the view menu, the interface and fullscreen.
+SCREEN_KEYS = {Qt.Key.Key_1: 'live', Qt.Key.Key_2: 'studio', Qt.Key.Key_3: 'settings'}
+# Labels of the view menu entries, by card.
+CARD_LABELS = {
+    'text': 'Text bar',
+    'transcript': 'Transcript',
+    'results': 'Results',
+    'settings': 'Settings',
+    'author': 'Author',
+}
 
 
 class MainApp(QMainWindow, Ui_MainWindow):
@@ -45,6 +61,23 @@ class MainApp(QMainWindow, Ui_MainWindow):
         """
         super(MainApp, self).__init__()
         self.setupUi(self)
+        self.screen_name = 'studio'
+        self.card_visible = {card: True for card in board.TOGGLABLE}
+        self.header_visible = True
+        self._cards = {
+            'camera': self.groupBox_6,
+            'text': self.groupBox_text,
+            'transcript': self.groupBox_transcript,
+            'results': self.groupBox_5,
+            'settings': self.groupBox,
+            'author': self.groupBox_10,
+        }
+        self._header_widgets = (
+            self.label_title, self.label_subtitle, self.label_patchedBy, self.label_logoPodteksT,
+            self.pushButton_screenLive, self.pushButton_screenStudio, self.pushButton_screenSettings,
+            self.pushButton_view, self.label_keys, self.line_header,
+        )
+        self._install_board_controls()
         self._install_scaling_view()
 
         self.driver_names = {}
@@ -72,18 +105,217 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.pushButton_model.clicked.connect(self.open_file_dialog)
         self.horizontalSlider_range.valueChanged.connect(self.update_range)
         self.checkBox_avg_sign.toggled.connect(self.clear_results)
+        self.apply_layout()
+
+    def _install_board_controls(self):
+        """
+        Wire the screen pills, the view menu and the keyboard: 1/2/3 and the
+        arrow keys switch screens, V opens the view menu, H hides the
+        interface, F toggles fullscreen and Escape leaves it.
+        """
+        self._screen_pills = {
+            'live': self.pushButton_screenLive,
+            'studio': self.pushButton_screenStudio,
+            'settings': self.pushButton_screenSettings,
+        }
+        self._pill_group = QButtonGroup(self)
+        self._pill_group.setExclusive(True)
+        for name, pill in self._screen_pills.items():
+            self._pill_group.addButton(pill)
+            pill.clicked.connect(lambda checked=False, name=name: self.set_screen(name))
+
+        self.view_menu = QMenu(self)
+        self._card_actions = {}
+        for card in board.TOGGLABLE:
+            action = QAction(CARD_LABELS[card], self)
+            action.setCheckable(True)
+            action.setChecked(True)
+            action.toggled.connect(lambda checked, card=card: self.set_card_visible(card, checked))
+            self.view_menu.addAction(action)
+            self._card_actions[card] = action
+        self.view_menu.addSeparator()
+        self.action_interface = QAction("Hide interface\tH", self)
+        self.action_interface.setCheckable(True)
+        self.action_interface.setToolTip(
+            "SHOW UI in the corner, H or Escape brings the interface back; a right click on the picture opens this menu")
+        self.action_interface.toggled.connect(lambda hidden: self.set_header_visible(not hidden))
+        self.view_menu.addAction(self.action_interface)
+        self.action_fullscreen = QAction("Fullscreen\tF", self)
+        self.action_fullscreen.setCheckable(True)
+        self.action_fullscreen.toggled.connect(self.set_fullscreen)
+        self.view_menu.addAction(self.action_fullscreen)
+        self.pushButton_view.clicked.connect(lambda checked=False: self.show_view_menu())
+        self.pushButton_showInterface.hide()
+        self.pushButton_showInterface.clicked.connect(lambda checked=False: self.set_header_visible(True))
+
+    def show_view_menu(self, position=None):
+        """
+        Open the view menu: under the VIEW pill, at the given global position
+        (right click), or at the window centre when the pill is hidden.
+        """
+        if position is not None:
+            origin = position
+        elif self.pushButton_view.isVisible():
+            origin = self.pushButton_view.mapToGlobal(self.pushButton_view.rect().bottomLeft())
+        else:
+            origin = self.mapToGlobal(self.rect().center())
+        self.view_menu.popup(origin)
+
+    def handle_board_key(self, event):
+        """
+        Act on a board key: 1/2/3 and the arrow keys switch screens, V opens
+        the view menu, H hides or shows the interface, F toggles fullscreen and
+        Escape leaves fullscreen or brings the interface back.
+
+        Returns:
+            bool: True when the key was a board key and has been handled.
+        """
+        if event.modifiers() & ~Qt.KeyboardModifier.KeypadModifier:
+            return False
+        key = event.key()
+        if key in SCREEN_KEYS:
+            self.set_screen(SCREEN_KEYS[key])
+        elif key == Qt.Key.Key_Left:
+            self.step_screen(-1)
+        elif key == Qt.Key.Key_Right:
+            self.step_screen(1)
+        elif key == Qt.Key.Key_V:
+            self.show_view_menu()
+        elif key == Qt.Key.Key_H:
+            self.set_header_visible(not self.header_visible)
+        elif key == Qt.Key.Key_F:
+            self.set_fullscreen(not self.isFullScreen())
+        elif key == Qt.Key.Key_Escape:
+            self.leave_fullscreen()
+        else:
+            return False
+        return True
+
+    def _typing_widget_focused(self):
+        """True while a spin box, combo box or line edit inside the scene has the focus."""
+        item = self._scene.focusItem()
+        proxy_widget = getattr(item, 'widget', None)
+        embedded = proxy_widget() if callable(proxy_widget) else None
+        focused = embedded.focusWidget() if embedded is not None else None
+        while focused is not None:
+            if isinstance(focused, (QAbstractSpinBox, QComboBox, QLineEdit)):
+                return True
+            focused = focused.parentWidget()
+        return False
+
+    def eventFilter(self, watched, event):
+        """
+        Board keys arrive at the scene view before the scene (the widgets live
+        in a QGraphicsProxyWidget, so window shortcuts would not see them);
+        keys typed into a spin box, combo box or line edit are left alone.
+        """
+        if watched is self.scene_view and event.type() == QEvent.Type.KeyPress:
+            if not self._typing_widget_focused() and self.handle_board_key(event):
+                return True
+        return super().eventFilter(watched, event)
+
+    def keyPressEvent(self, event):
+        """Board keys also work when the window itself has the focus."""
+        if not self.handle_board_key(event):
+            super().keyPressEvent(event)
+
+    def set_screen(self, name):
+        """Show one of the board's screens: 'live', 'studio' or 'settings'."""
+        if name not in board.SCREENS:
+            raise ValueError(f"Unknown screen: {name}")
+        self.screen_name = name
+        pill = self._screen_pills[name]
+        if not pill.isChecked():
+            pill.setChecked(True)
+        self.apply_layout()
+
+    def step_screen(self, step):
+        """Move to the previous or next screen, wrapping around."""
+        index = (board.SCREENS.index(self.screen_name) + step) % len(board.SCREENS)
+        self.set_screen(board.SCREENS[index])
+
+    def set_card_visible(self, card, visible):
+        """Switch a card on or off in the view menu; the layout fills the gap."""
+        self.card_visible[card] = bool(visible)
+        action = self._card_actions[card]
+        if action.isChecked() != bool(visible):
+            action.setChecked(bool(visible))
+        self.apply_layout()
+
+    def set_header_visible(self, visible):
+        """Show or hide the header strip; the cards take its space when hidden."""
+        self.header_visible = bool(visible)
+        if self.action_interface.isChecked() == self.header_visible:
+            self.action_interface.setChecked(not self.header_visible)
+        for widget in self._header_widgets:
+            widget.setVisible(self.header_visible)
+        self.pushButton_showInterface.setVisible(not self.header_visible)
+        self.pushButton_showInterface.raise_()
+        self.apply_layout()
+
+    def set_fullscreen(self, fullscreen):
+        """Enter or leave fullscreen."""
+        if fullscreen and not self.isFullScreen():
+            self.showFullScreen()
+        elif not fullscreen and self.isFullScreen():
+            self.showNormal()
+        if self.action_fullscreen.isChecked() != bool(fullscreen):
+            self.action_fullscreen.setChecked(bool(fullscreen))
+
+    def leave_fullscreen(self):
+        """Escape: leave fullscreen, or bring the interface back when it is hidden."""
+        if self.isFullScreen():
+            self.set_fullscreen(False)
+        elif not self.header_visible:
+            self.set_header_visible(True)
+
+    def apply_layout(self):
+        """
+        Place the cards for the current screen, view toggles and header state
+        (see ``board.compute_layout``), resizing the camera preview, the text
+        bar and the transcript to their cards.
+        """
+        self.layout_rects = board.compute_layout(self.screen_name, self.card_visible, self.header_visible)
+        for card, widget in self._cards.items():
+            rect = self.layout_rects[card]
+            widget.setVisible(rect is not None)
+            if rect is not None:
+                widget.setGeometry(QRect(*rect))
+
+        camera = self.layout_rects['camera']
+        x, y, w, h = board.preview_rect(camera)
+        self.label_displayFrame.setGeometry(QRect(x - camera[0], y - camera[1], w, h))
+
+        text = self.layout_rects['text']
+        if text is not None:
+            width = text[2]
+            self.label_text.setGeometry(QRect(16, 36, width - 16 - 232, 44))
+            self.checkBox_correct.setGeometry(QRect(width - 212, 42, 120, 31))
+            self.pushButton_clearText.setGeometry(QRect(width - 88, 40, 72, 34))
+            self.refresh_text_bar()
+        overlay = text is not None and board.text_overlaid(self.screen_name)
+        if self.groupBox_text.property('overlay') != overlay:
+            self.groupBox_text.setProperty('overlay', overlay)
+            self.groupBox_text.style().unpolish(self.groupBox_text)
+            self.groupBox_text.style().polish(self.groupBox_text)
+        self.groupBox_text.raise_()
+
+        transcript = self.layout_rects['transcript']
+        if transcript is not None:
+            width, height = transcript[2], transcript[3]
+            self.plainTextEdit_transcript.setGeometry(QRect(16, 36, width - 16 - 104, height - 52))
+            self.pushButton_saveTranscript.setGeometry(QRect(width - 88, 40, 72, 32))
+            self.pushButton_clearTranscript.setGeometry(QRect(width - 88, 80, 72, 32))
 
     def _install_scaling_view(self):
         """
         Move the fixed-layout central widget into a QGraphicsView and scale the
         whole scene to the window, so the window can be resized or maximized
-        (1440p, high-DPI) and every widget follows, keeping the proportions of
-        the design canvas from gui.ui.
+        (1440p, high-DPI) and every widget follows, keeping the 16:9 proportions
+        of the board canvas.
         """
         content = self.takeCentralWidget()
-        # The canvas keeps the same margin on the right and bottom as on the left and top.
-        bounds = content.childrenRect()
-        self.design_size = QSize(bounds.x() * 2 + bounds.width(), bounds.y() * 2 + bounds.height())
+        self.design_size = QSize(*board.CANVAS)
         content.setFixedSize(self.design_size)
 
         self._scene = QGraphicsScene(self)
@@ -99,6 +331,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
         view.setFrameShape(QFrame.Shape.NoFrame)
         view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        view.installEventFilter(self)
+        view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        view.customContextMenuRequested.connect(lambda point: self.show_view_menu(view.mapToGlobal(point)))
         self.scene_view = view
         self.setCentralWidget(view)
 
@@ -454,8 +689,21 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.finish_word()
         elif token != DELETE_SIGN and self.speaks_letters():
             self.translate_to_speech(token)
-        self.label_text.setText(self.composer.text)
+        self.refresh_text_bar()
         self.show_hints()
+
+    def refresh_text_bar(self):
+        """
+        Show the composed text in the bar; when it is wider than the bar the
+        oldest characters are elided on the left, so the newest letters stay
+        visible.
+        """
+        text = self.composer.text
+        available = self.label_text.width() - 2 * self.label_text.margin() - 16
+        metrics = self.label_text.fontMetrics()
+        if metrics.horizontalAdvance(text) > available:
+            text = metrics.elidedText(text, Qt.TextElideMode.ElideLeft, available)
+        self.label_text.setText(text)
 
     def show_hints(self):
         """
