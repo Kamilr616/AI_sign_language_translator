@@ -111,7 +111,7 @@ Key details:
 - **Backpressure and freshness** — only one `recognize_async()` call may be in flight. While a result is pending, a freshly read frame waits at most 15 ms for the slot to free up; otherwise it is dropped and the next frame is read, so the frame handed to MediaPipe is always the newest one and latency does not grow when inference is slower than the camera. A watchdog releases the slot when no result arrives within 2 s.
 - **Recovery** — a closed camera or a failed read is retried every 50 ms on the capture thread, with a single log line per failure episode. `CameraApp` serialises every `VideoCapture` call with a lock, so *Reset camera* on the GUI thread cannot race with a read in progress; the reset pauses the worker, reopens the device and restarts the worker, which keeps polling until the device is available.
 - **FPS measurement** — computed after each complete 5-frame sample window as `5 / Δt` (`calculate_fps`, `src/recognizer.py`).
-- **TTS concurrency** — `SpeakerApp` runs a single long-lived daemon worker thread that owns the pyttsx3 engine for its whole lifetime and drives its external event loop (`startLoop(False)` plus periodic `iterate()`), waiting for the `finished-utterance` callback before it takes the next text; this also avoids a pyttsx3 2.99 `runAndWait()` regression that cancelled every utterance after the first. `speak(text)` is non-blocking: it enqueues the text, and pending requests are coalesced so only the newest one is spoken; requests are ignored while the worker is not running (`src/speaker.py`). `MainApp.update_speech` calls `speak()` once per letter, after the letter has been displayed for `SPEECH_STABLE_FRAMES` (3) consecutive frames; a stable "no sign" re-arms it, so the same letter shown again is spoken again, while single-frame flickers are never voiced.
+- **TTS concurrency** — `SpeakerApp` runs a single long-lived daemon worker thread that owns the pyttsx3 engine for its whole lifetime and drives its external event loop (`startLoop(False)` plus periodic `iterate()`), waiting for the `finished-utterance` callback before it takes the next text; this also avoids a pyttsx3 2.99 `runAndWait()` regression that cancelled every utterance after the first. `speak(text)` is non-blocking: it enqueues the text, and pending requests are coalesced so only the newest one is spoken; requests are ignored while the worker is not running (`src/speaker.py`). `MainApp.update_text` calls `speak()` once per letter written by the `TextComposer` (see 3.3), i.e. after the letter has been displayed for `STABLE_FRAMES` (3) consecutive frames; a rest re-arms it, so the same letter shown again is spoken again, while single-frame flickers are never voiced.
 - **Shutdown** — `MainApp.closeEvent` disconnects the signal, closes the recognizer (which stops the capture thread before closing MediaPipe), releases the camera and stops the TTS engine, in that order.
 
 ### 3.3 Result post-processing (smoothing)
@@ -122,6 +122,8 @@ Raw per-frame classifications flicker. When the *Average sign* checkbox is enabl
 2. `calculate_common_sign_and_average` (`src/main_app.py`) selects the **most frequent** sign in the window (majority vote) and reports the **average score of the samples classified as that sign**.
 
 A frame in which the hand is visible but no sign passes the threshold votes as an empty sign; when it wins, the window shows `?`. Shrinking the window below the current number of stored results, or toggling *Average sign*, clears the window (`clear_results`) so that stale votes cannot shape the next result.
+
+**Word composition.** The displayed sign of every frame (after smoothing, or an empty string when no sign is shown) is also fed to `TextComposer` (`src/composer.py`, no Qt dependency). A letter is written to the *Text* bar once it has been displayed for `STABLE_FRAMES` (3) consecutive frames; holding it longer does not repeat it, showing it again after a short rest writes it again, and single-frame flickers are ignored. Resting the hand for `REST_FRAMES_FOR_SPACE` (30) consecutive frames, about a second, ends the word with a single space. With the 29-class models the `space` and `del` classes insert a space and delete the last character. Every written letter is also the one handed to TTS, so what is spoken is exactly what is written; spaces and deletions are silent. The *Clear* button empties the bar (`clear_text`).
 
 ## 4. Module reference
 
@@ -141,8 +143,11 @@ Creates the `QApplication`, configures `logging` (INFO level, UTF-8), applies th
 | `reset_tts()` | Rebuilds `SpeakerApp` with the selected rate and volume |
 | `open_file_dialog()` | Lets the user pick a `.task` model file; triggers `reset_recognizer()` |
 | `populate_cameras()` / `populate_camera_drivers()` | Enumerates video devices (`QMediaDevices.videoInputs()`) and OpenCV capture backends (`cv2.videoio_registry.getCameraBackends()`) |
-| `process_result_and_frame(frame, text, scores, fps)` | Qt slot: renders the annotated frame, FPS, handedness and confidence; applies smoothing; forwards the letter to TTS |
+| `process_result_and_frame(frame, text, scores, fps)` | Qt slot: renders the annotated frame, FPS, handedness and confidence; applies smoothing; feeds the displayed sign to the composer |
 | `calculate_common_sign_and_average()` | Majority vote + average score over the sliding window |
+| `clear_results()` | Empties the sliding window (on toggling *Average sign* or shrinking the range) |
+| `update_text(sign)` | Feeds `TextComposer`; writes a newly stable letter to the *Text* bar and speaks it |
+| `clear_text()` | Empties the *Text* bar (the *Clear* button) |
 | `closeEvent(event)` | Orderly resource release |
 
 The default model is `models/gesture_recognizer_asl_0.task`. Its absolute path is derived from the repository root in source runs or from PyInstaller's bundle directory in packaged runs, so startup does not depend on the caller's working directory.
@@ -188,13 +193,23 @@ Offline TTS based on `pyttsx3`:
 
 ### 4.7 `src/gui.py` / `src/gui.ui`
 
-`gui.ui` is the Qt Designer definition of the main window (1171×782, fixed); `gui.py` is generated from it with the Qt UI compiler and **must not be edited by hand**. Regenerate after changing the design:
+`gui.ui` is the Qt Designer definition of the main window (1171×842, fixed); `gui.py` is generated from it with the Qt UI compiler and **must not be edited by hand**. Regenerate after changing the design:
 
 ```bash
 pyside6-uic src/gui.ui -o src/gui.py
 ```
 
 The window contains the video preview (`label_displayFrame`, 640×480), the result panel (recognized sign, handedness, confidence progress bars, FPS bar) and a settings tab widget (camera, recognizer, TTS, results).
+
+### 4.8 `src/composer.py` — `TextComposer`
+
+Turns the per-frame displayed sign into text, the way a fingerspelling reader does, and has no Qt dependency:
+
+- `feed(sign)` — accounts for one frame; returns the letter that was just written, `' '` for a space, `'del'` for a deletion, or `None` when nothing changed.
+- `clear()` — forgets the text and the letter being composed.
+- `text` — the composed text, trimmed to the newest `max_length` (60) characters.
+
+Parameters: `stable_frames` (frames a sign must be shown before it is written), `rest_frames` (frames without a sign that end the word with a space), `max_length`.
 
 ## 5. Model training pipeline
 
@@ -268,6 +283,7 @@ All parameters are adjustable from the GUI at runtime; changes take effect after
 | Window size | *Range* slider | Number of recent results used for voting |
 | Speech on/off | *Speak* checkbox | Speaks a letter once, after it has been displayed for 3 consecutive frames; the same letter is spoken again after the hand rests or another letter is shown |
 | Rate / volume | TTS spin boxes | pyttsx3 speech rate (wpm) and volume (%) |
+| Text | *Text* bar + *Clear* button | Letters written once stable (3 frames); a rest of 30 frames ends the word with a space; the `space`/`del` classes of the 29-class models insert a space / delete a character |
 
 ## 7. Running and packaging
 
@@ -315,5 +331,5 @@ under `dist/release/`, with the executable, models and runtime dependencies in
 **Possible extensions**
 
 - Temporal models (e.g. LSTM/transformer over landmark sequences) to support dynamic signs.
-- Word composition: assembling recognized letters into words with an on-screen text buffer and dictionary correction.
+- Dictionary correction and completion of the composed words (e.g. matching against a word list), and speaking whole words instead of single letters.
 - Support for other national sign alphabets (e.g. PJM) by retraining on a suitable dataset.

@@ -8,7 +8,7 @@
     <x>0</x>
     <y>0</y>
     <width>1171</width>
-    <height>782</height>
+    <height>842</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -2055,6 +2055,61 @@
      </property>
      <property name="scaledContents">
       <bool>true</bool>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_text">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>760</y>
+      <width>1151</width>
+      <height>71</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Text</string>
+    </property>
+    <widget class="QLabel" name="label_text">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>1030</width>
+       <height>41</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <family>Calibri</family>
+       <pointsize>22</pointsize>
+       <bold>false</bold>
+      </font>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::Shape::Box</enum>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+     </property>
+     <property name="margin">
+      <number>6</number>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButton_clearText">
+     <property name="geometry">
+      <rect>
+       <x>1050</x>
+       <y>25</y>
+       <width>91</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Clear</string>
      </property>
     </widget>
    </widget>

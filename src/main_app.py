@@ -4,6 +4,7 @@ from pathlib import Path
 
 import cv2
 from camera import CameraApp
+from composer import DELETE_SIGN, TextComposer
 from gui import Ui_MainWindow
 from PySide6.QtGui import QPixmap
 from PySide6.QtMultimedia import QMediaDevices
@@ -15,8 +16,10 @@ from speaker import SpeakerApp
 PROJECT_ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
 MODEL_DIRECTORY = PROJECT_ROOT / 'models'
 MODEL_PATH = str(MODEL_DIRECTORY / 'gesture_recognizer_asl_0.task')
-# A letter is spoken once it has been displayed for this many consecutive frames.
-SPEECH_STABLE_FRAMES = 3
+# A letter is written and spoken once it has been displayed for this many consecutive frames.
+STABLE_FRAMES = 3
+# Resting the hand for this many consecutive frames (about a second) ends the word.
+REST_FRAMES_FOR_SPACE = 30
 
 
 class MainApp(QMainWindow, Ui_MainWindow):
@@ -34,10 +37,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.last_results = []
         self.model_path = MODEL_PATH
         self.last_results_length = 0
-        self._speech_candidate = None
-        self._speech_stable_frames = 0
-        self._last_spoken_sign = None
+        self.composer = TextComposer(stable_frames=STABLE_FRAMES, rest_frames=REST_FRAMES_FOR_SPACE)
 
+        self.pushButton_clearText.clicked.connect(self.clear_text)
         self.pushButton_resetRecognizer.clicked.connect(self.reset_recognizer)
         self.pushButton_resetTTS.clicked.connect(self.reset_tts)
         self.pushButton_resetCap.clicked.connect(self.pushbutton_reset_cap_click)
@@ -333,38 +335,40 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
             self.label_displaySign.setText(result_sign or '?')
             self.progressBar_1.setValue(average_score * 100)
-            self.update_speech(result_sign)
+            self.update_text(result_sign)
         else:
             self.label_recognitionInfo.setText('Not detected')
             self.label_displaySign.setText('?')
             self.progressBar_1.setValue(0)
             self.progressBar_hand.setValue(0)
-            self.update_speech('')
+            self.update_text('')
 
-    def update_speech(self, sign):
+    def update_text(self, sign):
         """
-        Speak a letter once, after it has been displayed for SPEECH_STABLE_FRAMES
-        consecutive frames, instead of repeating it on every frame.
+        Feed the displayed sign to the composer: a letter shown for STABLE_FRAMES
+        consecutive frames is written to the text bar once and spoken once, a
+        rest of REST_FRAMES_FOR_SPACE frames ends the word with a space.
 
-        A stable "no sign" (hand gone or resting) re-arms the last letter, so
-        showing it again speaks it again. Single-frame flickers are ignored.
+        Showing the same letter again after a rest writes and speaks it again;
+        single-frame flickers are ignored. Spaces and deletions are not spoken.
 
         Args:
             sign (str): The displayed sign, or an empty string for no sign.
         """
-        if sign != self._speech_candidate:
-            self._speech_candidate = sign
-            self._speech_stable_frames = 0
-        self._speech_stable_frames += 1
-
-        if self._speech_stable_frames < SPEECH_STABLE_FRAMES:
+        token = self.composer.feed(sign)
+        if token is None:
             return
 
-        if not sign:
-            self._last_spoken_sign = None
-        elif sign != self._last_spoken_sign and self.checkBox_speak.isChecked():
-            self._last_spoken_sign = sign
-            self.translate_to_speech(sign)
+        self.label_text.setText(self.composer.text)
+        if token not in (' ', DELETE_SIGN) and self.checkBox_speak.isChecked():
+            self.translate_to_speech(token)
+
+    def clear_text(self):
+        """
+        Empty the text bar and forget the letter being composed.
+        """
+        self.composer.clear()
+        self.label_text.setText('')
 
     def translate_to_speech(self, data=""):
         """

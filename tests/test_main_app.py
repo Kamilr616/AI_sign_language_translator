@@ -143,7 +143,7 @@ def feed(window, sign, frames):
 def test_a_letter_is_spoken_once_after_it_is_stable(application):
     window = make_window(application)
 
-    feed(window, 'A', main_app.SPEECH_STABLE_FRAMES - 1)
+    feed(window, 'A', main_app.STABLE_FRAMES - 1)
     assert window.tts_app.spoken == []
     feed(window, 'A', 10)
 
@@ -219,7 +219,52 @@ def test_nothing_is_spoken_while_the_checkbox_is_off(application):
 
     window.checkBox_speak.setChecked(True)
     feed(window, 'A', 1)
+    assert window.tts_app.spoken == []
+    feed(window, 'B', 3)
 
-    assert window.tts_app.spoken == ['A']
+    assert window.tts_app.spoken == ['B']
+    window.tts_app = None
+    window.close()
+
+
+def test_stable_letters_are_written_to_the_text_bar(application):
+    window = make_window(application)
+
+    feed(window, 'A', 3)
+    feed(window, 'B', 1)
+    feed(window, 'A', 3)
+    feed(window, 'B', 3)
+    feed(window, '', 5)
+    feed(window, 'B', 3)
+
+    assert window.label_text.text() == 'ABB'
+    assert window.tts_app.spoken == ['A', 'B', 'B']
+    window.tts_app = None
+    window.close()
+
+
+def test_a_long_rest_ends_the_word_without_speaking(application):
+    window = make_window(application)
+
+    feed(window, 'H', 3)
+    feed(window, 'I', 3)
+    feed(window, None, main_app.REST_FRAMES_FOR_SPACE)
+    feed(window, 'U', 3)
+
+    assert window.label_text.text() == 'HI U'
+    assert window.tts_app.spoken == ['H', 'I', 'U']
+    window.tts_app = None
+    window.close()
+
+
+def test_clear_button_empties_the_text_bar(application):
+    window = make_window(application, speak=False)
+
+    feed(window, 'A', 3)
+    assert window.label_text.text() == 'A'
+    window.pushButton_clearText.click()
+
+    assert window.label_text.text() == ''
+    assert window.composer.text == ''
     window.tts_app = None
     window.close()

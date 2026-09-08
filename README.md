@@ -36,6 +36,7 @@ The recognition pipeline is built on **MediaPipe Gesture Recognizer** with a **c
 - 🖐️ **Real-time hand detection and tracking** — MediaPipe hand landmarker running in asynchronous `LIVE_STREAM` mode.
 - 🔤 **ASL fingerspelling recognition** — a custom-trained classifier recognizing 24 static ASL alphabet letters (A–Y, excluding dynamic J and Z) plus a `none` class.
 - 🗣️ **Text-to-speech output** — recognized letters can be spoken aloud through the system TTS engine (`pyttsx3`), with configurable rate and volume.
+- ✍️ **Word composition** — a letter shown for a few consecutive frames is written into a text bar; resting the hand for about a second ends the word, and the bar can be cleared with one click.
 - 📊 **Result smoothing** — an optional sliding-window vote over the last *N* results stabilizes the output sign and reports its average confidence score.
 - 🎥 **Flexible camera configuration** — selection of the capture device, capture backend (DirectShow, Media Foundation, V4L2, GStreamer, …), resolution, and access to native driver settings.
 - ⚙️ **Tunable recognition parameters** — detection / presence / tracking confidence and classification score threshold adjustable from the GUI.
@@ -58,7 +59,7 @@ flowchart LR
 1. **Capture** — `CameraApp` grabs BGR frames from the selected camera and converts them to RGB with a monotonic nanosecond timestamp.
 2. **Recognition** — `GestureRecognizerApp` reads frames on its own capture thread and hands the newest one to MediaPipe whenever no result is pending, so the GUI never waits for the camera; transient capture failures are retried every 50 ms.
 3. **Post-processing** — `MainApp` optionally aggregates the last *N* classifications, picking the most frequent sign and its average score.
-4. **Output** — the annotated frame, recognized letter, confidence and FPS are rendered in the GUI; the letter is optionally synthesized to speech.
+4. **Output** — the annotated frame, recognized letter, confidence and FPS are rendered in the GUI; a letter that stays stable for a few frames is written into the text bar and optionally synthesized to speech.
 
 A detailed description of the architecture, threading model and training pipeline is available in the [technical documentation](docs/TECHNICAL_DOCUMENTATION.md).
 
@@ -72,6 +73,7 @@ AI_sign_language_translator/
 │   ├── recognizer.py           # MediaPipe gesture recognition engine
 │   ├── camera.py               # OpenCV camera wrapper
 │   ├── speaker.py              # Text-to-speech engine (pyttsx3)
+│   ├── composer.py             # Assembles stable letters into words
 │   ├── custom_landmarks.py     # Custom hand-landmark drawing styles
 │   ├── gui.py                  # UI class compiled from gui.ui (pyside6-uic)
 │   ├── gui.ui                  # Qt Designer UI definition
@@ -203,9 +205,10 @@ ready-to-extract **folder build** packaged as a Windows x64 ZIP.
 1. Position your hand in front of the camera so it is fully visible in the preview.
 2. Show a static ASL alphabet sign — the recognized letter, its confidence and the detected handedness are displayed live.
 3. **Speak** — enable the checkbox to have each recognized letter spoken aloud once it is stable (shown for a few consecutive frames); rest your hand or show another letter to have it spoken again.
-4. **Average sign** — enable smoothing over the last *N* results (window size set with the slider) for a more stable output.
-5. Adjust recognition thresholds, camera resolution, capture backend or TTS rate/volume in the settings panels, then press the corresponding **Reset** button to apply.
-6. **Model** — load a different `.task` model from the `models/` directory at any time.
+4. **Text** — a letter shown for a few consecutive frames is written into the text bar at the bottom of the window; rest your hand for about a second to end the word with a space, show the same letter again after a short rest to repeat it, and press **Clear** to start over.
+5. **Average sign** — enable smoothing over the last *N* results (window size set with the slider) for a more stable output.
+6. Adjust recognition thresholds, camera resolution, capture backend or TTS rate/volume in the settings panels, then press the corresponding **Reset** button to apply.
+7. **Model** — load a different `.task` model from the `models/` directory at any time.
 
 The reference chart of ASL alphabet signs is available in [`docs/images`](docs/images/asl-sign-language-alphabet-vectors.webp).
 

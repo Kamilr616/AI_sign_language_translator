@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'gui.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.11.1
+## Created by: Qt User Interface Compiler version 6.11.2
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -25,7 +25,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(1171, 782)
+        MainWindow.resize(1171, 842)
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -595,6 +595,23 @@ class Ui_MainWindow(object):
         self.label_logo_AT.setGeometry(QRect(20, 140, 271, 61))
         self.label_logo_AT.setPixmap(QPixmap(u"assets/at.png"))
         self.label_logo_AT.setScaledContents(True)
+        self.groupBox_text = QGroupBox(self.centralwidget)
+        self.groupBox_text.setObjectName(u"groupBox_text")
+        self.groupBox_text.setGeometry(QRect(10, 760, 1151, 71))
+        self.label_text = QLabel(self.groupBox_text)
+        self.label_text.setObjectName(u"label_text")
+        self.label_text.setGeometry(QRect(10, 20, 1030, 41))
+        font7 = QFont()
+        font7.setFamilies([u"Calibri"])
+        font7.setPointSize(22)
+        font7.setBold(False)
+        self.label_text.setFont(font7)
+        self.label_text.setFrameShape(QFrame.Shape.Box)
+        self.label_text.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+        self.label_text.setMargin(6)
+        self.pushButton_clearText = QPushButton(self.groupBox_text)
+        self.pushButton_clearText.setObjectName(u"pushButton_clearText")
+        self.pushButton_clearText.setGeometry(QRect(1050, 25, 91, 31))
         MainWindow.setCentralWidget(self.centralwidget)
         self.statusbar = QStatusBar(MainWindow)
         self.statusbar.setObjectName(u"statusbar")
@@ -677,5 +694,8 @@ class Ui_MainWindow(object):
         self.label.setText(QCoreApplication.translate("MainWindow", u"Kamil Rataj", None))
         self.label_logoKI.setText("")
         self.label_logo_AT.setText("")
+        self.groupBox_text.setTitle(QCoreApplication.translate("MainWindow", u"Text", None))
+        self.label_text.setText("")
+        self.pushButton_clearText.setText(QCoreApplication.translate("MainWindow", u"Clear", None))
     # retranslateUi
 
