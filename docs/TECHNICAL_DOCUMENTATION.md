@@ -193,7 +193,7 @@ Offline TTS based on `pyttsx3`:
 
 ### 4.7 `src/gui.py` / `src/gui.ui`
 
-`gui.ui` is the Qt Designer definition of the main window (1171×842, fixed); `gui.py` is generated from it with the Qt UI compiler and **must not be edited by hand**. Regenerate after changing the design:
+`gui.ui` is the Qt Designer definition of the main window (design canvas 1171×842, widgets placed at absolute positions); `gui.py` is generated from it with the Qt UI compiler and **must not be edited by hand**. At runtime `MainApp._install_scaling_view` moves the central widget into a `QGraphicsView` and `fit_scene` scales the whole scene to the window while keeping its aspect ratio, so the window can be resized or maximized (1440p, high-DPI displays) and every widget follows; the initial size fills about 90% of the available screen, between half and twice the design size. Regenerate after changing the design:
 
 ```bash
 pyside6-uic src/gui.ui -o src/gui.py
@@ -272,7 +272,7 @@ All parameters are adjustable from the GUI at runtime; changes take effect after
 |---|---|---|
 | Device | *Cameras* combo box | Video input enumerated via Qt Multimedia |
 | Backend | *Drivers* combo box | OpenCV capture backend (Auto, DirectShow, Media Foundation, V4L2, GStreamer, FFMPEG, …) |
-| Resolution | *Width* / *Height* spin boxes | Requested capture resolution (FPS is fixed at 30) |
+| Resolution | *Width* / *Height* spin boxes | Requested capture resolution, up to 3840×2160 (FPS is fixed at 30); the preview is always rendered at 640×480 and scaled with the window |
 | Native settings | *Camera settings* button | Opens the driver property dialog (DirectShow) |
 
 ### 6.3 Output

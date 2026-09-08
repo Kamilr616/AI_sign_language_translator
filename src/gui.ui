@@ -12,7 +12,7 @@
    </rect>
   </property>
   <property name="sizePolicy">
-   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
@@ -1406,7 +1406,7 @@
           <number>120</number>
          </property>
          <property name="maximum">
-          <number>1080</number>
+          <number>2160</number>
          </property>
          <property name="singleStep">
           <number>10</number>
@@ -1439,7 +1439,7 @@
           <number>160</number>
          </property>
          <property name="maximum">
-          <number>1920</number>
+          <number>3840</number>
          </property>
          <property name="singleStep">
           <number>10</number>

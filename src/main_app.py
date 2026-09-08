@@ -6,9 +6,18 @@ import cv2
 from camera import CameraApp
 from composer import DELETE_SIGN, TextComposer
 from gui import Ui_MainWindow
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QRectF, QSize, Qt
+from PySide6.QtGui import QGuiApplication, QPainter, QPixmap
 from PySide6.QtMultimedia import QMediaDevices
-from PySide6.QtWidgets import QFileDialog, QMainWindow, QMessageBox
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QFrame,
+    QGraphicsScene,
+    QGraphicsView,
+    QMainWindow,
+    QMessageBox,
+    QSizePolicy,
+)
 from recognizer import GestureRecognizerApp
 from speaker import SpeakerApp
 
@@ -29,6 +38,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         """
         super(MainApp, self).__init__()
         self.setupUi(self)
+        self._install_scaling_view()
 
         self.driver_names = {}
         self.camera_app = None
@@ -47,6 +57,66 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.pushButton_model.clicked.connect(self.open_file_dialog)
         self.horizontalSlider_range.valueChanged.connect(self.update_range)
         self.checkBox_avg_sign.toggled.connect(self.clear_results)
+
+    def _install_scaling_view(self):
+        """
+        Move the fixed-layout central widget into a QGraphicsView and scale the
+        whole scene to the window, so the window can be resized or maximized
+        (1440p, high-DPI) and every widget follows, keeping the proportions of
+        the design canvas from gui.ui.
+        """
+        content = self.takeCentralWidget()
+        # The canvas keeps the same margin on the right and bottom as on the left and top.
+        bounds = content.childrenRect()
+        self.design_size = QSize(bounds.x() * 2 + bounds.width(), bounds.y() * 2 + bounds.height())
+        content.setFixedSize(self.design_size)
+
+        self._scene = QGraphicsScene(self)
+        self._scene.addWidget(content)
+        self._scene.setSceneRect(QRectF(0, 0, self.design_size.width(), self.design_size.height()))
+
+        view = QGraphicsView(self._scene, self)
+        view.setRenderHints(
+            QPainter.RenderHint.Antialiasing
+            | QPainter.RenderHint.TextAntialiasing
+            | QPainter.RenderHint.SmoothPixmapTransform
+        )
+        view.setFrameShape(QFrame.Shape.NoFrame)
+        view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scene_view = view
+        self.setCentralWidget(view)
+
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        self.setMinimumSize(self.design_size.width() // 2, self.design_size.height() // 2)
+        self.resize(self._initial_window_size())
+
+    def _initial_window_size(self):
+        """
+        Fill about 90% of the available screen, between half and twice the
+        design size, so the window is neither tiny on 1440p nor off-screen on
+        a small laptop display.
+        """
+        width, height = self.design_size.width(), self.design_size.height()
+        screen = QGuiApplication.primaryScreen()
+        if screen is None:
+            return QSize(width, height)
+        available = screen.availableGeometry()
+        factor = min(available.width() * 0.9 / width, available.height() * 0.85 / height, 2.0)
+        factor = max(factor, 0.5)
+        return QSize(int(width * factor), int(height * factor) + self.statusBar().sizeHint().height())
+
+    def fit_scene(self):
+        """Scale the scene to the current window size, keeping its aspect ratio."""
+        self.scene_view.fitInView(self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.fit_scene()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.fit_scene()
 
     def clear_results(self):
         """

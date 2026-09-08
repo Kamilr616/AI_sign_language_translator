@@ -193,7 +193,7 @@ Synteza mowy offline oparta na `pyttsx3`:
 
 ### 4.7 `src/gui.py` / `src/gui.ui`
 
-`gui.ui` to definicja okna głównego z Qt Designera (1171×842, rozmiar stały); `gui.py` jest z niej generowany kompilatorem UI Qt i **nie należy edytować go ręcznie**. Po zmianie projektu należy wygenerować go ponownie:
+`gui.ui` to definicja okna głównego z Qt Designera (płótno projektowe 1171×842, widżety w pozycjach bezwzględnych); `gui.py` jest z niej generowany kompilatorem UI Qt i **nie należy edytować go ręcznie**. W czasie działania `MainApp._install_scaling_view` przenosi widżet centralny do `QGraphicsView`, a `fit_scene` skaluje całą scenę do okna z zachowaniem proporcji, więc okno można zmieniać i maksymalizować (1440p, ekrany high-DPI), a każdy widżet podąża za nim; rozmiar początkowy wypełnia około 90% dostępnego ekranu, między połową a dwukrotnością płótna. Po zmianie projektu należy wygenerować go ponownie:
 
 ```bash
 pyside6-uic src/gui.ui -o src/gui.py
@@ -272,7 +272,7 @@ Wszystkie parametry można zmieniać z poziomu GUI w trakcie działania; zmiany 
 |---|---|---|
 | Urządzenie | Lista *Cameras* | Wejście wideo enumerowane przez Qt Multimedia |
 | Backend | Lista *Drivers* | Backend przechwytywania OpenCV (Auto, DirectShow, Media Foundation, V4L2, GStreamer, FFMPEG, …) |
-| Rozdzielczość | Pola *Width* / *Height* | Żądana rozdzielczość przechwytywania (FPS ustawione na stałe 30) |
+| Rozdzielczość | Pola *Width* / *Height* | Żądana rozdzielczość przechwytywania, do 3840×2160 (FPS ustawione na stałe 30); podgląd jest zawsze renderowany w 640×480 i skalowany razem z oknem |
 | Ustawienia natywne | Przycisk *Camera settings* | Otwiera okno właściwości sterownika (DirectShow) |
 
 ### 6.3 Wyjście

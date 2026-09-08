@@ -67,6 +67,28 @@ def test_invalid_model_keeps_previous_recognizer(application, monkeypatch):
     window.close()
 
 
+def test_window_scales_the_scene_to_its_size(application):
+    window = MainApp()
+    width, height = window.design_size.width(), window.design_size.height()
+    assert (width, height) == (1171, 841)
+    window.show()
+
+    window.resize(width * 2, height * 2 + window.statusBar().height())
+    application.processEvents()
+    window.fit_scene()
+    doubled = window.scene_view.transform().m11()
+
+    window.resize(width // 2 + 40, height // 2 + 40)
+    application.processEvents()
+    window.fit_scene()
+    halved = window.scene_view.transform().m11()
+
+    assert doubled == pytest.approx(2.0, abs=0.05)
+    assert halved == pytest.approx(0.5, abs=0.05)
+    assert window.label_displayFrame.size().width() == 640
+    window.close()
+
+
 def test_file_dialog_restores_model_path_after_failed_load(application, monkeypatch):
     window = MainApp()
     original_model = window.model_path
