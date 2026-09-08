@@ -78,37 +78,41 @@ flowchart TB
 
 ### 3.2 Pętla rozpoznawania i model wątkowości
 
-`GestureRecognizer` MediaPipe pracuje w trybie **`RunningMode.LIVE_STREAM`** — `recognize_async()` zwraca sterowanie natychmiast, a wynik dostarczany jest później w wątku roboczym MediaPipe poprzez `result_callback`. Odporna pętla asynchroniczna jest koordynowana kolejkowanym sygnałem Qt. Krótki `QTimer` jest używany tylko do ponowienia po chwilowym błędzie odczytu lub wysłania klatki:
+`GestureRecognizer` MediaPipe pracuje w trybie **`RunningMode.LIVE_STREAM`** — `recognize_async()` zwraca sterowanie natychmiast, a wynik dostarczany jest później w wątku roboczym MediaPipe poprzez `result_callback`. Klatki czyta osobny **wątek przechwytywania** (`CaptureWorker`, demon `threading.Thread` uruchamiany przez `recognize_frame()`), dzięki czemu ani wątek główny Qt, ani wątek callbacku MediaPipe nigdy nie blokują się na `cv2.VideoCapture.read()`:
 
 ```mermaid
 sequenceDiagram
     participant M as MainApp (wątek główny Qt)
-    participant R as GestureRecognizerApp
+    participant W as Wątek CaptureWorker
     participant C as CameraApp
     participant MP as Wątek roboczy MediaPipe
     participant T as SpeakerApp (wątek roboczy TTS)
 
-    M->>R: create_recognizer() + recognize_frame()
-    R->>C: read()
-    C-->>R: timestamp_ns, klatka RGB
-    R->>MP: recognize_async(mp.Image, ts_ms)
-    MP-->>R: handle_result(wynik, obraz, ts)
-    Note over R: rysowanie szkieletu, obliczenie FPS
-    R--)M: result_ready_signal.emit(obraz, tekst, wyniki, fps)
+    M->>W: create_recognizer() + recognize_frame() (start wątku)
+    loop każda klatka z kamery
+        W->>C: read()
+        C-->>W: monotoniczny timestamp_ns, klatka RGB
+        alt brak oczekującego wyniku (albo nadejdzie w 15 ms)
+            W->>MP: submit_frame() → recognize_async(mp.Image, ts_ms)
+        else wynik wciąż oczekuje
+            Note over W: klatka porzucona, czytana jest świeższa
+        end
+    end
+    MP-->>MP: handle_result(wynik, obraz, ts): zwolnienie slotu,<br/>rysowanie szkieletu, obliczenie FPS
+    MP--)M: result_ready_signal.emit(obraz, tekst, wyniki, fps)
     Note over M: głosowanie w oknie przesuwnym,<br/>aktualizacja etykiet i pasków
     M--)T: speak(litera)  [jeśli włączone]
-    R--)M: recognize_next_signal (kolejkowany)
-    M->>R: recognize_frame()  → kolejna iteracja
 ```
 
 Najważniejsze szczegóły:
 
-- **Porządkowanie klatek** — MediaPipe wymaga monotonicznie rosnących znaczników czasu. `CameraApp.read()` znakuje każdą klatkę wartością `time.time_ns()`; `recognize_frame()` (`src/recognizer.py:140`) odrzuca klatki, których znacznik nie jest nowszy od ostatnio przetworzonego, po czym konwertuje nanosekundy na milisekundy dla `recognize_async`.
+- **Porządkowanie klatek** — MediaPipe wymaga ściśle rosnących znaczników czasu. `CameraApp.read()` znakuje każdą klatkę wartością `time.monotonic_ns()`, która nie cofa się przy korekcie zegara systemowego; `submit_frame()` konwertuje nanosekundy na milisekundy i podnosi wartość co najmniej o jedną milisekundę względem poprzedniego wysłania, więc dwie klatki dostarczone w tej samej milisekundzie również są przyjmowane.
 - **Bezpieczne wątkowo aktualizacje UI** — `handle_result` działa w wątku MediaPipe, więc tworzy odłączony od tablicy źródłowej `QImage` i nie używa widżetów ani `QPixmap`. Następnie emituje `result_ready_signal` (`Signal(object, list, list, int)`); Qt kolejkuje połączenie do wątku głównego, gdzie `MainApp.process_result_and_frame` konwertuje obraz do `QPixmap` i aktualizuje interfejs.
-- **Odzyskiwanie i backpressure** — jednocześnie może oczekiwać tylko jedno `recognize_async()`. Callback kolejkuje następny odczyt w wątku Qt, a nieudany odczyt lub wysłanie jest ponawiane po 50 ms bez blokowania GUI.
+- **Backpressure i świeżość** — jednocześnie może być w toku tylko jedno `recognize_async()`. Gdy wynik oczekuje, świeżo odczytana klatka czeka najwyżej 15 ms na zwolnienie slotu; w przeciwnym razie jest porzucana i czytana jest kolejna, więc do MediaPipe trafia zawsze najnowsza klatka, a opóźnienie nie rośnie, gdy wnioskowanie jest wolniejsze od kamery. Strażnik zwalnia slot, jeśli wynik nie nadejdzie w ciągu 2 s.
+- **Odzyskiwanie** — zamknięta kamera albo nieudany odczyt są ponawiane co 50 ms w wątku przechwytywania, z jednym wpisem w logu na epizod awarii. `CameraApp` serializuje każde wywołanie `VideoCapture` blokadą, więc *Reset kamery* z wątku GUI nie może wejść w wyścig z trwającym odczytem; reset wstrzymuje wątek roboczy, otwiera urządzenie ponownie i uruchamia wątek na nowo, a ten odpytuje kamerę, aż będzie dostępna.
 - **Pomiar FPS** — obliczany po każdym pełnym oknie 5 klatek jako `5 / Δt` (`calculate_fps`, `src/recognizer.py`).
 - **Współbieżność TTS** — `SpeakerApp` uruchamia jeden długożyjący wątek roboczy będący demonem, który przez cały czas życia jest właścicielem silnika pyttsx3 i obsługuje jego zewnętrzną pętlę zdarzeń (`startLoop(False)` oraz cykliczne `iterate()`), czekając na callback `finished-utterance`, zanim pobierze kolejny tekst; pozwala to również uniknąć regresji `runAndWait()` w pyttsx3 2.99, która anulowała każdą wypowiedź po pierwszej. `speak(text)` nie blokuje wywołującego: dodaje tekst do kolejki, a oczekujące żądania są redukowane tak, że wypowiadany jest tylko najnowszy tekst; żądania są ignorowane, gdy wątek roboczy nie działa (`src/speaker.py`).
-- **Zamykanie** — `MainApp.closeEvent` odłącza sygnał, zamyka rozpoznawanie, zwalnia kamerę i zatrzymuje silnik TTS — w tej kolejności.
+- **Zamykanie** — `MainApp.closeEvent` odłącza sygnał, zamyka rozpoznawanie (które najpierw zatrzymuje wątek przechwytywania, a potem MediaPipe), zwalnia kamerę i zatrzymuje silnik TTS — w tej kolejności.
 
 ### 3.3 Przetwarzanie końcowe wyników (wygładzanie)
 
@@ -150,8 +154,9 @@ Cienka nakładka na `cv2.VideoCapture`:
 - `open(fd, camera_driver)` — otwiera urządzenie `fd` z jawnie wskazanym backendem (domyślnie `cv2.CAP_DSHOW`; w Windows preferowany jest DirectShow, ponieważ udostępnia natywne okno ustawień).
 - `configure(width, height)` — żąda 30 FPS oraz zadanego rozmiaru klatki.
 - `settings()` — otwiera natywne okno właściwości sterownika (`CAP_PROP_SETTINGS`, tylko DirectShow).
-- `read()` — zwraca `(time.time_ns(), klatka_rgb)`; konwersja BGR→RGB odbywa się tutaj, dzięki czemu dalsze komponenty (MediaPipe, Qt) zawsze otrzymują RGB. W razie błędu zwraca `(timestamp, None)`.
+- `read()` — zwraca `(time.monotonic_ns(), klatka_rgb)`; konwersja BGR→RGB odbywa się tutaj, dzięki czemu dalsze komponenty (MediaPipe, Qt) zawsze otrzymują RGB. W razie błędu zwraca `(timestamp, None)`.
 - `destroy()` / `is_closed()` — zwolnienie zasobów i sprawdzenie stanu.
+- Każde wywołanie `VideoCapture` jest serializowane blokadą, ponieważ wątek przechwytywania czyta klatki, podczas gdy wątek GUI może ponownie otwierać lub konfigurować urządzenie.
 
 ### 4.4 `src/recognizer.py` — `GestureRecognizerApp`
 
@@ -162,9 +167,10 @@ Hermetyzuje API MediaPipe Tasks:
   - `RunningMode.LIVE_STREAM` + `result_callback=self.handle_result`,
   - progami detekcji dłoni przekazanymi z GUI,
   - `custom_gesture_classifier_options = ClassifierOptions(max_results=1, score_threshold=…)` — zwracany jest tylko jeden najlepszy gest powyżej progu użytkownika.
-- `recognize_frame()` pobiera świeżą klatkę z `CameraApp`, pomija nieaktualne znaczniki czasu, opakowuje tablicę w `mediapipe.Image(SRGB)` i wywołuje `recognize_async`.
-- `handle_result()` nanosi adnotacje, oblicza FPS, emituje `result_ready_signal` i zawsze emituje kolejkowany `recognize_next_signal`, dopóki recognizer jest aktywny, również po obsługiwalnym błędzie callbacku.
-- `process_recognition_result()` konwertuje punkty charakterystyczne pierwszej wykrytej dłoni do protobufa `NormalizedLandmarkList` i rysuje je funkcją `mp.solutions.drawing_utils.draw_landmarks`, korzystając z niestandardowych stylów z `custom_landmarks.py`. Z wyniku wyodrębnia nazwy i wyniki `[gest, ręczność]`.
+- `recognize_frame()` uruchamia wątek przechwytywania (nic nie robi, gdy ten już działa); `stop_capture()` zatrzymuje go i czeka na jego zakończenie.
+- `submit_frame()` opakowuje jedną klatkę RGB w `mediapipe.Image(SRGB)`, nadaje ściśle rosnący znacznik czasu w milisekundach i wywołuje `recognize_async`, oznaczając jedyny slot wnioskowania jako zajęty.
+- `handle_result()` zwalnia slot, nanosi adnotacje, oblicza FPS i emituje `result_ready_signal`; obsługiwalny błąd callbacku jest logowany, a pętla działa dalej.
+- `process_recognition_result()` konwertuje punkty charakterystyczne pierwszej wykrytej dłoni do protobufa `NormalizedLandmarkList` i rysuje je funkcją `mp.solutions.drawing_utils.draw_landmarks`, korzystając z niestandardowych stylów z `custom_landmarks.py`. Z wyniku wyodrębnia nazwy i wyniki `[gest, ręczność]`. Gdy żaden znak nie przekracza progu (także wytrenowana klasa `none`), MediaPipe zgłasza kategorię tła z pustą nazwą; jest ona zwracana jako `['', ręczność]` z wynikiem `0.0`, co okno pokazuje jako `?`.
 - `create_scaled_qimage()` kopiuje klatkę NumPy z adnotacjami do odłączonego `QImage`, skalując do 640×480 (z zachowaniem proporcji, szybka transformacja) tylko wtedy, gdy rozdzielczość źródłowa jest inna.
 
 ### 4.5 `src/custom_landmarks.py`

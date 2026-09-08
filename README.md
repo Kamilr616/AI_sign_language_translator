@@ -55,8 +55,8 @@ flowchart LR
     E -->|recognized letter| G[SpeakerApp<br/>pyttsx3 TTS]
 ```
 
-1. **Capture** — `CameraApp` grabs BGR frames from the selected camera and converts them to RGB with a nanosecond timestamp.
-2. **Recognition** — `GestureRecognizerApp` feeds one frame at a time to MediaPipe. The result callback queues the next capture on the Qt thread; a short timer retries transient capture or submission failures.
+1. **Capture** — `CameraApp` grabs BGR frames from the selected camera and converts them to RGB with a monotonic nanosecond timestamp.
+2. **Recognition** — `GestureRecognizerApp` reads frames on its own capture thread and hands the newest one to MediaPipe whenever no result is pending, so the GUI never waits for the camera; transient capture failures are retried every 50 ms.
 3. **Post-processing** — `MainApp` optionally aggregates the last *N* classifications, picking the most frequent sign and its average score.
 4. **Output** — the annotated frame, recognized letter, confidence and FPS are rendered in the GUI; the letter is optionally synthesized to speech.
 
