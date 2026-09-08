@@ -211,7 +211,7 @@ Windows x64.
 6. **Average sign** — włącz wygładzanie po ostatnich *N* wynikach (rozmiar okna ustawiany suwakiem), aby uzyskać stabilniejszy wynik.
 7. Dostosuj progi rozpoznawania, rozdzielczość kamery, backend przechwytywania lub tempo/głośność mowy w panelach ustawień, a następnie zatwierdź odpowiednim przyciskiem **Reset**.
 8. **Model** — w dowolnym momencie wczytaj inny model `.task` z katalogu `models/`.
-9. **Ekrany** — *LIVE* pokazuje kamerę możliwie największą z paskiem tekstu i wynikami, *STUDIO* wszystkie karty, *SETTINGS* opcje obok podglądu (klawisze 1, 2, 3 albo strzałki). **VIEW** (klawisz V) włącza i wyłącza karty tekstu, transkryptu, wyników, ustawień i autora; ukryta karta oddaje miejsce kamerze. **H** chowa interfejs (w rogu zostaje pigułka *SHOW UI*), **F** włącza pełny ekran, **Esc** przywraca oba; menu widoku otwiera też prawy klik na obrazie.
+9. **Ekrany** — *LIVE* pokazuje kamerę możliwie największą z paskiem tekstu i wynikami, *STUDIO* wszystkie karty, *SETTINGS* opcje obok podglądu (klawisze 1, 2, 3 albo strzałki). **VIEW** (klawisz V) włącza i wyłącza karty tekstu, transkryptu, wyników, ustawień i autora; ukryta karta oddaje miejsce kamerze. **H** chowa interfejs (w rogu zostaje pigułka *SHOW UI*), **F** włącza pełny ekran, **Esc** przywraca oba; menu widoku otwiera też prawy klik na obrazie. **M** (albo pigułka *MUTE* w nagłówku) wycisza głos bez zmiany ustawień mowy: litera lub wyraz w trakcie wypowiadania dokończy się, nic nowego nie trafi do kolejki, póki M nie zostanie wciśnięte ponownie.
 
 Tablica znaków alfabetu ASL dostępna jest w [`docs/images`](docs/images/asl-sign-language-alphabet-vectors.webp).
 
