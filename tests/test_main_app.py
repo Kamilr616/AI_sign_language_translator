@@ -415,3 +415,37 @@ def test_an_unwritable_transcript_path_is_reported(application, monkeypatch, tmp
     assert len(messages) == 1
     window.tts_app = None
     window.close()
+
+
+def test_the_status_bar_suggests_completions_while_a_word_is_spelled(application):
+    window = make_window(application, speak=False, correct=True)
+
+    feed(window, 'H', 3)
+    assert window.statusBar().currentMessage() == ''
+    feed(window, '', 3)
+    feed(window, 'E', 3)
+    assert window.statusBar().currentMessage() == 'HE: hello'
+    feed(window, None, main_app.REST_FRAMES_FOR_SPACE)
+    assert window.statusBar().currentMessage() == ''
+
+    feed(window, 'Y', 3)
+    feed(window, '', 3)
+    feed(window, 'O', 3)
+    assert window.statusBar().currentMessage() == 'YO: you'
+    window.pushButton_clearText.click()
+
+    assert window.statusBar().currentMessage() == ''
+    window.tts_app = None
+    window.close()
+
+
+def test_no_completions_while_correction_is_off(application):
+    window = make_window(application, speak=False, correct=False)
+
+    feed(window, 'H', 3)
+    feed(window, '', 3)
+    feed(window, 'E', 3)
+
+    assert window.statusBar().currentMessage() == ''
+    window.tts_app = None
+    window.close()

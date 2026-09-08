@@ -455,6 +455,20 @@ class MainApp(QMainWindow, Ui_MainWindow):
         elif token != DELETE_SIGN and self.speaks_letters():
             self.translate_to_speech(token)
         self.label_text.setText(self.composer.text)
+        self.show_hints()
+
+    def show_hints(self):
+        """
+        List in the status bar up to three dictionary words that start with the
+        word being spelled, while *Correct words* is enabled.
+        """
+        text = self.composer.text
+        word = self.composer.last_word if text and not text.endswith(' ') else ''
+        hints = self.corrector.complete(word) if word and self.checkBox_correct.isChecked() else []
+        if hints:
+            self.statusBar().showMessage(f"{word}: {', '.join(hints)}")
+        else:
+            self.statusBar().clearMessage()
 
     def speaks_letters(self):
         """True when every stable letter is to be spoken."""
@@ -500,6 +514,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         """
         self.composer.clear()
         self.label_text.setText('')
+        self.statusBar().clearMessage()
 
     def clear_transcript(self):
         """Empty the transcript (the *Clear* button of the transcript panel)."""
