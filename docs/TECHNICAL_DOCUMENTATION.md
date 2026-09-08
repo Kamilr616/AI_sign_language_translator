@@ -119,9 +119,9 @@ Key details:
 Raw per-frame classifications flicker. When the *Average sign* checkbox is enabled, `MainApp` maintains a **sliding window** (`last_results`) of the most recent `(sign, score)` pairs, bounded by the GUI slider value:
 
 1. `calculate_results_length` evicts the oldest entry once the window exceeds the configured size.
-2. `calculate_common_sign_and_average` (`src/main_app.py:219`) selects the **most frequent** sign in the window (majority vote) and reports the **average score of the samples classified as that sign**.
+2. `calculate_common_sign_and_average` (`src/main_app.py`) selects the **most frequent** sign in the window (majority vote) and reports the **average score of the samples classified as that sign**.
 
-Shrinking the window below the current number of stored results clears the window to avoid stale votes.
+A frame in which the hand is visible but no sign passes the threshold votes as an empty sign; when it wins, the window shows `?`. Shrinking the window below the current number of stored results, or toggling *Average sign*, clears the window (`clear_results`) so that stale votes cannot shape the next result.
 
 ## 4. Module reference
 

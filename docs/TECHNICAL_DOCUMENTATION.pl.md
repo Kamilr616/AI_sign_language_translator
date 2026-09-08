@@ -119,9 +119,9 @@ Najważniejsze szczegóły:
 Surowe klasyfikacje pojedynczych klatek są niestabilne. Po włączeniu pola *Average sign* `MainApp` utrzymuje **okno przesuwne** (`last_results`) ostatnich par `(znak, wynik)`, ograniczone wartością suwaka w GUI:
 
 1. `calculate_results_length` usuwa najstarszy wpis, gdy okno przekroczy skonfigurowany rozmiar.
-2. `calculate_common_sign_and_average` (`src/main_app.py:219`) wybiera **najczęstszy** znak w oknie (głosowanie większościowe) i raportuje **średni wynik próbek sklasyfikowanych jako ten znak**.
+2. `calculate_common_sign_and_average` (`src/main_app.py`) wybiera **najczęstszy** znak w oknie (głosowanie większościowe) i raportuje **średni wynik próbek sklasyfikowanych jako ten znak**.
 
-Zmniejszenie okna poniżej bieżącej liczby zapamiętanych wyników czyści okno, aby uniknąć nieaktualnych głosów.
+Klatka, w której dłoń jest widoczna, ale żaden znak nie przekracza progu, głosuje jako pusty znak; gdy wygrywa, okno pokazuje `?`. Zmniejszenie okna poniżej bieżącej liczby zapamiętanych wyników albo przełączenie pola *Average sign* czyści okno (`clear_results`), aby nieaktualne głosy nie kształtowały kolejnego wyniku.
 
 ## 4. Opis modułów
 

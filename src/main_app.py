@@ -42,6 +42,15 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.pushButton_camera_settings.clicked.connect(self.pushbutton_camera_settings_click)
         self.pushButton_model.clicked.connect(self.open_file_dialog)
         self.horizontalSlider_range.valueChanged.connect(self.update_range)
+        self.checkBox_avg_sign.toggled.connect(self.clear_results)
+
+    def clear_results(self):
+        """
+        Forget the smoothing window, so votes from before a pause or a toggle
+        of "Average sign" cannot shape the next result.
+        """
+        self.last_results.clear()
+        self.last_results_length = 0
 
     def update_range(self):
         """
@@ -49,8 +58,8 @@ class MainApp(QMainWindow, Ui_MainWindow):
         """
         self.label_range_value.setText(str(self.horizontalSlider_range.value()))
 
-        if self.last_results_length > self.horizontalSlider_range.value():
-            self.last_results.clear()
+        if len(self.last_results) > self.horizontalSlider_range.value():
+            self.clear_results()
 
     def calculate_results_length(self):
         """
