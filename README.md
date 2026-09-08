@@ -214,7 +214,7 @@ The reference chart of ASL alphabet signs is available in [`docs/images`](docs/i
 The classification model was trained with **MediaPipe Model Maker** in Google Colab — the complete, reproducible pipeline is in [`notebooks/Custom_gesture_recognizer.ipynb`](notebooks/Custom_gesture_recognizer.ipynb):
 
 - **Dataset:** [ASL Alphabet (Kaggle, grassknoted/asl-alphabet)](https://www.kaggle.com/datasets/grassknoted/asl-alphabet) — ~87,000 images, 200×200 px.
-- **Preprocessing:** removal of the dynamic letters *J* and *Z* and of the *del*/*space* classes; the *nothing* class is renamed to `none` (required by Model Maker).
+- **Preprocessing:** removal of the dynamic letters *J* and *Z* and of the *del*/*space* classes; the *nothing* class is renamed to `none` (required by Model Maker). This applies to the default model; the two historical bundles in `models/` predate the filtering and keep all 29 classes (see the technical documentation, section 5.4).
 - **Architecture:** MediaPipe hand-landmark embedder + custom fully-connected classification head (`128 → 64 → 32`).
 - **Hyperparameters:** 70 epochs, batch size 16, learning rate 0.001 with 0.95 decay, dropout 0.075, focal-loss γ = 2.
 - **Export:** TensorFlow Lite bundle (`.task`) consumable directly by the application.
