@@ -4,7 +4,15 @@ Fingerspelling recognition confuses similar hand shapes (M/N, U/V, A/S/T) and
 drops or doubles letters when the hand moves. ``WordCorrector`` matches every
 finished word against SymSpell's frequency dictionary of 82 765 English words
 (bundled with the ``symspellpy`` package, MIT licensed) and replaces an unknown
-word with the closest known one, preferring the more frequent candidate.
+word with the closest known one.
+
+"Closest" is measured with a weighted Damerau-Levenshtein distance that knows
+how fingerspelling fails: substituting one letter of a confusable hand-shape
+group for another, doubling a letter or losing one of a doubled pair each cost
+half an edit, every other edit costs one. Candidates at the same weighted
+distance are ordered by frequency. A word that has no correction in reach is
+split into known words when the hand did not rest between them (``helloyou``),
+provided splitting is cheaper than the best single-word correction.
 
 The dictionary takes about a second to load, so ``load_async()`` builds it on a
 daemon thread; until it is ready, or when ``symspellpy`` is not installed,
@@ -28,6 +36,71 @@ DICTIONARY_FILE = 'frequency_dictionary_en_82_765.txt'
 MIN_LENGTH = 3
 # Words up to this length are corrected by a single edit only.
 SHORT_WORD_LENGTH = 4
+# Only words at least this long are tried as two or more run-together words.
+MIN_SEGMENTATION_LENGTH = 6
+# One-letter segments that are words on their own.
+ONE_LETTER_WORDS = frozenset('ai')
+# Static ASL hand shapes that landmark classifiers mix up; a substitution
+# inside a group costs CONFUSION_COST instead of a full edit.
+CONFUSABLE_GROUPS = ('aemnst', 'uvrk', 'kp', 'ghq', 'co', 'dx', 'df', 'iyj', 'wf')
+CONFUSION_COST = 0.5
+DOUBLING_COST = 0.5
+
+
+def _confusable_pairs(groups):
+    pairs = set()
+    for group in groups:
+        for first in group:
+            for second in group:
+                if first != second:
+                    pairs.add((first, second))
+    return frozenset(pairs)
+
+
+CONFUSABLE = _confusable_pairs(CONFUSABLE_GROUPS)
+
+
+def _doubling_cost(text, index):
+    """Cost of inserting or deleting ``text[index]``: half an edit when it doubles a neighbour."""
+    letter = text[index]
+    if (index > 0 and text[index - 1] == letter) or (index + 1 < len(text) and text[index + 1] == letter):
+        return DOUBLING_COST
+    return 1.0
+
+
+def weighted_distance(signed, candidate):
+    """
+    Weighted optimal-string-alignment distance from the signed word to a candidate.
+
+    Substituting confusable letters and doubling or de-doubling a letter cost
+    half an edit; other substitutions, insertions, deletions and transpositions
+    of adjacent letters cost one.
+    """
+    rows, cols = len(signed), len(candidate)
+    table = [[0.0] * (cols + 1) for _ in range(rows + 1)]
+    for i in range(1, rows + 1):
+        table[i][0] = table[i - 1][0] + _doubling_cost(signed, i - 1)
+    for j in range(1, cols + 1):
+        table[0][j] = table[0][j - 1] + _doubling_cost(candidate, j - 1)
+
+    for i in range(1, rows + 1):
+        for j in range(1, cols + 1):
+            a, b = signed[i - 1], candidate[j - 1]
+            if a == b:
+                substitution = 0.0
+            elif (a, b) in CONFUSABLE:
+                substitution = CONFUSION_COST
+            else:
+                substitution = 1.0
+            best = min(
+                table[i - 1][j] + _doubling_cost(signed, i - 1),
+                table[i][j - 1] + _doubling_cost(candidate, j - 1),
+                table[i - 1][j - 1] + substitution,
+            )
+            if i > 1 and j > 1 and a == candidate[j - 2] and signed[i - 2] == b:
+                best = min(best, table[i - 2][j - 2] + 1.0)
+            table[i][j] = best
+    return table[rows][cols]
 
 
 class WordCorrector:
@@ -111,7 +184,8 @@ class WordCorrector:
 
     def correct(self, word):
         """
-        Return the closest dictionary word, or ``word`` itself when it is known,
+        Return the closest dictionary word (or words, when the signed word turns
+        out to be several run together), or ``word`` itself when it is known,
         too short, not purely alphabetic, or the dictionary is not loaded.
 
         The case of the input is kept: an upper-case word gets an upper-case
@@ -121,10 +195,42 @@ class WordCorrector:
             return word
 
         lowered = word.lower()
-        distance = 1 if len(lowered) <= SHORT_WORD_LENGTH else self.max_edit_distance
-        suggestions = self._symspell.lookup(
-            lowered, Verbosity.CLOSEST, max_edit_distance=distance, include_unknown=True)
-        best = suggestions[0].term
-        if best == lowered:
+        if lowered in self._symspell.words:
+            return word
+
+        correction, correction_cost = self._closest_word(lowered)
+        segmentation, segmentation_cost = self._split_words(lowered)
+        if segmentation is not None and segmentation_cost < correction_cost:
+            best = segmentation
+        else:
+            best = correction
+        if best is None:
             return word
         return best.upper() if word.isupper() else best
+
+    def _closest_word(self, lowered):
+        """The candidate with the lowest weighted distance, then the highest frequency."""
+        distance = 1 if len(lowered) <= SHORT_WORD_LENGTH else self.max_edit_distance
+        candidates = self._symspell.lookup(lowered, Verbosity.ALL, max_edit_distance=distance)
+        if not candidates:
+            return None, float('inf')
+        ranked = min(
+            candidates,
+            key=lambda item: (weighted_distance(lowered, item.term), -item.count),
+        )
+        return ranked.term, weighted_distance(lowered, ranked.term)
+
+    def _split_words(self, lowered):
+        """Split a long unknown word into known ones; the cost is the number of splits."""
+        if len(lowered) < MIN_SEGMENTATION_LENGTH:
+            return None, float('inf')
+
+        segments = self._symspell.word_segmentation(lowered, max_edit_distance=0).corrected_string.split(' ')
+        if len(segments) < 2 or ''.join(segments) != lowered:
+            return None, float('inf')
+        for segment in segments:
+            if segment not in self._symspell.words:
+                return None, float('inf')
+            if len(segment) == 1 and segment not in ONE_LETTER_WORDS:
+                return None, float('inf')
+        return ' '.join(segments), float(len(segments) - 1)

@@ -220,10 +220,15 @@ Parameters: `stable_frames` (frames a sign must be shown before it is written), 
 
 ### 4.9 `src/corrector.py` — `WordCorrector`
 
-Matches every finished word against SymSpell's frequency dictionary of 82 765 English words, bundled with the `symspellpy` package (MIT licensed), and replaces an unknown word with the closest known one, preferring the more frequent candidate at equal edit distance:
+Matches every finished word against SymSpell's frequency dictionary of 82 765 English words, bundled with the `symspellpy` package (MIT licensed), and replaces an unknown word with the closest known one. SymSpell only generates the candidates (every dictionary word within the edit distance); the choice among them uses a distance that knows how fingerspelling fails:
+
+- `weighted_distance(signed, candidate)` — an optimal-string-alignment distance in which substituting one letter of a confusable hand-shape group for another (`aemnst`, `uvrk`, `kp`, `ghq`, `co`, `dx`, `df`, `iyj`, `wf`) and doubling a letter or losing one of a doubled pair cost half an edit; other substitutions, insertions, deletions and transpositions cost one. Candidates are ranked by this distance, then by frequency, so `HELO` becomes `HELLO` (half an edit) rather than the more frequent `HELP` (a full edit), and `NANE` becomes `NAME`.
+- Run-together words — when the hand did not rest between words, a signed word of at least 6 letters is also tried as a split into dictionary words (`word_segmentation`); the split costs one per inserted space and wins only when it is cheaper than the best single-word correction and every piece is a known word (single letters only `a` and `i`). `HELLOYOU` becomes `HELLO YOU`, `CALLME` becomes `CALL ME`, while `HELLLO` stays a single `HELLO`.
+
+The API:
 
 - `load_async()` — loads the bundled dictionary on a daemon thread (about a second); `load(path)` loads a custom `term count` file synchronously and returns whether it succeeded.
-- `correct(word)` — returns the closest dictionary word, keeping the case of the input; a word that is known, shorter than 3 letters or not purely alphabetic is returned unchanged, as is every word while the dictionary is not loaded (`ready` is `False`) or when `symspellpy` is not installed. Words of up to 4 letters are corrected by a single edit only, longer ones by up to two.
+- `correct(word)` — returns the closest dictionary word, or several words for a run-together input, keeping the case of the input; a word that is known, shorter than 3 letters or not purely alphabetic is returned unchanged, as is every word while the dictionary is not loaded (`ready` is `False`) or when `symspellpy` is not installed. Words of up to 4 letters are corrected by a single edit only, longer ones by up to two.
 - `from_words(counts)` — builds a ready corrector from a `{word: frequency}` mapping, for tests and custom vocabularies.
 
 `MainApp` creates the corrector in its constructor and starts the load in `start()`, so a window built in tests never touches the dictionary file.
