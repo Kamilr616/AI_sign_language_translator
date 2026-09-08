@@ -2,6 +2,7 @@ import pytest
 from PySide6.QtWidgets import QApplication
 
 import main_app
+from corrector import WordCorrector
 from main_app import MainApp
 
 
@@ -70,7 +71,7 @@ def test_invalid_model_keeps_previous_recognizer(application, monkeypatch):
 def test_window_scales_the_scene_to_its_size(application):
     window = MainApp()
     width, height = window.design_size.width(), window.design_size.height()
-    assert (width, height) == (1171, 841)
+    assert (width, height) == (1171, 981)
     window.show()
 
     window.resize(width * 2, height * 2 + window.statusBar().height())
@@ -116,10 +117,13 @@ class FakeSpeaker:
         return False
 
 
-def make_window(application, average=False, speak=True):
+def make_window(application, average=False, speak=True, words=False, correct=False):
     window = MainApp()
     window.checkBox_avg_sign.setChecked(average)
     window.checkBox_speak.setChecked(speak)
+    window.comboBox_speak_unit.setCurrentText(main_app.SPEAK_WORDS if words else 'Letters')
+    window.checkBox_correct.setChecked(correct)
+    window.corrector = WordCorrector.from_words({'hello': 1000, 'world': 800, 'you': 9000, 'hi': 50})
     window.tts_app = FakeSpeaker()
     return window
 
@@ -288,5 +292,126 @@ def test_clear_button_empties_the_text_bar(application):
 
     assert window.label_text.text() == ''
     assert window.composer.text == ''
+    window.tts_app = None
+    window.close()
+
+
+def spell(window, word, rest=0):
+    for letter in word:
+        feed(window, letter, 3)
+        feed(window, '', 3)
+    feed(window, None, rest)
+
+
+def test_words_mode_speaks_each_finished_word_once_instead_of_letters(application):
+    window = make_window(application, words=True)
+
+    spell(window, 'HI', rest=main_app.REST_FRAMES_FOR_SPACE)
+    assert window.tts_app.spoken == ['hi']
+    spell(window, 'YOU')
+    assert window.tts_app.spoken == ['hi']
+    feed(window, None, main_app.REST_FRAMES_FOR_SPACE)
+
+    assert window.tts_app.spoken == ['hi', 'you']
+    assert window.label_text.text() == 'HI YOU '
+    window.tts_app = None
+    window.close()
+
+
+def test_a_finished_word_is_corrected_in_the_text_bar_and_spoken_corrected(application):
+    window = make_window(application, words=True, correct=True)
+
+    spell(window, 'HELLLO', rest=main_app.REST_FRAMES_FOR_SPACE)
+
+    assert window.label_text.text() == 'HELLO '
+    assert window.composer.text == 'HELLO '
+    assert window.tts_app.spoken == ['hello']
+    window.tts_app = None
+    window.close()
+
+
+def test_correction_can_be_switched_off(application):
+    window = make_window(application, words=True, correct=False)
+
+    spell(window, 'HELLLO', rest=main_app.REST_FRAMES_FOR_SPACE)
+
+    assert window.label_text.text() == 'HELLLO '
+    assert window.tts_app.spoken == ['helllo']
+    window.tts_app = None
+    window.close()
+
+
+def test_letters_mode_does_not_speak_the_word(application):
+    window = make_window(application, words=False, correct=True)
+
+    spell(window, 'HELLLO', rest=main_app.REST_FRAMES_FOR_SPACE)
+
+    assert window.label_text.text() == 'HELLO '
+    assert window.tts_app.spoken == list('HELLLO')
+    window.tts_app = None
+    window.close()
+
+
+def test_a_long_rest_moves_the_sentence_to_the_transcript(application):
+    window = make_window(application, words=True, correct=True)
+
+    spell(window, 'HELLO', rest=main_app.REST_FRAMES_FOR_SPACE)
+    spell(window, 'WROLD', rest=main_app.REST_FRAMES_FOR_SENTENCE)
+
+    assert window.label_text.text() == ''
+    assert window.composer.text == ''
+    lines = window.plainTextEdit_transcript.toPlainText().splitlines()
+    assert len(lines) == 1
+    assert lines[0].endswith('] HELLO WORLD')
+    assert lines[0].startswith('[') and lines[0][3] == ':' and lines[0][6] == ':'
+    assert window.tts_app.spoken == ['hello', 'world']
+
+    feed(window, None, 300)
+    assert len(window.plainTextEdit_transcript.toPlainText().splitlines()) == 1
+    window.pushButton_clearTranscript.click()
+    assert window.plainTextEdit_transcript.toPlainText() == ''
+    window.tts_app = None
+    window.close()
+
+
+def test_saving_the_transcript_writes_the_file_with_the_pending_sentence(application, monkeypatch, tmp_path):
+    window = make_window(application, speak=False)
+    target = tmp_path / 'chat.txt'
+    monkeypatch.setattr(main_app.QFileDialog, 'getSaveFileName', lambda *args: (str(target), ''))
+
+    spell(window, 'HI', rest=main_app.REST_FRAMES_FOR_SENTENCE)
+    spell(window, 'YOU')
+    assert window.label_text.text() == 'YOU'
+
+    assert window.save_transcript() is True
+    lines = target.read_text(encoding='utf-8').splitlines()
+    assert [line[11:] for line in lines] == ['HI', 'YOU']
+    assert window.label_text.text() == ''
+    window.tts_app = None
+    window.close()
+
+
+def test_a_cancelled_save_dialog_changes_nothing(application, monkeypatch):
+    window = make_window(application, speak=False)
+    monkeypatch.setattr(main_app.QFileDialog, 'getSaveFileName', lambda *args: ('', ''))
+
+    spell(window, 'HI')
+    assert window.save_transcript() is False
+
+    assert window.label_text.text() == 'HI'
+    assert window.plainTextEdit_transcript.toPlainText() == ''
+    window.tts_app = None
+    window.close()
+
+
+def test_an_unwritable_transcript_path_is_reported(application, monkeypatch, tmp_path):
+    window = make_window(application, speak=False)
+    messages = []
+    monkeypatch.setattr(
+        main_app.QFileDialog, 'getSaveFileName', lambda *args: (str(tmp_path / 'missing' / 'chat.txt'), ''))
+    monkeypatch.setattr(main_app.QMessageBox, 'critical', lambda *args: messages.append(args))
+
+    assert window.save_transcript() is False
+    assert len(messages) == 1
     window.tts_app = None
     window.close()

@@ -34,8 +34,8 @@ Potok rozpoznawania oparty jest na **MediaPipe Gesture Recognizer** z **własnym
 
 - 🖐️ **Detekcja i śledzenie dłoni w czasie rzeczywistym** — MediaPipe hand landmarker pracujący w asynchronicznym trybie `LIVE_STREAM`.
 - 🔤 **Rozpoznawanie alfabetu palcowego ASL** — własny klasyfikator rozpoznający 24 statyczne litery alfabetu ASL (A–Y, z pominięciem dynamicznych J i Z) oraz klasę `none`.
-- 🗣️ **Synteza mowy** — rozpoznane litery mogą być wypowiadane przez systemowy silnik TTS (`pyttsx3`), z regulowanym tempem i głośnością.
-- ✍️ **Składanie słów** — litera pokazana przez kilka kolejnych klatek trafia do paska tekstu; odpoczynek dłoni przez około sekundę kończy wyraz, a pasek można wyczyścić jednym kliknięciem.
+- 🗣️ **Synteza mowy** — rozpoznane litery albo całe wyrazy po ich zakończeniu mogą być wypowiadane przez systemowy silnik TTS (`pyttsx3`), z regulowanym tempem i głośnością.
+- ✍️ **Składanie słów z korekcją słownikową** — litera pokazana przez kilka kolejnych klatek trafia do paska tekstu; odpoczynek dłoni przez około sekundę kończy wyraz, który jest dopasowywany do angielskiej listy słów (`symspellpy`), więc jedna źle odczytana litera go nie psuje; dłuższy odpoczynek przenosi zdanie do transkryptu, który można zapisać do pliku.
 - 📊 **Wygładzanie wyników** — opcjonalne głosowanie w oknie przesuwnym po ostatnich *N* wynikach stabilizuje rozpoznany znak i raportuje jego średni poziom pewności.
 - 🎥 **Elastyczna konfiguracja kamery** — wybór urządzenia, backendu przechwytywania (DirectShow, Media Foundation, V4L2, GStreamer, …), rozdzielczości oraz dostęp do natywnych ustawień sterownika.
 - ⚙️ **Regulowane parametry rozpoznawania** — progi pewności detekcji / obecności / śledzenia dłoni oraz próg klasyfikacji ustawiane z poziomu GUI.
@@ -52,13 +52,13 @@ flowchart LR
     C -->|kategoria gestu + wynik| E[MainApp<br/>głosowanie w oknie przesuwnym]
     D --> F[GUI Qt<br/>podgląd wideo]
     E --> F
-    E -->|rozpoznana litera| G[SpeakerApp<br/>pyttsx3 TTS]
+    E -->|litera albo słowo| G[SpeakerApp<br/>pyttsx3 TTS]
 ```
 
 1. **Przechwytywanie** — `CameraApp` pobiera klatki BGR z wybranej kamery i konwertuje je do RGB wraz z monotonicznym znacznikiem czasu w nanosekundach.
 2. **Rozpoznawanie** — `GestureRecognizerApp` czyta klatki we własnym wątku przechwytywania i przekazuje MediaPipe najnowszą z nich, gdy tylko nie oczekuje żaden wynik, więc GUI nigdy nie czeka na kamerę; chwilowo nieudany odczyt jest ponawiany co 50 ms.
 3. **Przetwarzanie końcowe** — `MainApp` opcjonalnie agreguje ostatnie *N* klasyfikacji, wybierając najczęstszy znak i jego średni wynik.
-4. **Wyjście** — klatka z naniesionym szkieletem dłoni, rozpoznana litera, pewność i FPS są wyświetlane w GUI; litera, która utrzyma się przez kilka klatek, trafia do paska tekstu i może być dodatkowo syntezowana do mowy.
+4. **Wyjście** — klatka z naniesionym szkieletem dłoni, rozpoznana litera, pewność i FPS są wyświetlane w GUI; litera, która utrzyma się przez kilka klatek, trafia do paska tekstu, zakończony wyraz jest poprawiany słownikowo i opcjonalnie wypowiadany, a zakończone zdanie trafia do transkryptu.
 
 Szczegółowy opis architektury, modelu wątkowości i potoku treningowego znajduje się w [dokumentacji technicznej](docs/TECHNICAL_DOCUMENTATION.pl.md).
 
@@ -73,6 +73,7 @@ AI_sign_language_translator/
 │   ├── camera.py               # Obsługa kamery (OpenCV)
 │   ├── speaker.py              # Silnik syntezy mowy (pyttsx3)
 │   ├── composer.py             # Składanie stabilnych liter w wyrazy
+│   ├── corrector.py            # Korekcja słownikowa zakończonych wyrazów (SymSpell)
 │   ├── custom_landmarks.py     # Niestandardowe style rysowania szkieletu dłoni
 │   ├── gui.py                  # Klasa UI skompilowana z gui.ui (pyside6-uic)
 │   ├── gui.ui                  # Definicja interfejsu (Qt Designer)
@@ -112,7 +113,7 @@ AI_sign_language_translator/
 | Python | 3.10 lub 3.12 (64-bit; wersje testowane w CI) |
 | System | Windows 10/11 (platforma docelowa) lub Linux |
 | Sprzęt | Kamera internetowa; wystarczy współczesny procesor wielordzeniowy (GPU nie jest wymagane) |
-| Kluczowe pakiety | `mediapipe ≥ 0.10.14, < 0.10.30`, poprawiony `protobuf 4.25.9`, `PySide6 ≥ 6.7.3`, `qdarkstyle ≥ 3.2.3`, `pyttsx3 ≥ 2.98` |
+| Kluczowe pakiety | `mediapipe ≥ 0.10.14, < 0.10.30`, poprawiony `protobuf 4.25.9`, `PySide6 ≥ 6.7.3`, `qdarkstyle ≥ 3.2.3`, `pyttsx3 ≥ 2.98`, `symspellpy ≥ 6.10` |
 
 > OpenCV i NumPy są instalowane automatycznie jako zależności MediaPipe.
 > MediaPipe od wersji 0.10.30 nie zawiera starszych helperów rysowania używanych przez niestandardowe style punktów dłoni w tej aplikacji.
@@ -204,11 +205,12 @@ Windows x64.
 
 1. Ustaw dłoń przed kamerą tak, aby była w całości widoczna na podglądzie.
 2. Pokaż statyczny znak alfabetu ASL — rozpoznana litera, jej pewność oraz wykryta ręczność (lewa/prawa) wyświetlane są na bieżąco.
-3. **Speak** — włącz, aby każda rozpoznana litera była wypowiadana na głos raz, gdy się ustabilizuje (utrzyma przez kilka kolejnych klatek); opuść dłoń albo pokaż inną literę, by usłyszeć ją ponownie.
-4. **Text** — litera pokazana przez kilka kolejnych klatek trafia do paska tekstu na dole okna; opuść dłoń na około sekundę, by zakończyć wyraz spacją, pokaż tę samą literę ponownie po krótkim odpoczynku, by ją powtórzyć, a przyciskiem **Clear** zacznij od nowa.
-5. **Average sign** — włącz wygładzanie po ostatnich *N* wynikach (rozmiar okna ustawiany suwakiem), aby uzyskać stabilniejszy wynik.
-6. Dostosuj progi rozpoznawania, rozdzielczość kamery, backend przechwytywania lub tempo/głośność mowy w panelach ustawień, a następnie zatwierdź odpowiednim przyciskiem **Reset**.
-7. **Model** — w dowolnym momencie wczytaj inny model `.task` z katalogu `models/`.
+3. **Speak** — włącz, aby każda rozpoznana litera była wypowiadana na głos raz, gdy się ustabilizuje (utrzyma przez kilka kolejnych klatek), albo wybierz **Words**, by słyszeć każdy wyraz po jego zakończeniu; opuść dłoń albo pokaż inną literę, by usłyszeć literę ponownie.
+4. **Text** — litera pokazana przez kilka kolejnych klatek trafia do paska tekstu na dole okna; opuść dłoń na około sekundę, by zakończyć wyraz spacją (przy włączonym **Correct words** wyraz, którego nie ma w angielskim słowniku, jest zastępowany najbliższym znanym, więc wyłącz to pole przy literowaniu imion), pokaż tę samą literę ponownie po krótkim odpoczynku, by ją powtórzyć, a przyciskiem **Clear** zacznij od nowa.
+5. **Transcript** — opuść dłoń na około trzy sekundy, by zakończyć zdanie; trafia ono do panelu transkryptu z godziną zakończenia. **Save** zapisuje transkrypt, wraz ze zdaniem będącym jeszcze w pasku tekstu, do pliku tekstowego, a **Clear** go opróżnia.
+6. **Average sign** — włącz wygładzanie po ostatnich *N* wynikach (rozmiar okna ustawiany suwakiem), aby uzyskać stabilniejszy wynik.
+7. Dostosuj progi rozpoznawania, rozdzielczość kamery, backend przechwytywania lub tempo/głośność mowy w panelach ustawień, a następnie zatwierdź odpowiednim przyciskiem **Reset**.
+8. **Model** — w dowolnym momencie wczytaj inny model `.task` z katalogu `models/`.
 
 Tablica znaków alfabetu ASL dostępna jest w [`docs/images`](docs/images/asl-sign-language-alphabet-vectors.webp).
 

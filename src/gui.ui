@@ -8,7 +8,7 @@
     <x>0</x>
     <y>0</y>
     <width>1171</width>
-    <height>842</height>
+    <height>982</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -1296,9 +1296,9 @@
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>90</y>
-        <width>131</width>
-        <height>41</height>
+        <y>80</y>
+        <width>141</width>
+        <height>34</height>
        </rect>
       </property>
       <property name="font">
@@ -1335,6 +1335,32 @@
       <property name="tristate">
        <bool>false</bool>
       </property>
+     </widget>
+     <widget class="QComboBox" name="comboBox_speak_unit">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>116</y>
+        <width>151</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="cursor">
+       <cursorShape>PointingHandCursor</cursorShape>
+      </property>
+      <property name="toolTip">
+       <string>Speak every stable letter, or each whole word once it is finished</string>
+      </property>
+      <item>
+       <property name="text">
+        <string>Letters</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Words</string>
+       </property>
+      </item>
      </widget>
      <widget class="QPushButton" name="pushButton_resetTTS">
       <property name="geometry">
@@ -2075,7 +2101,7 @@
       <rect>
        <x>10</x>
        <y>20</y>
-       <width>1030</width>
+       <width>880</width>
        <height>41</height>
       </rect>
      </property>
@@ -2099,11 +2125,97 @@
       <number>6</number>
      </property>
     </widget>
+    <widget class="QCheckBox" name="checkBox_correct">
+     <property name="geometry">
+      <rect>
+       <x>900</x>
+       <y>25</y>
+       <width>141</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="cursor">
+      <cursorShape>PointingHandCursor</cursorShape>
+     </property>
+     <property name="toolTip">
+      <string>Replace a finished word that is not in the English dictionary with the closest known word</string>
+     </property>
+     <property name="text">
+      <string>Correct words</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
     <widget class="QPushButton" name="pushButton_clearText">
      <property name="geometry">
       <rect>
        <x>1050</x>
        <y>25</y>
+       <width>91</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Clear</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_transcript">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>840</y>
+      <width>1151</width>
+      <height>131</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Transcript</string>
+    </property>
+    <widget class="QPlainTextEdit" name="plainTextEdit_transcript">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>1030</width>
+       <height>101</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <family>Calibri</family>
+       <pointsize>12</pointsize>
+      </font>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+     <property name="placeholderText">
+      <string>Finished sentences appear here with the time they ended.</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButton_saveTranscript">
+     <property name="geometry">
+      <rect>
+       <x>1050</x>
+       <y>25</y>
+       <width>91</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="toolTip">
+      <string>Save the transcript, including the sentence still in the text bar, to a text file</string>
+     </property>
+     <property name="text">
+      <string>Save</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButton_clearTranscript">
+     <property name="geometry">
+      <rect>
+       <x>1050</x>
+       <y>65</y>
        <width>91</width>
        <height>31</height>
       </rect>
