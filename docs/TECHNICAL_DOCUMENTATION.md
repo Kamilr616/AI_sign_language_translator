@@ -101,7 +101,7 @@ sequenceDiagram
     MP-->>MP: handle_result(result, image, ts): free the slot,<br/>draw landmarks, compute FPS
     MP--)M: result_ready_signal.emit(image, text, scores, fps)
     Note over M: sliding-window voting,<br/>update labels & progress bars
-    M--)T: speak(letter)  [if enabled]
+    M--)T: speak(letter)  [if enabled, once per stable letter]
 ```
 
 Key details:
@@ -111,7 +111,7 @@ Key details:
 - **Backpressure and freshness** — only one `recognize_async()` call may be in flight. While a result is pending, a freshly read frame waits at most 15 ms for the slot to free up; otherwise it is dropped and the next frame is read, so the frame handed to MediaPipe is always the newest one and latency does not grow when inference is slower than the camera. A watchdog releases the slot when no result arrives within 2 s.
 - **Recovery** — a closed camera or a failed read is retried every 50 ms on the capture thread, with a single log line per failure episode. `CameraApp` serialises every `VideoCapture` call with a lock, so *Reset camera* on the GUI thread cannot race with a read in progress; the reset pauses the worker, reopens the device and restarts the worker, which keeps polling until the device is available.
 - **FPS measurement** — computed after each complete 5-frame sample window as `5 / Δt` (`calculate_fps`, `src/recognizer.py`).
-- **TTS concurrency** — `SpeakerApp` runs a single long-lived daemon worker thread that owns the pyttsx3 engine for its whole lifetime and drives its external event loop (`startLoop(False)` plus periodic `iterate()`), waiting for the `finished-utterance` callback before it takes the next text; this also avoids a pyttsx3 2.99 `runAndWait()` regression that cancelled every utterance after the first. `speak(text)` is non-blocking: it enqueues the text, and pending requests are coalesced so only the newest one is spoken; requests are ignored while the worker is not running (`src/speaker.py`).
+- **TTS concurrency** — `SpeakerApp` runs a single long-lived daemon worker thread that owns the pyttsx3 engine for its whole lifetime and drives its external event loop (`startLoop(False)` plus periodic `iterate()`), waiting for the `finished-utterance` callback before it takes the next text; this also avoids a pyttsx3 2.99 `runAndWait()` regression that cancelled every utterance after the first. `speak(text)` is non-blocking: it enqueues the text, and pending requests are coalesced so only the newest one is spoken; requests are ignored while the worker is not running (`src/speaker.py`). `MainApp.update_speech` calls `speak()` once per letter, after the letter has been displayed for `SPEECH_STABLE_FRAMES` (3) consecutive frames; a stable "no sign" re-arms it, so the same letter shown again is spoken again, while single-frame flickers are never voiced.
 - **Shutdown** — `MainApp.closeEvent` disconnects the signal, closes the recognizer (which stops the capture thread before closing MediaPipe), releases the camera and stops the TTS engine, in that order.
 
 ### 3.3 Result post-processing (smoothing)
@@ -266,7 +266,7 @@ All parameters are adjustable from the GUI at runtime; changes take effect after
 |---|---|---|
 | Smoothing on/off | *Average sign* checkbox | Enables sliding-window majority voting |
 | Window size | *Range* slider | Number of recent results used for voting |
-| Speech on/off | *Speak* checkbox | Speaks every recognized letter |
+| Speech on/off | *Speak* checkbox | Speaks a letter once, after it has been displayed for 3 consecutive frames; the same letter is spoken again after the hand rests or another letter is shown |
 | Rate / volume | TTS spin boxes | pyttsx3 speech rate (wpm) and volume (%) |
 
 ## 7. Running and packaging

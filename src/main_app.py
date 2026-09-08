@@ -13,6 +13,8 @@ import sys
 PROJECT_ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
 MODEL_DIRECTORY = PROJECT_ROOT / 'models'
 MODEL_PATH = str(MODEL_DIRECTORY / 'gesture_recognizer_asl_0.task')
+# A letter is spoken once it has been displayed for this many consecutive frames.
+SPEECH_STABLE_FRAMES = 3
 
 
 class MainApp(QMainWindow, Ui_MainWindow):
@@ -30,6 +32,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.last_results = []
         self.model_path = MODEL_PATH
         self.last_results_length = 0
+        self._speech_candidate = None
+        self._speech_stable_frames = 0
+        self._last_spoken_sign = None
 
         self.pushButton_resetRecognizer.clicked.connect(self.reset_recognizer)
         self.pushButton_resetTTS.clicked.connect(self.reset_tts)
@@ -317,14 +322,38 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
             self.label_displaySign.setText(result_sign or '?')
             self.progressBar_1.setValue(average_score * 100)
-
-            if self.checkBox_speak.isChecked() and result_sign:
-                self.translate_to_speech(result_sign)
+            self.update_speech(result_sign)
         else:
             self.label_recognitionInfo.setText('Not detected')
             self.label_displaySign.setText('?')
             self.progressBar_1.setValue(0)
             self.progressBar_hand.setValue(0)
+            self.update_speech('')
+
+    def update_speech(self, sign):
+        """
+        Speak a letter once, after it has been displayed for SPEECH_STABLE_FRAMES
+        consecutive frames, instead of repeating it on every frame.
+
+        A stable "no sign" (hand gone or resting) re-arms the last letter, so
+        showing it again speaks it again. Single-frame flickers are ignored.
+
+        Args:
+            sign (str): The displayed sign, or an empty string for no sign.
+        """
+        if sign != self._speech_candidate:
+            self._speech_candidate = sign
+            self._speech_stable_frames = 0
+        self._speech_stable_frames += 1
+
+        if self._speech_stable_frames < SPEECH_STABLE_FRAMES:
+            return
+
+        if not sign:
+            self._last_spoken_sign = None
+        elif sign != self._last_spoken_sign and self.checkBox_speak.isChecked():
+            self._last_spoken_sign = sign
+            self.translate_to_speech(sign)
 
     def translate_to_speech(self, data=""):
         """
