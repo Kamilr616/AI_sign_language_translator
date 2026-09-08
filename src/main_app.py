@@ -289,8 +289,8 @@ class MainApp(QMainWindow, Ui_MainWindow):
         text = self.layout_rects['text']
         if text is not None:
             width = text[2]
-            self.label_text.setGeometry(QRect(16, 36, width - 256, 44))
-            self.checkBox_correct.setGeometry(QRect(width - 232, 42, 136, 31))
+            self.label_text.setGeometry(QRect(16, 36, width - 272, 44))
+            self.checkBox_correct.setGeometry(QRect(width - 248, 42, 152, 31))
             self.pushButton_clearText.setGeometry(QRect(width - 88, 40, 72, 34))
             self.refresh_text_bar()
         overlay = text is not None and board.text_overlaid(self.screen_name)
@@ -343,16 +343,18 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
     def _initial_window_size(self):
         """
-        Fill about 90% of the available screen, between half and twice the
-        design size, so the window is neither tiny on 1440p nor off-screen on
-        a small laptop display.
+        Fill almost the whole available screen (96% of its width, 94% of its
+        height, less the status bar), between half and twice the design size,
+        so a 1080p display gets the board at about 0.9 of its design scale and
+        a small laptop display is not overflowed.
         """
         width, height = self.design_size.width(), self.design_size.height()
         screen = QGuiApplication.primaryScreen()
         if screen is None:
             return QSize(width, height)
         available = screen.availableGeometry()
-        factor = min(available.width() * 0.9 / width, available.height() * 0.85 / height, 2.0)
+        status_height = self.statusBar().sizeHint().height()
+        factor = min(available.width() * 0.96 / width, (available.height() * 0.94 - status_height) / height, 2.0)
         factor = max(factor, 0.5)
         return QSize(int(width * factor), int(height * factor) + self.statusBar().sizeHint().height())
 

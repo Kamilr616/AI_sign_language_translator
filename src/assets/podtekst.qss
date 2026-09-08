@@ -9,7 +9,7 @@ QMainWindow, QWidget#centralwidget, QGraphicsView {
 QWidget {
     color: #dfe6f5;
     font-family: "Segoe UI";
-    font-size: 10pt;
+    font-size: 11pt;
     selection-background-color: #3b82f6;
     selection-color: #ffffff;
 }
@@ -30,7 +30,7 @@ QLabel#label_title {
 QLabel#label_subtitle, QLabel#label_patchedBy {
     color: #7f8fb0;
     font-family: "JetBrains Mono";
-    font-size: 8pt;
+    font-size: 9pt;
     font-weight: 700;
 }
 
@@ -43,7 +43,7 @@ QGroupBox {
     margin-top: 12px;
     padding-top: 4px;
     font-family: "JetBrains Mono";
-    font-size: 8pt;
+    font-size: 9pt;
     font-weight: 700;
 }
 QGroupBox::title {
@@ -182,7 +182,7 @@ QSpinBox, QComboBox {
     padding: 2px 8px;
     color: #f4f6fb;
     font-family: "JetBrains Mono";
-    font-size: 9pt;
+    font-size: 10pt;
 }
 QSpinBox:focus, QComboBox:focus, QComboBox:on {
     border-color: #3b82f6;
@@ -280,7 +280,7 @@ QStatusBar {
     background-color: #070a12;
     color: #7f8fb0;
     font-family: "JetBrains Mono";
-    font-size: 9pt;
+    font-size: 10pt;
     border-top: 1px solid #1b2540;
 }
 QStatusBar::item {
@@ -328,7 +328,7 @@ QPushButton[screenPill="true"]:checked {
 QLabel#label_keys {
     color: #4b5877;
     font-family: "JetBrains Mono";
-    font-size: 8pt;
+    font-size: 9pt;
     font-weight: 700;
 }
 QFrame#line_header {
