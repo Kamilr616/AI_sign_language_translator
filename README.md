@@ -35,8 +35,8 @@ The recognition pipeline is built on **MediaPipe Gesture Recognizer** with a **c
 
 - 🖐️ **Real-time hand detection and tracking** — MediaPipe hand landmarker running in asynchronous `LIVE_STREAM` mode.
 - 🔤 **ASL fingerspelling recognition** — a custom-trained classifier recognizing 24 static ASL alphabet letters (A–Y, excluding dynamic J and Z) plus a `none` class.
-- 🗣️ **Text-to-speech output** — recognized letters can be spoken aloud through the system TTS engine (`pyttsx3`), with configurable rate and volume.
-- ✍️ **Word composition** — a letter shown for a few consecutive frames is written into a text bar; resting the hand for about a second ends the word, and the bar can be cleared with one click.
+- 🗣️ **Text-to-speech output** — recognized letters, or whole words as they are finished, can be spoken aloud through the system TTS engine (`pyttsx3`), with configurable rate and volume.
+- ✍️ **Word composition with dictionary correction** — a letter shown for a few consecutive frames is written into a text bar; resting the hand for about a second ends the word, which is matched against an English word list (`symspellpy`) so that one misread letter does not spoil it; a longer rest moves the sentence to a transcript that can be saved to a file.
 - 📊 **Result smoothing** — an optional sliding-window vote over the last *N* results stabilizes the output sign and reports its average confidence score.
 - 🎥 **Flexible camera configuration** — selection of the capture device, capture backend (DirectShow, Media Foundation, V4L2, GStreamer, …), resolution, and access to native driver settings.
 - ⚙️ **Tunable recognition parameters** — detection / presence / tracking confidence and classification score threshold adjustable from the GUI.
@@ -53,13 +53,13 @@ flowchart LR
     C -->|gesture category + score| E[MainApp<br/>sliding-window voting]
     D --> F[Qt GUI<br/>video preview]
     E --> F
-    E -->|recognized letter| G[SpeakerApp<br/>pyttsx3 TTS]
+    E -->|letter or word| G[SpeakerApp<br/>pyttsx3 TTS]
 ```
 
 1. **Capture** — `CameraApp` grabs BGR frames from the selected camera and converts them to RGB with a monotonic nanosecond timestamp.
 2. **Recognition** — `GestureRecognizerApp` reads frames on its own capture thread and hands the newest one to MediaPipe whenever no result is pending, so the GUI never waits for the camera; transient capture failures are retried every 50 ms.
 3. **Post-processing** — `MainApp` optionally aggregates the last *N* classifications, picking the most frequent sign and its average score.
-4. **Output** — the annotated frame, recognized letter, confidence and FPS are rendered in the GUI; a letter that stays stable for a few frames is written into the text bar and optionally synthesized to speech.
+4. **Output** — the annotated frame, recognized letter, confidence and FPS are rendered in the GUI; a letter that stays stable for a few frames is written into the text bar, a finished word is corrected against the dictionary and optionally spoken, and a finished sentence goes to the transcript.
 
 A detailed description of the architecture, threading model and training pipeline is available in the [technical documentation](docs/TECHNICAL_DOCUMENTATION.md).
 
@@ -74,6 +74,7 @@ AI_sign_language_translator/
 │   ├── camera.py               # OpenCV camera wrapper
 │   ├── speaker.py              # Text-to-speech engine (pyttsx3)
 │   ├── composer.py             # Assembles stable letters into words
+│   ├── corrector.py            # Dictionary correction of finished words (SymSpell)
 │   ├── custom_landmarks.py     # Custom hand-landmark drawing styles
 │   ├── gui.py                  # UI class compiled from gui.ui (pyside6-uic)
 │   ├── gui.ui                  # Qt Designer UI definition
@@ -113,7 +114,7 @@ AI_sign_language_translator/
 | Python | 3.10 or 3.12 (64-bit; versions tested in CI) |
 | OS | Windows 10/11 (primary target) or Linux |
 | Hardware | Webcam; a modern multi-core CPU is sufficient (no GPU required) |
-| Key packages | `mediapipe ≥ 0.10.14, < 0.10.30`, patched `protobuf 4.25.9`, `PySide6 ≥ 6.7.3`, `qdarkstyle ≥ 3.2.3`, `pyttsx3 ≥ 2.98` |
+| Key packages | `mediapipe ≥ 0.10.14, < 0.10.30`, patched `protobuf 4.25.9`, `PySide6 ≥ 6.7.3`, `qdarkstyle ≥ 3.2.3`, `pyttsx3 ≥ 2.98`, `symspellpy ≥ 6.10` |
 
 > OpenCV and NumPy are installed automatically as MediaPipe dependencies.
 > MediaPipe 0.10.30 and newer no longer ship the legacy drawing helpers used by the custom landmark styles in this application.
@@ -204,11 +205,12 @@ ready-to-extract **folder build** packaged as a Windows x64 ZIP.
 
 1. Position your hand in front of the camera so it is fully visible in the preview.
 2. Show a static ASL alphabet sign — the recognized letter, its confidence and the detected handedness are displayed live.
-3. **Speak** — enable the checkbox to have each recognized letter spoken aloud once it is stable (shown for a few consecutive frames); rest your hand or show another letter to have it spoken again.
-4. **Text** — a letter shown for a few consecutive frames is written into the text bar at the bottom of the window; rest your hand for about a second to end the word with a space, show the same letter again after a short rest to repeat it, and press **Clear** to start over.
-5. **Average sign** — enable smoothing over the last *N* results (window size set with the slider) for a more stable output.
-6. Adjust recognition thresholds, camera resolution, capture backend or TTS rate/volume in the settings panels, then press the corresponding **Reset** button to apply.
-7. **Model** — load a different `.task` model from the `models/` directory at any time.
+3. **Speak** — enable the checkbox to have each recognized letter spoken aloud once it is stable (shown for a few consecutive frames), or choose **Words** to hear each word once it is finished; rest your hand or show another letter to have a letter spoken again.
+4. **Text** — a letter shown for a few consecutive frames is written into the text bar at the bottom of the window; rest your hand for about a second to end the word with a space (with **Correct words** enabled, a word missing from the English dictionary is replaced by the closest known one, so switch it off when spelling names), show the same letter again after a short rest to repeat it, and press **Clear** to start over.
+5. **Transcript** — rest your hand for about three seconds to end the sentence; it moves to the transcript panel with the time it ended. **Save** writes the transcript, including the sentence still in the text bar, to a text file; **Clear** empties it.
+6. **Average sign** — enable smoothing over the last *N* results (window size set with the slider) for a more stable output.
+7. Adjust recognition thresholds, camera resolution, capture backend or TTS rate/volume in the settings panels, then press the corresponding **Reset** button to apply.
+8. **Model** — load a different `.task` model from the `models/` directory at any time.
 
 The reference chart of ASL alphabet signs is available in [`docs/images`](docs/images/asl-sign-language-alphabet-vectors.webp).
 

@@ -1,10 +1,12 @@
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import cv2
 from camera import CameraApp
-from composer import DELETE_SIGN, TextComposer
+from composer import DELETE_SIGN, SENTENCE_END, TextComposer
+from corrector import WordCorrector
 from gui import Ui_MainWindow
 from PySide6.QtCore import QRectF, QSize, Qt
 from PySide6.QtGui import QGuiApplication, QPainter, QPixmap
@@ -29,6 +31,11 @@ MODEL_PATH = str(MODEL_DIRECTORY / 'gesture_recognizer_asl_0.task')
 STABLE_FRAMES = 3
 # Resting the hand for this many consecutive frames (about a second) ends the word.
 REST_FRAMES_FOR_SPACE = 30
+# Resting the hand for this many consecutive frames (about three seconds) ends the
+# sentence: the text bar is moved to the transcript and starts empty.
+REST_FRAMES_FOR_SENTENCE = 90
+# Entry of the speech unit combo box that speaks whole words instead of letters.
+SPEAK_WORDS = 'Words'
 
 
 class MainApp(QMainWindow, Ui_MainWindow):
@@ -47,9 +54,17 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.last_results = []
         self.model_path = MODEL_PATH
         self.last_results_length = 0
-        self.composer = TextComposer(stable_frames=STABLE_FRAMES, rest_frames=REST_FRAMES_FOR_SPACE)
+        self.composer = TextComposer(
+            stable_frames=STABLE_FRAMES,
+            rest_frames=REST_FRAMES_FOR_SPACE,
+            sentence_frames=REST_FRAMES_FOR_SENTENCE,
+        )
+        # The dictionary is loaded in start(), on a background thread.
+        self.corrector = WordCorrector()
 
         self.pushButton_clearText.clicked.connect(self.clear_text)
+        self.pushButton_saveTranscript.clicked.connect(self.save_transcript)
+        self.pushButton_clearTranscript.clicked.connect(self.clear_transcript)
         self.pushButton_resetRecognizer.clicked.connect(self.reset_recognizer)
         self.pushButton_resetTTS.clicked.connect(self.reset_tts)
         self.pushButton_resetCap.clicked.connect(self.pushbutton_reset_cap_click)
@@ -341,6 +356,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         if not self.recognizer_app:
             self.reset_recognizer()
 
+        self.corrector.load_async()
         self.update_range()
 
     def calculate_common_sign_and_average(self):
@@ -416,11 +432,14 @@ class MainApp(QMainWindow, Ui_MainWindow):
     def update_text(self, sign):
         """
         Feed the displayed sign to the composer: a letter shown for STABLE_FRAMES
-        consecutive frames is written to the text bar once and spoken once, a
-        rest of REST_FRAMES_FOR_SPACE frames ends the word with a space.
+        consecutive frames is written to the text bar once (and spoken once in
+        the *Letters* mode), a rest of REST_FRAMES_FOR_SPACE frames ends the
+        word, which is then corrected against the dictionary and spoken in the
+        *Words* mode, and a rest of REST_FRAMES_FOR_SENTENCE frames moves the
+        sentence to the transcript.
 
-        Showing the same letter again after a rest writes and speaks it again;
-        single-frame flickers are ignored. Spaces and deletions are not spoken.
+        Showing the same letter again after a rest writes it again; single-frame
+        flickers are ignored. Spaces and deletions are not spoken.
 
         Args:
             sign (str): The displayed sign, or an empty string for no sign.
@@ -429,9 +448,51 @@ class MainApp(QMainWindow, Ui_MainWindow):
         if token is None:
             return
 
-        self.label_text.setText(self.composer.text)
-        if token not in (' ', DELETE_SIGN) and self.checkBox_speak.isChecked():
+        if token == SENTENCE_END:
+            self.append_transcript(self.composer.last_sentence)
+        elif token == ' ':
+            self.finish_word()
+        elif token != DELETE_SIGN and self.speaks_letters():
             self.translate_to_speech(token)
+        self.label_text.setText(self.composer.text)
+
+    def speaks_letters(self):
+        """True when every stable letter is to be spoken."""
+        return self.checkBox_speak.isChecked() and self.comboBox_speak_unit.currentText() != SPEAK_WORDS
+
+    def speaks_words(self):
+        """True when each finished word is to be spoken."""
+        return self.checkBox_speak.isChecked() and self.comboBox_speak_unit.currentText() == SPEAK_WORDS
+
+    def finish_word(self):
+        """
+        Correct the word that has just ended when *Correct words* is enabled,
+        then speak it in the *Words* mode. Words are spoken in lower case so
+        the voice reads them as words rather than spelling them out.
+        """
+        word = self.composer.last_word
+        if not word:
+            return
+
+        if self.checkBox_correct.isChecked():
+            corrected = self.corrector.correct(word)
+            if corrected != word:
+                self.composer.replace_last_word(corrected)
+                word = corrected
+
+        if self.speaks_words():
+            self.translate_to_speech(word.lower())
+
+    def append_transcript(self, sentence):
+        """Add a finished sentence to the transcript with the time it ended."""
+        if sentence:
+            self.plainTextEdit_transcript.appendPlainText(f"[{datetime.now():%H:%M:%S}] {sentence}")
+
+    def flush_sentence(self):
+        """Move the sentence still in the text bar to the transcript."""
+        sentence = self.composer.text.strip()
+        self.clear_text()
+        self.append_transcript(sentence)
 
     def clear_text(self):
         """
@@ -439,6 +500,32 @@ class MainApp(QMainWindow, Ui_MainWindow):
         """
         self.composer.clear()
         self.label_text.setText('')
+
+    def clear_transcript(self):
+        """Empty the transcript (the *Clear* button of the transcript panel)."""
+        self.plainTextEdit_transcript.clear()
+
+    def save_transcript(self):
+        """
+        Save the transcript, including the sentence still in the text bar, to a
+        text file chosen by the user.
+
+        Returns:
+            bool: True when the file was written.
+        """
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Save transcript", str(Path.home() / 'transcript.txt'), "Text files (*.txt)")
+        if not file_path:
+            return False
+
+        self.flush_sentence()
+        try:
+            Path(file_path).write_text(self.plainTextEdit_transcript.toPlainText() + '\n', encoding='utf-8')
+        except OSError:
+            logging.exception("Could not save the transcript: %s", file_path)
+            QMessageBox.critical(self, "Save error", f"Could not save transcript: {Path(file_path).name}")
+            return False
+        return True
 
     def translate_to_speech(self, data=""):
         """

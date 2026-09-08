@@ -77,6 +77,7 @@ try {
         --icon (Join-Path $RepositoryRoot "src\assets\ans.ico") `
         --add-data "$(Join-Path $RepositoryRoot 'src\assets');assets" `
         --add-data "$(Join-Path $RepositoryRoot 'models');models" `
+        --collect-data symspellpy `
         --specpath $BuildRoot `
         --workpath $PyInstallerWork `
         --distpath $PyInstallerDist `
@@ -113,6 +114,7 @@ try {
         --icon (Join-Path $RepositoryRoot "src\assets\ans.ico") `
         --add-data "$(Join-Path $RepositoryRoot 'src\assets');assets" `
         --add-data "$(Join-Path $RepositoryRoot 'models');models" `
+        --collect-data symspellpy `
         --specpath $BuildRoot `
         --workpath $OneFileWork `
         --distpath $OneFileDist `

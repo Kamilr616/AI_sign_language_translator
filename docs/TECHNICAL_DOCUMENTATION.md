@@ -27,7 +27,8 @@ The application is a single-process desktop program that performs real-time reco
 | Video acquisition | `src/camera.py` | Opening the camera, configuring the backend/resolution, delivering timestamped RGB frames |
 | Gesture recognition | `src/recognizer.py`, `src/custom_landmarks.py` | Hand detection, landmark extraction, gesture classification, frame annotation |
 | Presentation | `src/main.py`, `src/main_app.py`, `src/gui.py` / `src/gui.ui` | Qt GUI, user settings, result post-processing (smoothing) |
-| Speech synthesis | `src/speaker.py` | Non-blocking text-to-speech output of recognized letters |
+| Speech synthesis | `src/speaker.py` | Non-blocking text-to-speech output of recognized letters or finished words |
+| Word correction | `src/corrector.py` | Matching finished words against an English word list (SymSpell) |
 
 The recognizable classes are the **24 static letters of the ASL alphabet** (A–Y, excluding the dynamic letters *J* and *Z*, which require motion) plus a **`none`** class representing "no sign".
 
@@ -43,6 +44,7 @@ The recognizable classes are the **24 static letters of the ASL alphabet** (A–
 | GUI | PySide6 ≥ 6.7.3 (Qt for Python), QDarkStyle ≥ 3.2.3 | Main window, video preview, settings panels, dark theme |
 | Camera enumeration | `PySide6.QtMultimedia.QMediaDevices` | Listing available video input devices |
 | TTS | pyttsx3 ≥ 2.98 (SAPI5 on Windows) | Offline speech synthesis |
+| Word correction | symspellpy ≥ 6.10 (SymSpell with its bundled English frequency dictionary) | Correction of finished words |
 
 All inference is performed **on-device on the CPU**; no network access or GPU is required at runtime.
 
@@ -71,7 +73,7 @@ flowchart TB
     APP -->|creates / configures| REC
     APP -->|creates / configures| TTS
     REC -->|"result_ready_signal (QImage, text, scores, fps)"| APP
-    APP -->|"speak(letter)"| TTS
+    APP -->|"speak(letter or word)"| TTS
 ```
 
 `MainApp` is the composition root: it instantiates and owns `CameraApp`, `GestureRecognizerApp` and `SpeakerApp`, wires the Qt signal from the recognizer to its own slot, and translates every GUI action (reset buttons, sliders, file dialog) into a re-configuration of the appropriate component.
@@ -101,7 +103,7 @@ sequenceDiagram
     MP-->>MP: handle_result(result, image, ts): free the slot,<br/>draw landmarks, compute FPS
     MP--)M: result_ready_signal.emit(image, text, scores, fps)
     Note over M: sliding-window voting,<br/>update labels & progress bars
-    M--)T: speak(letter)  [if enabled, once per stable letter]
+    M--)T: speak(letter or word)  [if enabled]
 ```
 
 Key details:
@@ -111,7 +113,7 @@ Key details:
 - **Backpressure and freshness** — only one `recognize_async()` call may be in flight. While a result is pending, a freshly read frame waits at most 15 ms for the slot to free up; otherwise it is dropped and the next frame is read, so the frame handed to MediaPipe is always the newest one and latency does not grow when inference is slower than the camera. A watchdog releases the slot when no result arrives within 2 s.
 - **Recovery** — a closed camera or a failed read is retried every 50 ms on the capture thread, with a single log line per failure episode. `CameraApp` serialises every `VideoCapture` call with a lock, so *Reset camera* on the GUI thread cannot race with a read in progress; the reset pauses the worker, reopens the device and restarts the worker, which keeps polling until the device is available.
 - **FPS measurement** — computed after each complete 5-frame sample window as `5 / Δt` (`calculate_fps`, `src/recognizer.py`).
-- **TTS concurrency** — `SpeakerApp` runs a single long-lived daemon worker thread that owns the pyttsx3 engine for its whole lifetime and drives its external event loop (`startLoop(False)` plus periodic `iterate()`), waiting for the `finished-utterance` callback before it takes the next text; this also avoids a pyttsx3 2.99 `runAndWait()` regression that cancelled every utterance after the first. `speak(text)` is non-blocking: it enqueues the text, and pending requests are coalesced so only the newest one is spoken; requests are ignored while the worker is not running (`src/speaker.py`). `MainApp.update_text` calls `speak()` once per letter written by the `TextComposer` (see 3.3), i.e. after the letter has been displayed for `STABLE_FRAMES` (3) consecutive frames; a rest re-arms it, so the same letter shown again is spoken again, while single-frame flickers are never voiced.
+- **TTS concurrency** — `SpeakerApp` runs a single long-lived daemon worker thread that owns the pyttsx3 engine for its whole lifetime and drives its external event loop (`startLoop(False)` plus periodic `iterate()`), waiting for the `finished-utterance` callback before it takes the next text; this also avoids a pyttsx3 2.99 `runAndWait()` regression that cancelled every utterance after the first. `speak(text)` is non-blocking: it enqueues the text, and pending requests are coalesced so only the newest one is spoken; requests are ignored while the worker is not running (`src/speaker.py`). `MainApp.update_text` calls `speak()` once per letter written by the `TextComposer` (see 3.3), i.e. after the letter has been displayed for `STABLE_FRAMES` (3) consecutive frames; a rest re-arms it, so the same letter shown again is spoken again, while single-frame flickers are never voiced. With *Words* selected in the speech unit combo box, `MainApp.finish_word` speaks each word once instead, after it has ended and been corrected, in lower case so the voice reads it as a word rather than spelling it.
 - **Shutdown** — `MainApp.closeEvent` disconnects the signal, closes the recognizer (which stops the capture thread before closing MediaPipe), releases the camera and stops the TTS engine, in that order.
 
 ### 3.3 Result post-processing (smoothing)
@@ -123,7 +125,7 @@ Raw per-frame classifications flicker. When the *Average sign* checkbox is enabl
 
 A frame in which the hand is visible but no sign passes the threshold votes as an empty sign; when it wins, the window shows `?`. Shrinking the window below the current number of stored results, or toggling *Average sign*, clears the window (`clear_results`) so that stale votes cannot shape the next result.
 
-**Word composition.** The displayed sign of every frame (after smoothing, or an empty string when no sign is shown) is also fed to `TextComposer` (`src/composer.py`, no Qt dependency). A letter is written to the *Text* bar once it has been displayed for `STABLE_FRAMES` (3) consecutive frames; holding it longer does not repeat it, showing it again after a short rest writes it again, and single-frame flickers are ignored. Resting the hand for `REST_FRAMES_FOR_SPACE` (30) consecutive frames, about a second, ends the word with a single space. With the 29-class models the `space` and `del` classes insert a space and delete the last character. Every written letter is also the one handed to TTS, so what is spoken is exactly what is written; spaces and deletions are silent. The *Clear* button empties the bar (`clear_text`).
+**Word composition.** The displayed sign of every frame (after smoothing, or an empty string when no sign is shown) is also fed to `TextComposer` (`src/composer.py`, no Qt dependency). A letter is written to the *Text* bar once it has been displayed for `STABLE_FRAMES` (3) consecutive frames; holding it longer does not repeat it, showing it again after a short rest writes it again, and single-frame flickers are ignored. Resting the hand for `REST_FRAMES_FOR_SPACE` (30) consecutive frames, about a second, ends the word with a single space. With the 29-class models the `space` and `del` classes insert a space and delete the last character. When a word ends (the composer returns `' '`), `MainApp.finish_word` corrects it with `WordCorrector` (`src/corrector.py`, see 4.9) if *Correct words* is enabled, replacing it in the bar, and speaks it when *Words* is selected next to the *Speak* checkbox; with *Letters* selected every written letter is the one handed to TTS, so what is spoken is exactly what is written. Spaces and deletions are silent. Resting the hand for `REST_FRAMES_FOR_SENTENCE` (90) consecutive frames, about three seconds, ends the sentence: the composer hands the text over as `last_sentence`, `append_transcript` adds it to the *Transcript* panel prefixed with the time it ended, and the bar starts empty. The *Clear* button empties the bar (`clear_text`); the transcript has its own *Clear* and a *Save* button (`save_transcript`), which first moves the sentence still in the bar to the transcript and then writes the panel to a UTF-8 text file.
 
 ## 4. Module reference
 
@@ -137,7 +139,7 @@ Creates the `QApplication`, configures `logging` (INFO level, UTF-8), applies th
 
 | Method | Purpose |
 |---|---|
-| `start()` | One-time initialization: builds the camera-driver dictionary, creates camera / TTS / recognizer if absent |
+| `start()` | One-time initialization: builds the camera-driver dictionary, creates camera / TTS / recognizer if absent, loads the word dictionary on a background thread |
 | `init_camera()` / `reset_camera()` | Creates or re-opens `CameraApp` with the device, backend and resolution chosen in the GUI |
 | `reset_recognizer()` | Builds a candidate with the current thresholds and model, then swaps it in only after successful loading; the previous recognizer remains active on failure |
 | `reset_tts()` | Rebuilds `SpeakerApp` with the selected rate and volume |
@@ -146,7 +148,10 @@ Creates the `QApplication`, configures `logging` (INFO level, UTF-8), applies th
 | `process_result_and_frame(frame, text, scores, fps)` | Qt slot: renders the annotated frame, FPS, handedness and confidence; applies smoothing; feeds the displayed sign to the composer |
 | `calculate_common_sign_and_average()` | Majority vote + average score over the sliding window |
 | `clear_results()` | Empties the sliding window (on toggling *Average sign* or shrinking the range) |
-| `update_text(sign)` | Feeds `TextComposer`; writes a newly stable letter to the *Text* bar and speaks it |
+| `update_text(sign)` | Feeds `TextComposer`; writes a newly stable letter to the *Text* bar (spoken in the *Letters* mode), finishes words and sentences |
+| `finish_word()` | Corrects the word that has just ended (*Correct words*) and speaks it in the *Words* mode |
+| `append_transcript(sentence)` / `flush_sentence()` | Adds a finished sentence to the *Transcript* panel with the time it ended / moves the sentence still in the bar there |
+| `save_transcript()` / `clear_transcript()` | Writes the transcript, with the sentence still in the bar, to a text file chosen in a dialog / empties the panel |
 | `clear_text()` | Empties the *Text* bar (the *Clear* button) |
 | `closeEvent(event)` | Orderly resource release |
 
@@ -193,23 +198,35 @@ Offline TTS based on `pyttsx3`:
 
 ### 4.7 `src/gui.py` / `src/gui.ui`
 
-`gui.ui` is the Qt Designer definition of the main window (design canvas 1171×842, widgets placed at absolute positions); `gui.py` is generated from it with the Qt UI compiler and **must not be edited by hand**. At runtime `MainApp._install_scaling_view` moves the central widget into a `QGraphicsView` and `fit_scene` scales the whole scene to the window while keeping its aspect ratio, so the window can be resized or maximized (1440p, high-DPI displays) and every widget follows; the initial size fills about 90% of the available screen, between half and twice the design size. Regenerate after changing the design:
+`gui.ui` is the Qt Designer definition of the main window (design canvas 1171×982, widgets placed at absolute positions); `gui.py` is generated from it with the Qt UI compiler and **must not be edited by hand**. At runtime `MainApp._install_scaling_view` moves the central widget into a `QGraphicsView` and `fit_scene` scales the whole scene to the window while keeping its aspect ratio, so the window can be resized or maximized (1440p, high-DPI displays) and every widget follows; the initial size fills about 90% of the available screen, between half and twice the design size. Regenerate after changing the design:
 
 ```bash
 pyside6-uic src/gui.ui -o src/gui.py
 ```
 
-The window contains the video preview (`label_displayFrame`, 640×480), the result panel (recognized sign, handedness, confidence progress bars, FPS bar) and a settings tab widget (camera, recognizer, TTS, results).
+The window contains the video preview (`label_displayFrame`, 640×480), the result panel (recognized sign, handedness, confidence progress bars, FPS bar) and a settings tab widget (camera, recognizer, TTS, results), the *Text* bar with *Correct words* and *Clear*, and the *Transcript* panel with *Save* and *Clear*.
 
 ### 4.8 `src/composer.py` — `TextComposer`
 
 Turns the per-frame displayed sign into text, the way a fingerspelling reader does, and has no Qt dependency:
 
-- `feed(sign)` — accounts for one frame; returns the letter that was just written, `' '` for a space, `'del'` for a deletion, or `None` when nothing changed.
-- `clear()` — forgets the text and the letter being composed.
+- `feed(sign)` — accounts for one frame; returns the letter that was just written, `' '` for a space, `'del'` for a deletion, `SENTENCE_END` when a sentence was finished, or `None` when nothing changed.
+- `clear()` — forgets the text, the last sentence and the letter being composed.
 - `text` — the composed text, trimmed to the newest `max_length` (60) characters.
+- `last_word` / `replace_last_word(word)` — the most recently composed word, and its replacement after dictionary correction, keeping the trailing space.
+- `last_sentence` — the text moved out of the bar by the last sentence end.
 
-Parameters: `stable_frames` (frames a sign must be shown before it is written), `rest_frames` (frames without a sign that end the word with a space), `max_length`.
+Parameters: `stable_frames` (frames a sign must be shown before it is written), `rest_frames` (frames without a sign that end the word with a space), `sentence_frames` (frames without a sign that end the sentence), `max_length`.
+
+### 4.9 `src/corrector.py` — `WordCorrector`
+
+Matches every finished word against SymSpell's frequency dictionary of 82 765 English words, bundled with the `symspellpy` package (MIT licensed), and replaces an unknown word with the closest known one, preferring the more frequent candidate at equal edit distance:
+
+- `load_async()` — loads the bundled dictionary on a daemon thread (about a second); `load(path)` loads a custom `term count` file synchronously and returns whether it succeeded.
+- `correct(word)` — returns the closest dictionary word, keeping the case of the input; a word that is known, shorter than 3 letters or not purely alphabetic is returned unchanged, as is every word while the dictionary is not loaded (`ready` is `False`) or when `symspellpy` is not installed. Words of up to 4 letters are corrected by a single edit only, longer ones by up to two.
+- `from_words(counts)` — builds a ready corrector from a `{word: frequency}` mapping, for tests and custom vocabularies.
+
+`MainApp` creates the corrector in its constructor and starts the load in `start()`, so a window built in tests never touches the dictionary file.
 
 ## 5. Model training pipeline
 
@@ -281,9 +298,10 @@ All parameters are adjustable from the GUI at runtime; changes take effect after
 |---|---|---|
 | Smoothing on/off | *Average sign* checkbox | Enables sliding-window majority voting |
 | Window size | *Range* slider | Number of recent results used for voting |
-| Speech on/off | *Speak* checkbox | Speaks a letter once, after it has been displayed for 3 consecutive frames; the same letter is spoken again after the hand rests or another letter is shown |
+| Speech on/off, unit | *Speak* checkbox, *Letters* / *Words* box | *Letters*: speaks a letter once, after it has been displayed for 3 consecutive frames, and again after the hand rests or another letter is shown; *Words*: speaks each word once it has ended, after correction |
 | Rate / volume | TTS spin boxes | pyttsx3 speech rate (wpm) and volume (%) |
-| Text | *Text* bar + *Clear* button | Letters written once stable (3 frames); a rest of 30 frames ends the word with a space; the `space`/`del` classes of the 29-class models insert a space / delete a character |
+| Text | *Text* bar + *Clear* button | Letters written once stable (3 frames); a rest of 30 frames ends the word with a space; the `space`/`del` classes of the 29-class models insert a space / delete a character; *Correct words* replaces a finished word missing from the English dictionary with the closest known one |
+| Transcript | *Transcript* panel + *Save* / *Clear* buttons | A rest of 90 frames ends the sentence and moves it here with the time it ended; *Save* writes the panel, with the sentence still in the bar, to a text file |
 
 ## 7. Running and packaging
 
@@ -318,6 +336,7 @@ regression suite verifies the nested-`Any` recursion limit fixed by the patch.
 suite and builds the application with PyInstaller. It creates a Windows x64 ZIP
 under `dist/release/`, with the executable, models and runtime dependencies in
 `app/` and launchers plus license and build metadata at the package root.
+PyInstaller runs with `--collect-data symspellpy`, so the word dictionary is bundled.
 
 ## 8. Known limitations and possible extensions
 
@@ -327,9 +346,10 @@ under `dist/release/`, with the executable, models and runtime dependencies in
 - Single-hand recognition (`num_hands=1`).
 - Recognition quality depends on lighting and background; the training dataset was collected in relatively uniform conditions.
 - The TTS voice is English-oriented (letter names are spoken in English).
+- Dictionary correction uses an English word list, so a name or a word missing from it is replaced by the closest known word; *Correct words* should be disabled while spelling such words.
 
 **Possible extensions**
 
 - Temporal models (e.g. LSTM/transformer over landmark sequences) to support dynamic signs.
-- Dictionary correction and completion of the composed words (e.g. matching against a word list), and speaking whole words instead of single letters.
+- Word completion from the letters signed so far (prefix search in the word list), a Polish word list for PJM, and a two-way mode with speech recognition for the hearing side of the conversation.
 - Support for other national sign alphabets (e.g. PJM) by retraining on a suitable dataset.

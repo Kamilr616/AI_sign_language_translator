@@ -1,4 +1,4 @@
-from composer import TextComposer
+from composer import SENTENCE_END, TextComposer
 
 
 def feed(composer, sign, frames):
@@ -41,7 +41,7 @@ def test_a_long_rest_ends_the_word_with_a_single_space():
 
     feed(composer, 'H', 3)
     feed(composer, 'I', 3)
-    events = feed(composer, '', 90)
+    events = feed(composer, '', 60)
     feed(composer, 'U', 3)
 
     assert composer.text == 'HI U'
@@ -107,3 +107,56 @@ def test_clear_forgets_text_and_candidate():
     feed(composer, 'A', 1)
 
     assert composer.text == 'A'
+
+
+def test_a_longer_rest_ends_the_sentence_and_empties_the_text():
+    composer = TextComposer(stable_frames=3, rest_frames=30, sentence_frames=90)
+
+    feed(composer, 'H', 3)
+    feed(composer, 'I', 3)
+    events = feed(composer, '', 120)
+
+    assert events[29] == ' '
+    assert events[89] == SENTENCE_END
+    assert events.count(SENTENCE_END) == 1
+    assert composer.last_sentence == 'HI'
+    assert composer.text == ''
+
+
+def test_resting_without_text_does_not_end_a_sentence():
+    composer = TextComposer(stable_frames=3, rest_frames=30, sentence_frames=90)
+
+    events = feed(composer, '', 200)
+
+    assert SENTENCE_END not in events
+    assert composer.last_sentence == ''
+
+
+def test_last_word_ignores_the_trailing_space():
+    composer = TextComposer(stable_frames=1, rest_frames=2)
+
+    for letter in 'HI':
+        composer.feed(letter)
+    assert composer.last_word == 'HI'
+    feed(composer, '', 2)
+    assert composer.last_word == 'HI'
+    for letter in 'YOU':
+        composer.feed(letter)
+
+    assert composer.last_word == 'YOU'
+
+
+def test_replace_last_word_keeps_the_rest_of_the_text():
+    composer = TextComposer(stable_frames=1, rest_frames=2)
+
+    for letter in 'HELO':
+        composer.feed(letter)
+    feed(composer, '', 2)
+    composer.replace_last_word('HELLO')
+    assert composer.text == 'HELLO '
+    for letter in 'WROLD':
+        composer.feed(letter)
+    composer.replace_last_word('WORLD')
+
+    assert composer.text == 'HELLO WORLD'
+    assert composer.last_word == 'WORLD'
