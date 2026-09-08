@@ -157,6 +157,7 @@ Creates the `QApplication`, configures `logging` (INFO level, UTF-8), registers 
 | `set_screen(name)` / `step_screen(step)` | Shows the *live*, *studio* or *settings* screen (pills, keys 1/2/3, arrow keys) |
 | `set_card_visible(card, visible)` | Switches a card on or off from the *View* menu |
 | `set_header_visible(visible)` / `set_fullscreen(fullscreen)` / `leave_fullscreen()` | Hides the header strip (H), toggles fullscreen (F), Escape brings both back |
+| `set_muted(muted)` | Silences the voice (key M, the *MUTE* pill, the *View* menu) without changing the speaker settings; `translate_to_speech` drops texts while muted and the utterance in progress finishes |
 | `apply_layout()` | Places the cards with `board.compute_layout` and resizes the preview, the text bar and the transcript to their cards |
 | `refresh_text_bar()` | Shows the composed text, elided on the left when it is wider than the bar |
 | `closeEvent(event)` | Orderly resource release |
@@ -320,6 +321,7 @@ All parameters are adjustable from the GUI at runtime; changes take effect after
 | Transcript | *Transcript* panel + *Save* / *Clear* buttons | A rest of 90 frames ends the sentence and moves it here with the time it ended; *Save* writes the panel, with the sentence still in the bar, to a text file |
 | Screens | *LIVE* / *STUDIO* / *SETTINGS* pills, keys 1 / 2 / 3 and the arrow keys | *Live*: the camera as large as possible with the text bar and the results; *Studio*: every card switched on; *Settings*: the options next to the preview |
 | View | *VIEW* pill or key V | Switches the text bar, transcript, results, settings and author cards on and off; *Hide interface* (H) removes the header strip and leaves a *SHOW UI* pill in the corner, *Fullscreen* (F) fills the screen, Escape brings both back; a right click on the picture opens the menu as well |
+| Mute | *MUTE* pill, key M or the *View* menu | Silences the voice without changing *Auto speak*, the unit, rate or volume; the letter or word already being spoken finishes; the pill turns amber while muted |
 
 ## 7. Running and packaging
 

@@ -325,6 +325,12 @@ QPushButton[screenPill="true"]:checked {
     border-color: #e6ebf5;
     color: #0b0f1d;
 }
+/* The mute pill turns amber while the voice is silenced */
+QPushButton#pushButton_mute:checked {
+    background-color: #f59e0b;
+    border-color: #f59e0b;
+    color: #1a1206;
+}
 QLabel#label_keys {
     color: #4b5877;
     font-family: "JetBrains Mono";

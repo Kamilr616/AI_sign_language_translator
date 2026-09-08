@@ -596,3 +596,50 @@ def test_keys_typed_into_a_spin_box_do_not_switch_screens(application):
 
     assert window.screen_name == 'settings'
     window.close()
+
+
+def test_m_mutes_the_voice_until_it_is_pressed_again(application):
+    window = make_window(application)
+    window.show()
+    application.processEvents()
+
+    feed(window, 'A', main_app.STABLE_FRAMES + 2)
+    assert window.tts_app.spoken == ['A']
+
+    QTest.keyClick(window.scene_view, Qt.Key.Key_M)
+    assert window.muted is True
+    assert window.pushButton_mute.isChecked() and window.action_mute.isChecked()
+    assert window.pushButton_mute.text() == 'MUTED'
+    feed(window, 'B', main_app.STABLE_FRAMES + 2)
+    assert window.composer.text == 'AB'
+    assert window.tts_app.spoken == ['A']
+
+    QTest.keyClick(window.scene_view, Qt.Key.Key_M)
+    assert window.muted is False
+    assert window.pushButton_mute.text() == 'MUTE'
+    feed(window, 'C', main_app.STABLE_FRAMES + 2)
+    assert window.tts_app.spoken == ['A', 'C']
+    window.tts_app = None
+    window.close()
+
+
+def test_the_mute_pill_and_the_menu_entry_stay_in_step_without_touching_the_settings(application):
+    window = make_window(application, words=True)
+
+    window.pushButton_mute.click()
+    assert window.muted is True and window.action_mute.isChecked()
+    feed(window, 'H', main_app.STABLE_FRAMES + 2)
+    feed(window, 'I', main_app.STABLE_FRAMES + 2)
+    feed(window, None, main_app.REST_FRAMES_FOR_SPACE)
+    assert window.composer.text.strip() == 'HI'
+    assert window.tts_app.spoken == []
+    assert window.checkBox_speak.isChecked()
+    assert window.comboBox_speak_unit.currentText() == main_app.SPEAK_WORDS
+
+    window.action_mute.setChecked(False)
+    assert window.muted is False and not window.pushButton_mute.isChecked()
+    feed(window, 'Y', main_app.STABLE_FRAMES + 2)
+    feed(window, None, main_app.REST_FRAMES_FOR_SPACE)
+    assert window.tts_app.spoken == ['y']
+    window.tts_app = None
+    window.close()

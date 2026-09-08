@@ -42,7 +42,7 @@ REST_FRAMES_FOR_SPACE = 30
 REST_FRAMES_FOR_SENTENCE = 90
 # Entry of the speech unit combo box that speaks whole words instead of letters.
 SPEAK_WORDS = 'Words'
-# Keys of the board: screens, the view menu, the interface and fullscreen.
+# Keys of the board: screens, the view menu, the interface, fullscreen and mute.
 SCREEN_KEYS = {Qt.Key.Key_1: 'live', Qt.Key.Key_2: 'studio', Qt.Key.Key_3: 'settings'}
 # Labels of the view menu entries, by card.
 CARD_LABELS = {
@@ -72,10 +72,12 @@ class MainApp(QMainWindow, Ui_MainWindow):
             'settings': self.groupBox,
             'author': self.groupBox_10,
         }
+        # Mute silences the voice without touching the speaker settings.
+        self.muted = False
         self._header_widgets = (
             self.label_title, self.label_subtitle, self.label_patchedBy, self.label_logoPodteksT,
             self.pushButton_screenLive, self.pushButton_screenStudio, self.pushButton_screenSettings,
-            self.pushButton_view, self.label_keys, self.line_header,
+            self.pushButton_view, self.pushButton_mute, self.label_keys, self.line_header,
         )
         self._install_board_controls()
         self._install_scaling_view()
@@ -109,9 +111,10 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
     def _install_board_controls(self):
         """
-        Wire the screen pills, the view menu and the keyboard: 1/2/3 and the
-        arrow keys switch screens, V opens the view menu, H hides the
-        interface, F toggles fullscreen and Escape leaves it.
+        Wire the screen pills, the view menu, the mute pill and the keyboard:
+        1/2/3 and the arrow keys switch screens, V opens the view menu, H hides
+        the interface, F toggles fullscreen, M mutes the voice and Escape
+        leaves fullscreen.
         """
         self._screen_pills = {
             'live': self.pushButton_screenLive,
@@ -144,6 +147,13 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.action_fullscreen.setCheckable(True)
         self.action_fullscreen.toggled.connect(self.set_fullscreen)
         self.view_menu.addAction(self.action_fullscreen)
+        self.view_menu.addSeparator()
+        self.action_mute = QAction("Mute\tM", self)
+        self.action_mute.setCheckable(True)
+        self.action_mute.setToolTip("Silence the voice without changing the speaker settings")
+        self.action_mute.toggled.connect(self.set_muted)
+        self.view_menu.addAction(self.action_mute)
+        self.pushButton_mute.toggled.connect(self.set_muted)
         self.pushButton_view.clicked.connect(lambda checked=False: self.show_view_menu())
         self.pushButton_showInterface.hide()
         self.pushButton_showInterface.clicked.connect(lambda checked=False: self.set_header_visible(True))
@@ -161,11 +171,31 @@ class MainApp(QMainWindow, Ui_MainWindow):
             origin = self.mapToGlobal(self.rect().center())
         self.view_menu.popup(origin)
 
+    def set_muted(self, muted):
+        """
+        Silence the voice (key M, the MUTE pill or the view menu) without
+        changing the speaker settings: nothing is queued while muted, the
+        letter or word already being spoken finishes, and the pill and the
+        menu entry are kept in step.
+        """
+        muted = bool(muted)
+        changed = muted != self.muted
+        self.muted = muted
+        if self.action_mute.isChecked() != muted:
+            self.action_mute.setChecked(muted)
+        if self.pushButton_mute.isChecked() != muted:
+            self.pushButton_mute.setChecked(muted)
+        if not changed:
+            return
+        self.pushButton_mute.setText("MUTED" if muted else "MUTE")
+        self.statusBar().showMessage("Voice muted" if muted else "Voice on", 2000)
+
     def handle_board_key(self, event):
         """
         Act on a board key: 1/2/3 and the arrow keys switch screens, V opens
-        the view menu, H hides or shows the interface, F toggles fullscreen and
-        Escape leaves fullscreen or brings the interface back.
+        the view menu, H hides or shows the interface, F toggles fullscreen,
+        M mutes or unmutes the voice and Escape leaves fullscreen or brings
+        the interface back.
 
         Returns:
             bool: True when the key was a board key and has been handled.
@@ -185,6 +215,8 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.set_header_visible(not self.header_visible)
         elif key == Qt.Key.Key_F:
             self.set_fullscreen(not self.isFullScreen())
+        elif key == Qt.Key.Key_M:
+            self.set_muted(not self.muted)
         elif key == Qt.Key.Key_Escape:
             self.leave_fullscreen()
         else:
@@ -794,13 +826,15 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
     def translate_to_speech(self, data=""):
         """
-        Translate the recognized gesture text to speech.
+        Translate the recognized gesture text to speech. Nothing is queued
+        while the voice is muted; the utterance already in progress finishes.
 
         Args:
             data (str): The recognized gesture text.
          """
-        if self.tts_app is not None:
-            self.tts_app.speak(data)
+        if self.muted or self.tts_app is None:
+            return
+        self.tts_app.speak(data)
 
     def pushbutton_reset_cap_click(self):
         """

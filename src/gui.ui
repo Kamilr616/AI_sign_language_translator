@@ -1169,17 +1169,42 @@
      <bool>true</bool>
     </property>
    </widget>
+   <widget class="QPushButton" name="pushButton_mute">
+    <property name="geometry">
+     <rect>
+      <x>1346</x>
+      <y>38</y>
+      <width>96</width>
+      <height>34</height>
+     </rect>
+    </property>
+    <property name="cursor">
+     <cursorShape>PointingHandCursor</cursorShape>
+    </property>
+    <property name="toolTip">
+     <string>Silence the voice without changing the speaker settings (key M)</string>
+    </property>
+    <property name="text">
+     <string>MUTE</string>
+    </property>
+    <property name="checkable">
+     <bool>true</bool>
+    </property>
+    <property name="screenPill" stdset="0">
+     <bool>true</bool>
+    </property>
+   </widget>
    <widget class="QLabel" name="label_keys">
     <property name="geometry">
      <rect>
       <x>860</x>
       <y>76</y>
-      <width>500</width>
+      <width>600</width>
       <height>16</height>
      </rect>
     </property>
     <property name="text">
-     <string>1 2 3 SCREENS  /  V VIEW  /  H INTERFACE  /  F FULLSCREEN</string>
+     <string>1 2 3 SCREENS  /  V VIEW  /  H INTERFACE  /  F FULLSCREEN  /  M MUTE</string>
     </property>
    </widget>
    <widget class="QFrame" name="line_header">

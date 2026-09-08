@@ -157,6 +157,7 @@ Tworzy `QApplication`, konfiguruje `logging` (poziom INFO, UTF-8), rejestruje do
 | `set_screen(name)` / `step_screen(step)` | Pokazuje ekran *live*, *studio* albo *settings* (pigułki, klawisze 1/2/3, strzałki) |
 | `set_card_visible(card, visible)` | Włącza albo wyłącza kartę z menu *View* |
 | `set_header_visible(visible)` / `set_fullscreen(fullscreen)` / `leave_fullscreen()` | Chowa pasek nagłówka (H), przełącza pełny ekran (F), Escape przywraca oba |
+| `set_muted(muted)` | Wycisza głos (klawisz M, pigułka *MUTE*, menu *View*) bez zmiany ustawień mowy; `translate_to_speech` odrzuca teksty w czasie wyciszenia, a wypowiedź w toku dokańcza się |
 | `apply_layout()` | Rozmieszcza karty przez `board.compute_layout` i dopasowuje podgląd, pasek tekstu i transkrypt do ich kart |
 | `refresh_text_bar()` | Pokazuje złożony tekst, z wielokropkiem z lewej, gdy jest szerszy niż pasek |
 | `closeEvent(event)` | Uporządkowane zwolnienie zasobów |
@@ -320,6 +321,7 @@ Wszystkie parametry można zmieniać z poziomu GUI w trakcie działania; zmiany 
 | Transkrypt | Panel *Transcript* + przyciski *Save* / *Clear* | Odpoczynek przez 90 klatek kończy zdanie i przenosi je tutaj z godziną zakończenia; *Save* zapisuje panel, wraz ze zdaniem będącym jeszcze w pasku, do pliku tekstowego |
 | Ekrany | Pigułki *LIVE* / *STUDIO* / *SETTINGS*, klawisze 1 / 2 / 3 i strzałki | *Live*: kamera możliwie największa z paskiem tekstu i wynikami; *Studio*: każda włączona karta; *Settings*: opcje obok podglądu |
 | Widok | Pigułka *VIEW* albo klawisz V | Włącza i wyłącza karty tekstu, transkryptu, wyników, ustawień i autora; *Hide interface* (H) chowa pasek nagłówka i zostawia w rogu pigułkę *SHOW UI*, *Fullscreen* (F) wypełnia ekran, Escape przywraca oba; menu otwiera też prawy klik na obrazie |
+| Wyciszenie | Pigułka *MUTE*, klawisz M albo menu *View* | Wycisza głos bez zmiany *Auto speak*, jednostki, tempa i głośności; litera lub wyraz w trakcie wypowiadania dokańcza się; pigułka robi się bursztynowa na czas wyciszenia |
 
 ## 7. Uruchamianie i wdrożenie
 
