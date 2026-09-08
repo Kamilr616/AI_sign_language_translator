@@ -289,8 +289,8 @@ class MainApp(QMainWindow, Ui_MainWindow):
         text = self.layout_rects['text']
         if text is not None:
             width = text[2]
-            self.label_text.setGeometry(QRect(16, 36, width - 16 - 232, 44))
-            self.checkBox_correct.setGeometry(QRect(width - 212, 42, 120, 31))
+            self.label_text.setGeometry(QRect(16, 36, width - 256, 44))
+            self.checkBox_correct.setGeometry(QRect(width - 232, 42, 136, 31))
             self.pushButton_clearText.setGeometry(QRect(width - 88, 40, 72, 34))
             self.refresh_text_bar()
         overlay = text is not None and board.text_overlaid(self.screen_name)

@@ -1034,8 +1034,8 @@
    <widget class="QLabel" name="label_patchedBy">
     <property name="geometry">
      <rect>
-      <x>1556</x>
-      <y>44</y>
+      <x>1542</x>
+      <y>46</y>
       <width>96</width>
       <height>18</height>
      </rect>
@@ -1050,9 +1050,9 @@
    <widget class="QLabel" name="label_logoPodteksT">
     <property name="geometry">
      <rect>
-      <x>1664</x>
+      <x>1650</x>
       <y>34</y>
-      <width>216</width>
+      <width>230</width>
       <height>42</height>
      </rect>
     </property>
@@ -1199,9 +1199,9 @@
     <property name="geometry">
      <rect>
       <x>1768</x>
-      <y>40</y>
+      <y>5</y>
       <width>112</width>
-      <height>34</height>
+      <height>30</height>
      </rect>
     </property>
     <property name="cursor">
@@ -1223,7 +1223,7 @@
       <x>1368</x>
       <y>120</y>
       <width>512</width>
-      <height>616</height>
+      <height>708</height>
      </rect>
     </property>
     <property name="cursor">
@@ -1238,7 +1238,7 @@
        <x>16</x>
        <y>36</y>
        <width>480</width>
-       <height>180</height>
+       <height>240</height>
       </rect>
      </property>
      <property name="title">
@@ -1250,7 +1250,7 @@
         <x>16</x>
         <y>30</y>
         <width>300</width>
-        <height>116</height>
+        <height>156</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_recognizerConfig">
@@ -1418,7 +1418,7 @@
       <property name="geometry">
        <rect>
         <x>16</x>
-        <y>140</y>
+        <y>196</y>
         <width>140</width>
         <height>32</height>
        </rect>
@@ -1435,9 +1435,9 @@
      <property name="geometry">
       <rect>
        <x>16</x>
-       <y>232</y>
+       <y>292</y>
        <width>480</width>
-       <height>180</height>
+       <height>196</height>
       </rect>
      </property>
      <property name="title">
@@ -1449,7 +1449,7 @@
         <x>16</x>
         <y>30</y>
         <width>300</width>
-        <height>60</height>
+        <height>72</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_ttsConfig">
@@ -1508,7 +1508,7 @@
       <property name="geometry">
        <rect>
         <x>16</x>
-        <y>96</y>
+        <y>108</y>
         <width>200</width>
         <height>36</height>
        </rect>
@@ -1552,7 +1552,7 @@
       <property name="geometry">
        <rect>
         <x>232</x>
-        <y>100</y>
+        <y>112</y>
         <width>160</width>
         <height>30</height>
        </rect>
@@ -1578,7 +1578,7 @@
       <property name="geometry">
        <rect>
         <x>16</x>
-        <y>140</y>
+        <y>152</y>
         <width>140</width>
         <height>32</height>
        </rect>
@@ -1598,7 +1598,7 @@
      <property name="geometry">
       <rect>
        <x>188</x>
-       <y>176</y>
+       <y>232</y>
        <width>140</width>
        <height>32</height>
       </rect>
@@ -1614,9 +1614,9 @@
      <property name="geometry">
       <rect>
        <x>16</x>
-       <y>428</y>
+       <y>504</y>
        <width>480</width>
-       <height>172</height>
+       <height>188</height>
       </rect>
      </property>
      <property name="title">
@@ -1628,7 +1628,7 @@
         <x>16</x>
         <y>30</y>
         <width>300</width>
-        <height>60</height>
+        <height>72</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout">
@@ -1693,7 +1693,7 @@
       <property name="geometry">
        <rect>
         <x>16</x>
-        <y>132</y>
+        <y>144</y>
         <width>140</width>
         <height>32</height>
        </rect>
@@ -1709,7 +1709,7 @@
       <property name="geometry">
        <rect>
         <x>172</x>
-        <y>132</y>
+        <y>144</y>
         <width>140</width>
         <height>32</height>
        </rect>
@@ -1740,7 +1740,7 @@
       <property name="geometry">
        <rect>
         <x>16</x>
-        <y>96</y>
+        <y>108</y>
         <width>224</width>
         <height>30</height>
        </rect>
@@ -1771,7 +1771,7 @@
       <property name="geometry">
        <rect>
         <x>248</x>
-        <y>96</y>
+        <y>108</y>
         <width>216</width>
         <height>30</height>
        </rect>
@@ -1839,12 +1839,6 @@
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
-      <property name="maximumSize">
-       <size>
-        <width>400</width>
-        <height>400</height>
-       </size>
-      </property>
       <property name="font">
        <font>
         <family>Calibri</family>
@@ -1876,12 +1870,6 @@
         <horstretch>0</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>50</width>
-        <height>400</height>
-       </size>
       </property>
       <property name="font">
        <font>
@@ -2226,9 +2214,9 @@
     <property name="geometry">
      <rect>
       <x>1368</x>
-      <y>760</y>
+      <y>852</y>
       <width>512</width>
-      <height>280</height>
+      <height>188</height>
      </rect>
     </property>
     <property name="cursor">
@@ -2241,9 +2229,9 @@
      <property name="geometry">
       <rect>
        <x>24</x>
-       <y>44</y>
+       <y>36</y>
        <width>260</width>
-       <height>50</height>
+       <height>44</height>
       </rect>
      </property>
      <property name="font">
@@ -2264,7 +2252,7 @@
      <property name="geometry">
       <rect>
        <x>388</x>
-       <y>40</y>
+       <y>28</y>
        <width>100</width>
        <height>100</height>
       </rect>
@@ -2283,9 +2271,9 @@
      <property name="geometry">
       <rect>
        <x>24</x>
-       <y>160</y>
-       <width>320</width>
-       <height>72</height>
+       <y>108</y>
+       <width>284</width>
+       <height>64</height>
       </rect>
      </property>
      <property name="text">
@@ -2316,7 +2304,7 @@
       <rect>
        <x>16</x>
        <y>36</y>
-       <width>560</width>
+       <width>544</width>
        <height>44</height>
       </rect>
      </property>
@@ -2343,9 +2331,9 @@
     <widget class="QCheckBox" name="checkBox_correct">
      <property name="geometry">
       <rect>
-       <x>588</x>
+       <x>568</x>
        <y>42</y>
-       <width>120</width>
+       <width>136</width>
        <height>31</height>
       </rect>
      </property>
