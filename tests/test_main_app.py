@@ -179,6 +179,38 @@ def test_resting_the_hand_rearms_the_same_letter(application):
     window.close()
 
 
+def test_toggling_average_sign_clears_the_window(application):
+    window = make_window(application, average=True, speak=False)
+    window.horizontalSlider_range.setValue(8)
+
+    feed(window, 'A', 4)
+    assert len(window.last_results) == 4
+    window.checkBox_avg_sign.setChecked(False)
+    assert window.last_results == []
+
+    feed(window, 'B', 2)
+    assert window.last_results == []
+    window.checkBox_avg_sign.setChecked(True)
+    feed(window, 'B', 1)
+
+    assert window.last_results == [('B', 0.9)]
+    assert window.label_displaySign.text() == 'B'
+    window.tts_app = None
+    window.close()
+
+
+def test_shrinking_the_range_below_the_stored_results_clears_them(application):
+    window = make_window(application, average=True, speak=False)
+    window.horizontalSlider_range.setValue(8)
+
+    feed(window, 'A', 6)
+    window.horizontalSlider_range.setValue(4)
+
+    assert window.last_results == []
+    window.tts_app = None
+    window.close()
+
+
 def test_nothing_is_spoken_while_the_checkbox_is_off(application):
     window = make_window(application, speak=False)
 
