@@ -304,17 +304,21 @@ class MainApp(QMainWindow, Ui_MainWindow):
         if text and scores:
             self.label_recognitionInfo.setText(text[1])
             self.progressBar_hand.setValue(scores[1] * 100)
+            # An empty sign means the hand is visible but no sign passed the
+            # threshold; it votes in the window like any other outcome.
+            sign = text[0]
+            score = scores[0] if sign else 0.0
 
             if self.checkBox_avg_sign.isChecked():
-                self.last_results.append((text[0], scores[0]))
+                self.last_results.append((sign, score))
                 result_sign, average_score = self.calculate_common_sign_and_average()
             else:
-                result_sign, average_score = text[0], scores[0]
+                result_sign, average_score = sign, score
 
-            self.label_displaySign.setText(result_sign)
+            self.label_displaySign.setText(result_sign or '?')
             self.progressBar_1.setValue(average_score * 100)
 
-            if self.checkBox_speak.isChecked():
+            if self.checkBox_speak.isChecked() and result_sign:
                 self.translate_to_speech(result_sign)
         else:
             self.label_recognitionInfo.setText('Not detected')

@@ -217,14 +217,20 @@ class GestureRecognizerApp(QObject):
 
             if result.gestures:
                 gesture = result.gestures[0]
-                category_name = gesture[0].category_name
-                gesture_score = gesture[0].score
                 handedness = result.handedness[0]
                 handedness_category_name = handedness[0].category_name
                 handedness_score = handedness[0].score
 
-                text = [category_name, handedness_category_name]
-                scores = [gesture_score, handedness_score]
+                # When no sign passes the score threshold (this includes the trained
+                # ``none`` class), MediaPipe does not return an empty list but a
+                # background category: index -1, an empty name, and a score that is
+                # not the confidence of any sign. Report it as "hand seen, no sign".
+                if gesture and gesture[0].category_name:
+                    text = [gesture[0].category_name, handedness_category_name]
+                    scores = [gesture[0].score, handedness_score]
+                else:
+                    text = ['', handedness_category_name]
+                    scores = [0.0, handedness_score]
 
         return frame, text, scores
 
