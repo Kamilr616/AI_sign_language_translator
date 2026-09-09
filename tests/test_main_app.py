@@ -1,7 +1,10 @@
 import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QFontInfo, QFontMetricsF
 from PySide6.QtWidgets import QApplication
 
 import camera as camera_module
+import main
 import main_app
 from camera import CameraApp
 from main_app import MainApp
@@ -34,6 +37,83 @@ def test_result_window_discards_oldest_sample(application):
     window.calculate_results_length()
 
     assert window.last_results == [("B", 0.7), ("A", 1.0), ("C", 0.9)]
+    window.close()
+
+
+def test_window_size_constants_match_the_generated_layout(application):
+    window = MainApp()
+
+    # main.py scales the interface from these; a regenerated gui.py must not
+    # silently move the layout out from under them.
+    assert (main.WINDOW_WIDTH_LOGICAL, main.WINDOW_HEIGHT_LOGICAL) == (
+        window.width(), window.height()
+    )
+    window.close()
+
+
+def test_the_widest_and_deepest_glyphs_fit_inside_the_sign_label(application):
+    window = MainApp()
+    label = window.label_displaySign
+    font = label.font()
+
+    if QFontInfo(font).family() != font.family():
+        window.close()
+        pytest.skip(f'{font.family()} is not installed on this platform')
+
+    metrics = QFontMetricsF(font)
+    # QLabel centres the line box in the label, so the baseline lands here.
+    baseline = (label.height() - metrics.height()) / 2.0 + metrics.ascent()
+
+    for glyph in ('Q', 'W', 'M', 'Y', 'B', '?'):
+        ink = metrics.tightBoundingRect(glyph)
+
+        assert baseline + ink.top() >= 0, glyph
+        assert baseline + ink.top() + ink.height() <= label.height(), glyph
+        assert ink.width() <= label.width(), glyph
+
+    window.close()
+
+
+def test_a_stopped_capture_clears_the_performance_bars(application):
+    window = MainApp()
+    window.process_result_and_frame(
+        None, [], [],
+        PipelineMetrics(pipeline_fps=29.7, camera_fps=29.6, inference_ms=17.3, dropped_frames=0),
+    )
+    window.recognizer_app = StubRecognizer(start_result=False)
+
+    assert window.start_capture() is False
+
+    for bar in (window.progressBar_fps, window.progressBar_camera_fps, window.progressBar_inference):
+        assert bar.value() == 0
+        assert bar.styleSheet() == ''
+
+    window.recognizer_app = None
+    window.close()
+
+
+def test_settings_fields_only_take_focus_when_they_are_clicked(application):
+    window = MainApp()
+    window.show()
+    fields = (
+        window.spinBox_detection,
+        window.spinBox_presence,
+        window.spinBox_tracking,
+        window.spinBox_treshold,
+        window.spinBox_volume,
+        window.spinBox_ttsRate,
+        window.spinBox_camera_width,
+        window.spinBox_camera_height,
+        window.horizontalSlider_range,
+    )
+
+    for field in fields:
+        assert field.focusPolicy() == Qt.FocusPolicy.ClickFocus
+
+    QApplication.processEvents()
+    focused = QApplication.focusWidget()
+
+    assert focused is None or focused not in fields
     window.close()
 
 
@@ -234,34 +314,252 @@ def test_file_dialog_restores_model_path_after_failed_load(application, monkeypa
     window.close()
 
 
-def test_rate_details_line_reports_camera_rate_and_inference_latency():
-    metrics = PipelineMetrics(
-        pipeline_fps=12, camera_fps=28.42, inference_ms=17.34, dropped_frames=5
-    )
-
-    assert main_app.format_rate_details(metrics) == 'camera 28.4 FPS | inference 17.3 ms'
-
-
-def test_rate_details_line_marks_missing_samples():
-    metrics = PipelineMetrics(
-        pipeline_fps=0, camera_fps=0.0, inference_ms=0.0, dropped_frames=0
-    )
-
-    assert main_app.format_rate_details(metrics) == 'camera -- FPS | inference -- ms'
+def test_frame_rate_badness_marks_a_low_rate_as_bad():
+    assert main_app.fps_badness(30.0) == 0.0
+    assert main_app.fps_badness(25.0) == 0.0
+    assert main_app.fps_badness(10.0) == 1.0
+    assert main_app.fps_badness(2.0) == 1.0
+    assert main_app.fps_badness(17.5) == pytest.approx(0.5)
 
 
-def test_recognition_rate_widgets_show_pipeline_and_camera_metrics(application):
+def test_inference_badness_marks_a_slow_inference_as_bad():
+    assert main_app.inference_badness(5.0) == 0.0
+    assert main_app.inference_badness(20.0) == 0.0
+    assert main_app.inference_badness(50.0) == 1.0
+    assert main_app.inference_badness(150.0) == 1.0
+    assert main_app.inference_badness(35.0) == pytest.approx(0.5)
+
+
+def test_confidence_badness_starts_at_the_configured_threshold():
+    assert main_app.confidence_badness(0.65, 0.65) == 1.0
+    assert main_app.confidence_badness(1.0, 0.65) == 0.0
+    assert main_app.confidence_badness(0.825, 0.65) == pytest.approx(0.5)
+    assert main_app.confidence_badness(0.4, 0.65) == 1.0
+    # A threshold of 1.0 would leave no scale at all, so it is capped.
+    assert main_app.confidence_badness(1.0, 1.0) == 0.0
+    assert main_app.confidence_badness(0.99, 1.0) == 1.0
+    assert main_app.confidence_badness(0.995, 1.0) == pytest.approx(0.5)
+
+
+def test_bar_text_colour_follows_the_luminance_behind_it():
+    assert main_app.text_colour_for('#ffc107') == main_app.DARK_TEXT_COLOUR
+    assert main_app.text_colour_for('#4caf50') == main_app.DARK_TEXT_COLOUR
+    assert main_app.text_colour_for('#ffffff') == main_app.DARK_TEXT_COLOUR
+    assert main_app.text_colour_for('#f44336') == main_app.LIGHT_TEXT_COLOUR
+    assert main_app.text_colour_for('#000000') == main_app.LIGHT_TEXT_COLOUR
+    assert main_app.text_colour_for(main_app.BAR_GROOVE_COLOUR) == main_app.LIGHT_TEXT_COLOUR
+
+
+def test_bar_text_is_readable_over_the_groove_on_a_low_reading(application):
+    window = MainApp()
+
+    window.update_rate_bar(window.progressBar_hand, 90, 0.0)
+    filled = window.progressBar_hand.styleSheet()
+
+    window.update_rate_bar(window.progressBar_hand, 5, 0.0)
+
+    # The same green chunk, but the centred text now lands on the dark groove.
+    assert main_app.DARK_TEXT_COLOUR in filled
+    assert main_app.LIGHT_TEXT_COLOUR in window.progressBar_hand.styleSheet()
+    window.close()
+
+
+def test_rate_colour_runs_from_green_through_amber_to_red():
+    assert main_app.rate_colour(0.0) == '#4caf50'
+    assert main_app.rate_colour(0.5) == '#ffc107'
+    assert main_app.rate_colour(1.0) == '#f44336'
+    assert main_app.rate_colour(-1.0) == '#4caf50'
+    assert main_app.rate_colour(2.0) == '#f44336'
+
+    halfway = main_app.rate_colour(0.25)
+
+    assert halfway not in ('#4caf50', '#ffc107')
+    assert int(halfway[1:3], 16) > 0x4C
+    assert int(halfway[5:7], 16) < 0x50
+
+
+def test_recognition_rate_widgets_show_all_three_measurements(application):
     window = MainApp()
     metrics = PipelineMetrics(
-        pipeline_fps=12, camera_fps=28.42, inference_ms=17.34, dropped_frames=5
+        pipeline_fps=12.34, camera_fps=28.42, inference_ms=17.34, dropped_frames=5
     )
 
     window.process_result_and_frame(None, [], [], metrics)
 
-    assert window.label_displayFPS.text() == '12 FPS'
+    assert window.label_displayFPS.text() == '12.3 FPS'
     assert window.progressBar_fps.value() == 12
-    assert window.label_displayRateDetails.text() == 'camera 28.4 FPS | inference 17.3 ms'
-    assert '5' in window.label_displayRateDetails.toolTip()
+    assert window.label_displayCameraFps.text() == '28.4 FPS'
+    assert window.progressBar_camera_fps.value() == 28
+    assert window.label_displayInference.text() == '17.3 ms'
+    assert window.progressBar_inference.value() == 17
+    assert '5' in window.groupBox_cameraRate.toolTip()
+    window.close()
+
+
+def test_no_hand_is_reported_as_none(application):
+    window = MainApp()
+
+    window.process_result_and_frame(None, [], [], None)
+
+    assert window.label_recognitionInfo.text() == 'None'
+    assert window.label_displaySign.text() == '?'
+    window.close()
+
+
+def test_rate_bars_are_coloured_by_how_bad_the_measurement_is(application):
+    window = MainApp()
+
+    window.process_result_and_frame(
+        None, [], [],
+        PipelineMetrics(pipeline_fps=29.7, camera_fps=29.6, inference_ms=17.3, dropped_frames=0),
+    )
+
+    assert '#4caf50' in window.progressBar_fps.styleSheet()
+    assert '#4caf50' in window.progressBar_camera_fps.styleSheet()
+    assert '#4caf50' in window.progressBar_inference.styleSheet()
+
+    window.process_result_and_frame(
+        None, [], [],
+        PipelineMetrics(pipeline_fps=6.0, camera_fps=8.0, inference_ms=150.0, dropped_frames=0),
+    )
+
+    assert '#f44336' in window.progressBar_fps.styleSheet()
+    assert '#f44336' in window.progressBar_camera_fps.styleSheet()
+    assert '#f44336' in window.progressBar_inference.styleSheet()
+    window.close()
+
+
+def test_confidence_bars_are_coloured_by_their_score(application):
+    window = MainApp()
+    window.spinBox_treshold.setValue(65)
+    window.spinBox_presence.setValue(65)
+
+    window.process_result_and_frame(None, ['A', 'Right'], [1.0, 1.0], None)
+
+    assert window.progressBar_1.value() == 100
+    assert '#4caf50' in window.progressBar_1.styleSheet()
+    assert '#4caf50' in window.progressBar_hand.styleSheet()
+
+    window.process_result_and_frame(None, ['A', 'Right'], [0.65, 0.65], None)
+
+    assert '#f44336' in window.progressBar_1.styleSheet()
+    assert '#f44336' in window.progressBar_hand.styleSheet()
+    window.close()
+
+
+def test_result_bar_colour_follows_the_threshold_before_a_recognizer_exists(application):
+    window = MainApp()
+    assert window.recognizer_app is None
+    window.spinBox_treshold.setValue(60)
+
+    window.process_result_and_frame(None, ['A', 'Right'], [0.8, 0.9], None)
+    lenient = window.progressBar_1.styleSheet()
+
+    window.spinBox_treshold.setValue(80)
+    window.process_result_and_frame(None, ['A', 'Right'], [0.8, 0.9], None)
+    strict = window.progressBar_1.styleSheet()
+
+    assert '#ffc107' in lenient
+    assert '#f44336' in strict
+    window.close()
+
+
+def test_hand_bar_colour_follows_the_presence_before_a_recognizer_exists(application):
+    window = MainApp()
+    assert window.recognizer_app is None
+    window.spinBox_presence.setValue(60)
+
+    window.process_result_and_frame(None, ['A', 'Right'], [0.9, 0.8], None)
+    lenient = window.progressBar_hand.styleSheet()
+
+    window.spinBox_presence.setValue(80)
+    window.process_result_and_frame(None, ['A', 'Right'], [0.9, 0.8], None)
+    strict = window.progressBar_hand.styleSheet()
+
+    assert '#ffc107' in lenient
+    assert '#f44336' in strict
+    window.close()
+
+
+def test_bar_ramp_uses_the_threshold_the_recognizer_is_running_with(application, monkeypatch):
+    window = MainApp()
+    running = StubRecognizer()
+    running.score_confidence = 0.60
+    running.min_hand_presence_confidence = 0.60
+    window.recognizer_app = running
+    window.camera_app = object()
+
+    window.process_result_and_frame(None, ['A', 'Right'], [0.8, 0.8], None)
+    applied = (window.progressBar_1.styleSheet(), window.progressBar_hand.styleSheet())
+
+    # Typing a stricter threshold changes nothing until the recognizer is rebuilt.
+    window.spinBox_treshold.setValue(80)
+    window.spinBox_presence.setValue(80)
+    window.process_result_and_frame(None, ['A', 'Right'], [0.8, 0.8], None)
+
+    assert (window.progressBar_1.styleSheet(), window.progressBar_hand.styleSheet()) == applied
+
+    candidate = StubRecognizer()
+
+    def build(**kwargs):
+        candidate.score_confidence = kwargs['score_confidence']
+        candidate.min_hand_presence_confidence = kwargs['min_hand_presence_confidence']
+        return candidate
+
+    monkeypatch.setattr(main_app, 'GestureRecognizerApp', build)
+    monkeypatch.setattr(candidate, 'create_recognizer', lambda: None, raising=False)
+
+    assert window.reset_recognizer() is True
+
+    window.process_result_and_frame(None, ['A', 'Right'], [0.8, 0.8], None)
+
+    assert '#f44336' in window.progressBar_1.styleSheet()
+    assert '#f44336' in window.progressBar_hand.styleSheet()
+
+    window.recognizer_app = None
+    window.camera_app = None
+    window.close()
+
+
+def test_no_hand_resets_the_confidence_bars(application):
+    window = MainApp()
+    window.process_result_and_frame(None, ['A', 'Right'], [0.65, 0.65], None)
+
+    window.process_result_and_frame(None, [], [], None)
+
+    assert window.progressBar_1.value() == 0
+    assert window.progressBar_hand.value() == 0
+    assert '#4caf50' in window.progressBar_1.styleSheet()
+    assert '#4caf50' in window.progressBar_hand.styleSheet()
+    window.close()
+
+
+def test_out_of_range_measurements_are_clamped_to_the_bar(application):
+    window = MainApp()
+
+    window.process_result_and_frame(
+        None, [], [],
+        PipelineMetrics(pipeline_fps=42.0, camera_fps=99.0, inference_ms=150.0, dropped_frames=0),
+    )
+
+    assert window.progressBar_fps.value() == 30
+    assert window.progressBar_camera_fps.value() == 30
+    assert window.progressBar_inference.value() == 100
+    window.close()
+
+
+def test_bar_stylesheet_is_only_rewritten_when_the_colour_changes(application):
+    window = MainApp()
+    metrics = PipelineMetrics(
+        pipeline_fps=29.7, camera_fps=29.6, inference_ms=17.3, dropped_frames=0
+    )
+    window.process_result_and_frame(None, [], [], metrics)
+    applied = []
+    window.progressBar_fps.setStyleSheet = lambda sheet: applied.append(sheet)
+
+    window.process_result_and_frame(None, [], [], metrics)
+
+    assert applied == []
     window.close()
 
 
@@ -299,7 +597,7 @@ def test_failed_capture_start_is_reported_in_the_readout(application):
     window.recognizer_app = StubRecognizer(start_result=False)
 
     assert window.start_capture() is False
-    assert 'not running' in window.label_displayRateDetails.text()
+    assert 'not running' in window.label_displayFPS.text()
 
     window.recognizer_app = None
     window.close()
@@ -342,7 +640,7 @@ def test_camera_reset_is_skipped_when_capture_will_not_stop(application, monkeyp
     window.pushbutton_reset_cap_click()
 
     assert stub.calls == ['stop_capture']
-    assert 'busy' in window.label_displayRateDetails.text()
+    assert 'busy' in window.label_displayFPS.text()
     window.recognizer_app = None
     window.close()
 
@@ -356,7 +654,7 @@ def test_camera_settings_dialog_is_skipped_when_capture_will_not_stop(applicatio
     window.pushbutton_camera_settings_click()
 
     assert stub.calls == ['stop_capture']
-    assert 'busy' in window.label_displayRateDetails.text()
+    assert 'busy' in window.label_displayFPS.text()
     window.recognizer_app = None
     window.camera_app = None
     window.close()
@@ -402,7 +700,7 @@ def test_recognizer_reset_reports_a_camera_a_previous_worker_still_holds(applica
         assert window.reset_recognizer() is True
 
         assert 'start_capture' not in candidate.calls
-        assert window.label_displayRateDetails.text() == 'camera busy, retry'
+        assert window.label_displayFPS.text() == 'camera busy, retry'
     finally:
         workers = camera_module.stranded_workers()
         if worker in workers:

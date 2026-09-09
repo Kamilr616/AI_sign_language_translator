@@ -40,7 +40,7 @@ The recognition pipeline is built on **MediaPipe Gesture Recognizer** with a **c
 - 🎥 **Flexible camera configuration** — selection of the capture device, capture backend (DirectShow, Media Foundation, V4L2, GStreamer, …), resolution, and access to native driver settings.
 - ⚙️ **Tunable recognition parameters** — detection / presence / tracking confidence and classification score threshold adjustable from the GUI.
 - 🧩 **Interchangeable models** — any MediaPipe `.task` gesture recognizer bundle can be loaded at runtime via a file dialog; three pre-trained models ship with the repository.
-- 🌒 **Modern dark UI** — PySide6 + QDarkStyle, with a live recognition-rate readout (pipeline FPS plus camera FPS and inference latency), handedness and confidence indicators.
+- 🌒 **Modern dark UI** — PySide6 + QDarkStyle, with a *Performance* readout of three live sections (pipeline FPS, camera FPS and inference latency) plus handedness and confidence indicators. Every bar is shaded from green to red as its value gets worse; the two confidence bars start their scale at the thresholds the recognizer is running with.
 
 ## How it works
 
@@ -58,7 +58,7 @@ flowchart LR
 1. **Capture** — `CameraApp` grabs BGR frames from the selected camera and converts them to RGB with a monotonic nanosecond timestamp. The capture runs on its own thread, so the GUI never waits for the camera.
 2. **Recognition** — `GestureRecognizerApp` feeds the newest captured frame to MediaPipe, one inference at a time; frames captured while an inference is in flight are dropped, so the pipeline always works on fresh data.
 3. **Post-processing** — `MainApp` optionally aggregates the last *N* classifications, picking the most frequent sign and its average score.
-4. **Output** — the annotated frame, recognized letter, confidence and the recognition rate (pipeline FPS plus camera FPS and inference latency) are rendered in the GUI; the letter is optionally synthesized to speech.
+4. **Output** — the annotated frame, recognized letter, confidence and the three *Performance* sections (pipeline FPS, camera FPS and inference latency) are rendered in the GUI; the letter is optionally synthesized to speech.
 
 A detailed description of the architecture, threading model and training pipeline is available in the [technical documentation](docs/TECHNICAL_DOCUMENTATION.md).
 
@@ -212,7 +212,7 @@ ready-to-extract **folder build** packaged as a Windows x64 ZIP.
 
 ### Low recognition rate? Check the exposure first
 
-In low light a webcam with auto-exposure lengthens its exposure time and silently divides its frame rate — the device still advertises 30 FPS while it delivers only about 8–10 unique frames per second, and the recognition rate follows. The *Recognition rate* group separates the two possible causes: **camera FPS** (how fast frames arrive) and **inference** (how long one recognition takes).
+In low light a webcam with auto-exposure lengthens its exposure time and silently divides its frame rate — the device still advertises 30 FPS while it delivers only about 8–10 unique frames per second, and the recognition rate follows. The *Performance* group separates the two possible causes into its own sections: **Camera** (how fast frames arrive) and **Inference** (how long one recognition takes). Each section's bar turns from green through amber to red as its value gets worse.
 
 - A low camera FPS together with a low inference time means the camera is the bottleneck: press **Camera settings**, open the *Camera Control* tab, untick **Auto** next to *Exposure*, choose a shorter exposure time and improve the room lighting.
 - Setting the exposure programmatically from OpenCV is rejected by many UVC drivers, and switching the capture backend does not help — use the driver's own property page.

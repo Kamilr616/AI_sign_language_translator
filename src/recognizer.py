@@ -22,6 +22,7 @@ from mediapipe.tasks.python.components import processors
 
 
 INFERENCE_LATENCY_WINDOW = 30
+PIPELINE_FPS_WINDOW = 30
 INFERENCE_TIMEOUT_S = 1.0
 INFERENCE_TIMEOUT_FACTOR = 10.0
 INFERENCE_DEADLINE_MAX_S = 60.0
@@ -34,14 +35,14 @@ class PipelineMetrics:
     Snapshot of the recognition pipeline throughput.
 
     Attributes:
-        pipeline_fps (int): Recognition results delivered to the GUI per second.
+        pipeline_fps (float): Recognition results delivered to the GUI per second.
         camera_fps (float): Frames per second delivered by the capture worker.
         inference_ms (float): Mean latency from recognize_async() to its callback.
         dropped_frames (int): Frames overwritten before the pipeline could consume
             them, counted cumulatively since the recognizer was created.
     """
 
-    pipeline_fps: int
+    pipeline_fps: float
     camera_fps: float
     inference_ms: float
     dropped_frames: int
@@ -75,7 +76,7 @@ class GestureRecognizerApp(QObject):
 
     def __init__(self, model: str, num_hands: int, min_hand_detection_confidence: float,
                  min_hand_presence_confidence: float, min_tracking_confidence: float, score_confidence: float,
-                 camera: CameraApp):
+                 camera: CameraApp, fps_window: int = PIPELINE_FPS_WINDOW, clock=time.monotonic):
         """
         Initialize the gesture recognizer application with MediaPipe.
 
@@ -87,6 +88,8 @@ class GestureRecognizerApp(QObject):
             min_tracking_confidence (float): Minimum confidence for tracking.
             score_confidence (float): Score threshold for gesture classification.
             camera (CameraApp): The camera object for capturing frames.
+            fps_window (int): Number of result intervals averaged into the pipeline rate.
+            clock (callable): Monotonic clock used for the pipeline rate measurement.
         """
         super().__init__()
 
@@ -105,9 +108,10 @@ class GestureRecognizerApp(QObject):
         self._worker = None
 
         self.last_timestamp_ms = 0
-        self.fps_counter = 0
-        self.fps = 0
-        self.start_time = time.monotonic()
+        self.fps = 0.0
+        self._clock = clock
+        self._result_intervals = deque(maxlen=max(1, fps_window))
+        self._last_result_at = None
         self.inference_ms = 0.0
         self._inference_started_at = None
         self._pending_timestamp_ms = None
@@ -202,6 +206,8 @@ class GestureRecognizerApp(QObject):
         """
         if self._closing:
             return False
+
+        self.reset_fps()
 
         if self._worker is None:
             self._worker = CameraWorker(self.cap, self._frames)
@@ -375,17 +381,29 @@ class GestureRecognizerApp(QObject):
 
     def calculate_fps(self):
         """
-        Calculate the pipeline frames per second (FPS): recognition results per second.
-        """
-        self.fps_counter += 1
-        if self.fps_counter < 5:
-            return
+        Update the pipeline frame rate from the interval between results.
 
-        current_time = time.monotonic()
-        elapsed = current_time - self.start_time
-        self.fps = round(5.0 / elapsed) if elapsed > 0 else 0
-        self.start_time = current_time
-        self.fps_counter = 0
+        The rate is averaged over a rolling window of the most recent intervals,
+        the same way the capture worker measures the camera. A batch of whole
+        results could only ever report an integer and had to wait for the batch
+        to fill, so a rate that changed between batches was reported late and
+        rounded; the window follows it continuously and to a tenth of a frame.
+        """
+        now = self._clock()
+
+        if self._last_result_at is not None:
+            self._result_intervals.append(now - self._last_result_at)
+
+        self._last_result_at = now
+
+        elapsed = sum(self._result_intervals)
+        self.fps = len(self._result_intervals) / elapsed if elapsed > 0 else 0.0
+
+    def reset_fps(self):
+        """Forget the measured pipeline rate, so a pause is not averaged in."""
+        self._result_intervals.clear()
+        self._last_result_at = None
+        self.fps = 0.0
 
     def _schedule_retry(self):
         """Retry capture without blocking the GUI or MediaPipe worker thread."""

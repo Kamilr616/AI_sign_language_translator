@@ -1010,7 +1010,7 @@
      <rect>
       <x>10</x>
       <y>530</y>
-      <width>821</width>
+      <width>830</width>
       <height>221</height>
      </rect>
     </property>
@@ -1023,7 +1023,7 @@
     <widget class="QGroupBox" name="groupBox_2">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>21</x>
        <y>20</y>
        <width>211</width>
        <height>181</height>
@@ -1051,6 +1051,9 @@
        </item>
        <item row="1" column="1">
         <widget class="QSpinBox" name="spinBox_presence">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::ClickFocus</enum>
+         </property>
          <property name="font">
           <font>
            <family>Verdana</family>
@@ -1089,6 +1092,9 @@
        </item>
        <item row="3" column="1">
         <widget class="QSpinBox" name="spinBox_treshold">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::ClickFocus</enum>
+         </property>
          <property name="font">
           <font>
            <family>Verdana</family>
@@ -1127,6 +1133,9 @@
        </item>
        <item row="0" column="1">
         <widget class="QSpinBox" name="spinBox_detection">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::ClickFocus</enum>
+         </property>
          <property name="font">
           <font>
            <family>Verdana</family>
@@ -1164,6 +1173,9 @@
        </item>
        <item row="2" column="1">
         <widget class="QSpinBox" name="spinBox_tracking">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::ClickFocus</enum>
+         </property>
          <property name="font">
           <font>
            <family>Verdana</family>
@@ -1222,7 +1234,7 @@
     <widget class="QGroupBox" name="groupBox_3">
      <property name="geometry">
       <rect>
-       <x>250</x>
+       <x>253</x>
        <y>20</y>
        <width>171</width>
        <height>181</height>
@@ -1243,6 +1255,9 @@
       <layout class="QGridLayout" name="gridLayout_ttsConfig">
        <item row="0" column="1">
         <widget class="QSpinBox" name="spinBox_volume">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::ClickFocus</enum>
+         </property>
          <property name="suffix">
           <string>%</string>
          </property>
@@ -1269,6 +1284,9 @@
        </item>
        <item row="1" column="1">
         <widget class="QSpinBox" name="spinBox_ttsRate">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::ClickFocus</enum>
+         </property>
          <property name="minimum">
           <number>1</number>
          </property>
@@ -1359,7 +1377,7 @@
     <widget class="QPushButton" name="pushButton_resetRecognizer">
      <property name="geometry">
       <rect>
-       <x>130</x>
+       <x>131</x>
        <y>160</y>
        <width>91</width>
        <height>31</height>
@@ -1375,7 +1393,7 @@
     <widget class="QGroupBox" name="groupBox_4">
      <property name="geometry">
       <rect>
-       <x>440</x>
+       <x>445</x>
        <y>20</y>
        <width>201</width>
        <height>181</height>
@@ -1399,6 +1417,9 @@
        </property>
        <item row="1" column="1">
         <widget class="QSpinBox" name="spinBox_camera_height">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::ClickFocus</enum>
+         </property>
          <property name="suffix">
           <string> px</string>
          </property>
@@ -1432,6 +1453,9 @@
        </item>
        <item row="0" column="1">
         <widget class="QSpinBox" name="spinBox_camera_width">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::ClickFocus</enum>
+         </property>
          <property name="suffix">
           <string> px</string>
          </property>
@@ -1561,9 +1585,9 @@
     <widget class="QGroupBox" name="groupBox_11">
      <property name="geometry">
       <rect>
-       <x>660</x>
+       <x>667</x>
        <y>20</y>
-       <width>141</width>
+       <width>142</width>
        <height>181</height>
       </rect>
      </property>
@@ -1582,6 +1606,9 @@
       <layout class="QGridLayout" name="gridLayout_ttsConfig_2">
        <item row="2" column="0">
         <widget class="QSlider" name="horizontalSlider_range">
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::ClickFocus</enum>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
            <horstretch>0</horstretch>
@@ -1675,7 +1702,7 @@
       <x>690</x>
       <y>10</y>
       <width>471</width>
-      <height>511</height>
+      <height>401</height>
      </rect>
     </property>
     <property name="cursor">
@@ -1702,7 +1729,7 @@
         <x>20</x>
         <y>20</y>
         <width>341</width>
-        <height>331</height>
+        <height>341</height>
        </rect>
       </property>
       <property name="sizePolicy">
@@ -1720,7 +1747,7 @@
       <property name="font">
        <font>
         <family>Calibri</family>
-        <pointsize>224</pointsize>
+        <pointsize>270</pointsize>
         <bold>true</bold>
        </font>
       </property>
@@ -1740,7 +1767,7 @@
         <x>380</x>
         <y>20</y>
         <width>50</width>
-        <height>331</height>
+        <height>341</height>
        </rect>
       </property>
       <property name="sizePolicy">
@@ -1778,92 +1805,103 @@
       </property>
      </widget>
     </widget>
-    <widget class="QGroupBox" name="groupBox_8">
+   </widget>
+   <widget class="QGroupBox" name="groupBox_8">
+    <property name="geometry">
+     <rect>
+      <x>690</x>
+      <y>415</y>
+      <width>150</width>
+      <height>105</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Hand</string>
+    </property>
+    <widget class="QLabel" name="label_recognitionInfo">
+     <property name="geometry">
+      <rect>
+       <x>6</x>
+       <y>24</y>
+       <width>138</width>
+       <height>40</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <family>Calibri</family>
+       <pointsize>18</pointsize>
+       <bold>false</bold>
+      </font>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::Shape::Box</enum>
+     </property>
+     <property name="text">
+      <string>None</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignCenter</set>
+     </property>
+     <property name="wordWrap">
+      <bool>false</bool>
+     </property>
+    </widget>
+    <widget class="QProgressBar" name="progressBar_hand">
+     <property name="geometry">
+      <rect>
+       <x>6</x>
+       <y>70</y>
+       <width>138</width>
+       <height>26</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <family>Calibri</family>
+       <pointsize>12</pointsize>
+       <bold>false</bold>
+      </font>
+     </property>
+     <property name="value">
+      <number>0</number>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignCenter</set>
+     </property>
+     <property name="textVisible">
+      <bool>true</bool>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+     <property name="invertedAppearance">
+      <bool>false</bool>
+     </property>
+     <property name="format">
+      <string>%p %</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_performance">
+    <property name="geometry">
+     <rect>
+      <x>850</x>
+      <y>415</y>
+      <width>311</width>
+      <height>262</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Performance</string>
+    </property>
+    <widget class="QGroupBox" name="groupBox_pipelineRate">
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>400</y>
-       <width>231</width>
-       <height>101</height>
-      </rect>
-     </property>
-     <property name="title">
-      <string>Hand</string>
-     </property>
-     <widget class="QLabel" name="label_recognitionInfo">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>20</y>
-        <width>211</width>
-        <height>41</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <family>Calibri</family>
-        <pointsize>28</pointsize>
-        <bold>false</bold>
-       </font>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::Shape::Box</enum>
-      </property>
-      <property name="text">
-       <string>No info</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-     </widget>
-     <widget class="QProgressBar" name="progressBar_hand">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>70</y>
-        <width>211</width>
-        <height>21</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>400</width>
-        <height>400</height>
-       </size>
-      </property>
-      <property name="value">
-       <number>0</number>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-      <property name="textVisible">
-       <bool>true</bool>
-      </property>
-      <property name="orientation">
-       <enum>Qt::Orientation::Horizontal</enum>
-      </property>
-      <property name="invertedAppearance">
-       <bool>false</bool>
-      </property>
-      <property name="format">
-       <string>%p %</string>
-      </property>
-     </widget>
-    </widget>
-    <widget class="QGroupBox" name="groupBox_9">
-     <property name="geometry">
-      <rect>
-       <x>250</x>
-       <y>400</y>
-       <width>211</width>
-       <height>101</height>
+       <y>20</y>
+       <width>291</width>
+       <height>72</height>
       </rect>
      </property>
      <property name="title">
@@ -1874,28 +1912,19 @@
        <rect>
         <x>10</x>
         <y>20</y>
-        <width>191</width>
-        <height>41</height>
+        <width>271</width>
+        <height>24</height>
        </rect>
       </property>
       <property name="font">
        <font>
         <family>Calibri</family>
-        <pointsize>28</pointsize>
+        <pointsize>14</pointsize>
         <bold>false</bold>
        </font>
       </property>
-      <property name="frameShape">
-       <enum>QFrame::Shape::Box</enum>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Shadow::Plain</enum>
-      </property>
       <property name="text">
-       <string notr="true">No FPS</string>
-      </property>
-      <property name="textFormat">
-       <enum>Qt::TextFormat::MarkdownText</enum>
+       <string notr="true">0.0 FPS</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -1908,22 +1937,10 @@
       <property name="geometry">
        <rect>
         <x>10</x>
-        <y>62</y>
-        <width>191</width>
-        <height>16</height>
+        <y>48</y>
+        <width>271</width>
+        <height>12</height>
        </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="maximumSize">
-       <size>
-        <width>400</width>
-        <height>400</height>
-       </size>
       </property>
       <property name="maximum">
        <number>30</number>
@@ -1947,27 +1964,37 @@
        <string/>
       </property>
      </widget>
-     <widget class="QLabel" name="label_displayRateDetails">
+    </widget>
+    <widget class="QGroupBox" name="groupBox_cameraRate">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>98</y>
+       <width>291</width>
+       <height>72</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Camera</string>
+     </property>
+     <widget class="QLabel" name="label_displayCameraFps">
       <property name="geometry">
        <rect>
         <x>10</x>
-        <y>80</y>
-        <width>191</width>
-        <height>17</height>
+        <y>20</y>
+        <width>271</width>
+        <height>24</height>
        </rect>
       </property>
       <property name="font">
        <font>
         <family>Calibri</family>
-        <pointsize>9</pointsize>
+        <pointsize>14</pointsize>
         <bold>false</bold>
        </font>
       </property>
       <property name="text">
-       <string notr="true">camera -- FPS | inference -- ms</string>
-      </property>
-      <property name="textFormat">
-       <enum>Qt::TextFormat::PlainText</enum>
+       <string notr="true">0.0 FPS</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignmentFlag::AlignCenter</set>
@@ -1976,9 +2003,110 @@
        <set>Qt::TextInteractionFlag::NoTextInteraction</set>
       </property>
      </widget>
+     <widget class="QProgressBar" name="progressBar_camera_fps">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>48</y>
+        <width>271</width>
+        <height>12</height>
+       </rect>
+      </property>
+      <property name="maximum">
+       <number>30</number>
+      </property>
+      <property name="value">
+       <number>0</number>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+      <property name="textVisible">
+       <bool>false</bool>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <property name="invertedAppearance">
+       <bool>false</bool>
+      </property>
+      <property name="format">
+       <string/>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QGroupBox" name="groupBox_inference">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>176</y>
+       <width>291</width>
+       <height>72</height>
+      </rect>
+     </property>
+     <property name="title">
+      <string>Inference</string>
+     </property>
+     <widget class="QLabel" name="label_displayInference">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>20</y>
+        <width>271</width>
+        <height>24</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>Calibri</family>
+        <pointsize>14</pointsize>
+        <bold>false</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string notr="true">0.0 ms</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+      <property name="textInteractionFlags">
+       <set>Qt::TextInteractionFlag::NoTextInteraction</set>
+      </property>
+     </widget>
+     <widget class="QProgressBar" name="progressBar_inference">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>48</y>
+        <width>271</width>
+        <height>12</height>
+       </rect>
+      </property>
+      <property name="maximum">
+       <number>100</number>
+      </property>
+      <property name="value">
+       <number>0</number>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+      <property name="textVisible">
+       <bool>false</bool>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Orientation::Horizontal</enum>
+      </property>
+      <property name="invertedAppearance">
+       <bool>false</bool>
+      </property>
+      <property name="format">
+       <string/>
+      </property>
+     </widget>
     </widget>
    </widget>
-   <widget class="QGroupBox" name="groupBox_6">
+  <widget class="QGroupBox" name="groupBox_6">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -2017,9 +2145,9 @@
     <property name="geometry">
      <rect>
       <x>850</x>
-      <y>530</y>
+      <y>681</y>
       <width>311</width>
-      <height>221</height>
+      <height>70</height>
      </rect>
     </property>
     <property name="cursor">
@@ -2031,16 +2159,16 @@
     <widget class="QLabel" name="label">
      <property name="geometry">
       <rect>
-       <x>20</x>
-       <y>20</y>
-       <width>191</width>
-       <height>91</height>
+       <x>10</x>
+       <y>24</y>
+       <width>130</width>
+       <height>35</height>
       </rect>
      </property>
      <property name="font">
       <font>
        <family>Calibri</family>
-       <pointsize>30</pointsize>
+       <pointsize>20</pointsize>
        <italic>true</italic>
       </font>
      </property>
@@ -2054,10 +2182,10 @@
     <widget class="QLabel" name="label_logoKI">
      <property name="geometry">
       <rect>
-       <x>209</x>
-       <y>20</y>
-       <width>91</width>
-       <height>91</height>
+       <x>148</x>
+       <y>22</y>
+       <width>40</width>
+       <height>40</height>
       </rect>
      </property>
      <property name="text">
@@ -2073,10 +2201,10 @@
     <widget class="QLabel" name="label_logo_AT">
      <property name="geometry">
       <rect>
-       <x>20</x>
-       <y>140</y>
-       <width>271</width>
-       <height>61</height>
+       <x>196</x>
+       <y>31</y>
+       <width>98</width>
+       <height>22</height>
       </rect>
      </property>
      <property name="text">

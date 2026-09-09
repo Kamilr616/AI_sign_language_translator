@@ -15,24 +15,126 @@ MODEL_DIRECTORY = PROJECT_ROOT / 'models'
 MODEL_PATH = str(MODEL_DIRECTORY / 'gesture_recognizer_asl_0.task')
 
 
-def format_rate_details(metrics):
-    """
-    Build the secondary recognition rate line.
+FPS_GOOD = 25.0
+FPS_BAD = 10.0
+INFERENCE_GOOD_MS = 20.0
+INFERENCE_BAD_MS = 50.0
+SCORE_THRESHOLD_MAX = 0.99
 
-    The camera rate and the inference latency are reported separately, because a
-    low pipeline FPS can come either from the camera (long exposure in low light)
-    or from the model (slow inference); a single number cannot tell them apart.
+RATE_COLOUR_STOPS = ((0x4C, 0xAF, 0x50), (0xFF, 0xC1, 0x07), (0xF4, 0x43, 0x36))
+BAR_GROOVE_COLOUR = '#19232d'
+DARK_TEXT_COLOUR = '#1b1b1b'
+LIGHT_TEXT_COLOUR = '#e7e7e7'
+
+
+def clamp_unit(value):
+    """
+    Clamp a number to the 0..1 range the colour scale is defined on.
 
     Args:
-        metrics (PipelineMetrics): The latest pipeline measurements.
+        value (float): The number to clamp.
 
     Returns:
-        str: A line such as "camera 28.4 FPS | inference 17.3 ms".
+        float: The number, never below 0.0 and never above 1.0.
     """
-    camera_fps = f'{metrics.camera_fps:.1f}' if metrics.camera_fps else '--'
-    inference_ms = f'{metrics.inference_ms:.1f}' if metrics.inference_ms else '--'
+    return max(0.0, min(1.0, value))
 
-    return f'camera {camera_fps} FPS | inference {inference_ms} ms'
+
+def rate_colour(badness):
+    """
+    Pick the bar colour for a measurement, green for good and red for bad.
+
+    The scale runs green - amber - red so that a rate on its way out is visible
+    before it is bad, and the three stops are muted enough to stay readable on
+    the dark theme.
+
+    Args:
+        badness (float): 0.0 for the desirable end of the scale, 1.0 for the
+            undesirable one; values outside that range are clamped.
+
+    Returns:
+        str: The colour as "#rrggbb".
+    """
+    good, middle, bad = RATE_COLOUR_STOPS
+    badness = clamp_unit(badness)
+
+    if badness <= 0.5:
+        start, end, position = good, middle, badness / 0.5
+    else:
+        start, end, position = middle, bad, (badness - 0.5) / 0.5
+
+    channels = (round(a + (b - a) * position) for a, b in zip(start, end))
+
+    return '#%02x%02x%02x' % tuple(channels)
+
+
+def text_colour_for(background):
+    """
+    Pick the text colour that stays readable on a background.
+
+    The bars are coloured by their value, so the text over them cannot have
+    one fixed colour: white on amber is barely there, and near-black on the
+    dark red is no better.
+
+    Args:
+        background (str): The colour the text is drawn over, as "#rrggbb".
+
+    Returns:
+        str: A near-black or a near-white, whichever contrasts.
+    """
+    red, green, blue = (int(background[index:index + 2], 16) / 255.0 for index in (1, 3, 5))
+    luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+    return DARK_TEXT_COLOUR if luminance > 0.5 else LIGHT_TEXT_COLOUR
+
+
+def confidence_badness(score, threshold):
+    """
+    Rate a confidence score against the threshold it had to clear.
+
+    Anything below the threshold is not something the user chose to accept,
+    so the scale starts there rather than at zero: a score that only just
+    cleared the bar is as bad as a shown score gets, and certainty is the
+    good end. Both confidence bars are read this way, each against its own
+    setting, so moving a threshold moves the colours with it.
+
+    Args:
+        score (float): The reported score, 0.0 to 1.0.
+        threshold (float): The configured threshold, capped at
+            SCORE_THRESHOLD_MAX so the scale never collapses to a point.
+
+    Returns:
+        float: 0.0 at a score of 1.0, 1.0 at or below the threshold.
+    """
+    return clamp_unit((1.0 - score) / (1.0 - min(threshold, SCORE_THRESHOLD_MAX)))
+
+
+def fps_badness(fps):
+    """
+    Rate a frame rate: a low one is bad, because frames are being missed.
+
+    Args:
+        fps (float): The measured frame rate.
+
+    Returns:
+        float: 0.0 at or above FPS_GOOD, 1.0 at or below FPS_BAD.
+    """
+    return clamp_unit((FPS_GOOD - fps) / (FPS_GOOD - FPS_BAD))
+
+
+def inference_badness(inference_ms):
+    """
+    Rate an inference latency: a high one is bad, because the result is late.
+
+    Args:
+        inference_ms (float): The measured mean latency in milliseconds.
+
+    Returns:
+        float: 0.0 at or below INFERENCE_GOOD_MS, 1.0 at or above INFERENCE_BAD_MS.
+    """
+    return clamp_unit(
+        (inference_ms - INFERENCE_GOOD_MS) / (INFERENCE_BAD_MS - INFERENCE_GOOD_MS)
+    )
 
 
 class MainApp(QMainWindow, Ui_MainWindow):
@@ -50,6 +152,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.last_results = []
         self.model_path = MODEL_PATH
         self.last_results_length = 0
+        self.bar_colours = {}
 
         self.pushButton_resetRecognizer.clicked.connect(self.reset_recognizer)
         self.pushButton_resetTTS.clicked.connect(self.reset_tts)
@@ -261,9 +364,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
             model=self.model_path,
             num_hands=1,
             min_hand_detection_confidence=(self.spinBox_detection.value() / 100.0),
-            min_hand_presence_confidence=(self.spinBox_presence.value() / 100.0),
+            min_hand_presence_confidence=self.configured_hand_threshold(),
             min_tracking_confidence=(self.spinBox_tracking.value() / 100.0),
-            score_confidence=(self.spinBox_treshold.value() / 100.0),
+            score_confidence=self.configured_score_threshold(),
             camera=self.camera_app,
         )
 
@@ -317,9 +420,12 @@ class MainApp(QMainWindow, Ui_MainWindow):
             reason (str): The message to log.
         """
         logging.error(reason)
-        self.label_displayRateDetails.setText(
+        self.label_displayFPS.setText(
             'camera busy, retry' if self.camera_is_busy() else 'camera not running'
         )
+
+        for bar in (self.progressBar_fps, self.progressBar_camera_fps, self.progressBar_inference):
+            self.reset_rate_bar(bar)
 
     def stop_capture(self):
         """
@@ -398,19 +504,128 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
         return most_common_sign, average_score
 
+    def configured_score_threshold(self):
+        """
+        float: The classification score threshold selected in the GUI.
+        """
+        return self.spinBox_treshold.value() / 100.0
+
+    def configured_hand_threshold(self):
+        """
+        float: The hand presence confidence selected in the GUI.
+        """
+        return self.spinBox_presence.value() / 100.0
+
+    def score_threshold(self):
+        """
+        float: The classification score threshold the recognizer is running with.
+
+        The spin boxes only reach the recognizer when it is rebuilt, so the
+        colour scale follows the value in force rather than the one being
+        typed: a bar that changed colour while a threshold was still being
+        chosen would be reporting a rule the pipeline is not applying yet.
+        """
+        if self.recognizer_app is not None:
+            return self.recognizer_app.score_confidence
+
+        return self.configured_score_threshold()
+
+    def hand_threshold(self):
+        """
+        float: The hand presence confidence the recognizer is running with.
+
+        MediaPipe does not gate the handedness score itself, so the presence
+        confidence is what the reading is held against: it is the setting that
+        says how sure of the hand the user wants the pipeline to be. Like the
+        score threshold, it is read from the running recognizer.
+        """
+        if self.recognizer_app is not None:
+            return self.recognizer_app.min_hand_presence_confidence
+
+        return self.configured_hand_threshold()
+
+    def reset_rate_bar(self, bar):
+        """
+        Empty one bar and take its colour off.
+
+        Nothing is being measured when the pipeline is not running, so the bar
+        goes back to the plain theme colour rather than keeping the last reading
+        it happened to be showing, which would go on claiming a rate that no
+        longer exists.
+
+        Args:
+            bar (QProgressBar): The bar to clear.
+        """
+        bar.setValue(bar.minimum())
+        self.bar_colours.pop(bar.objectName(), None)
+        bar.setStyleSheet('')
+
+    def update_rate_bar(self, bar, value, badness):
+        """
+        Show one measurement on its bar and colour the bar by how bad it is.
+
+        The percentage is drawn centred, over the filled part of the bar on a
+        reading above half and over the empty groove below it, so the text
+        colour is chosen from whichever of the two it will land on. The
+        stylesheet is only re-applied when it actually changes: every result
+        would otherwise make Qt re-parse and re-polish the widget on the GUI
+        thread, several times a second, for no visible difference.
+
+        Args:
+            bar (QProgressBar): The bar to update.
+            value (float): The measurement, clamped into the bar's range.
+            badness (float): 0.0 for a desirable value, 1.0 for an undesirable one.
+        """
+        clamped = max(bar.minimum(), min(bar.maximum(), int(round(value))))
+        bar.setValue(clamped)
+
+        span = bar.maximum() - bar.minimum()
+        filled = (clamped - bar.minimum()) / span if span else 0.0
+        colour = rate_colour(badness)
+        text = text_colour_for(colour if filled >= 0.5 else BAR_GROOVE_COLOUR)
+        sheet = (
+            f'QProgressBar {{ color: {text}; }}'
+            f'QProgressBar::chunk {{ background-color: {colour}; }}'
+        )
+
+        if self.bar_colours.get(bar.objectName()) == sheet:
+            return
+
+        self.bar_colours[bar.objectName()] = sheet
+        bar.setStyleSheet(sheet)
+
     def update_recognition_rate(self, metrics):
         """
-        Update the recognition rate readout.
+        Update the three sections of the performance readout.
+
+        The pipeline rate, the camera rate and the inference latency are shown
+        separately, because a low pipeline FPS can come either from the camera
+        (long exposure in low light) or from the model (slow inference); a single
+        number cannot tell them apart. The dropped-frame tooltip is set on the
+        Camera group box, so it shows when hovering anywhere over that section,
+        not just over a specific label.
 
         Args:
             metrics (PipelineMetrics): The latest pipeline measurements.
         """
-        if metrics.pipeline_fps:
-            self.label_displayFPS.setText(f'{metrics.pipeline_fps} FPS')
-            self.progressBar_fps.setValue(metrics.pipeline_fps)
+        self.label_displayFPS.setText(f'{metrics.pipeline_fps:.1f} FPS')
+        self.update_rate_bar(
+            self.progressBar_fps, metrics.pipeline_fps, fps_badness(metrics.pipeline_fps)
+        )
 
-        self.label_displayRateDetails.setText(format_rate_details(metrics))
-        self.label_displayRateDetails.setToolTip(
+        self.label_displayCameraFps.setText(f'{metrics.camera_fps:.1f} FPS')
+        self.update_rate_bar(
+            self.progressBar_camera_fps, metrics.camera_fps, fps_badness(metrics.camera_fps)
+        )
+
+        self.label_displayInference.setText(f'{metrics.inference_ms:.1f} ms')
+        self.update_rate_bar(
+            self.progressBar_inference,
+            metrics.inference_ms,
+            inference_badness(metrics.inference_ms),
+        )
+
+        self.groupBox_cameraRate.setToolTip(
             'Frames dropped because the pipeline was busy '
             f'(total since start): {metrics.dropped_frames}'
         )
@@ -434,7 +649,11 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
         if text and scores:
             self.label_recognitionInfo.setText(text[1])
-            self.progressBar_hand.setValue(scores[1] * 100)
+            self.update_rate_bar(
+                self.progressBar_hand,
+                scores[1] * 100,
+                confidence_badness(scores[1], self.hand_threshold()),
+            )
 
             if self.pushButton_smoothing.isChecked():
                 self.last_results.append((text[0], scores[0]))
@@ -443,15 +662,19 @@ class MainApp(QMainWindow, Ui_MainWindow):
                 result_sign, average_score = text[0], scores[0]
 
             self.label_displaySign.setText(result_sign)
-            self.progressBar_1.setValue(average_score * 100)
+            self.update_rate_bar(
+                self.progressBar_1,
+                average_score * 100,
+                confidence_badness(average_score, self.score_threshold()),
+            )
 
             if self.checkBox_speak.isChecked():
                 self.translate_to_speech(result_sign)
         else:
-            self.label_recognitionInfo.setText('Not detected')
+            self.label_recognitionInfo.setText('None')
             self.label_displaySign.setText('?')
-            self.progressBar_1.setValue(0)
-            self.progressBar_hand.setValue(0)
+            self.update_rate_bar(self.progressBar_1, 0, 0.0)
+            self.update_rate_bar(self.progressBar_hand, 0, 0.0)
 
     def translate_to_speech(self, data=""):
         """
