@@ -41,7 +41,7 @@ The recognition pipeline is built on **MediaPipe Gesture Recognizer** with a **c
 - 🎥 **Flexible camera configuration** — selection of the capture device, capture backend (DirectShow, Media Foundation, V4L2, GStreamer, …), resolution, and access to native driver settings.
 - ⚙️ **Tunable recognition parameters** — detection / presence / tracking confidence and classification score threshold adjustable from the GUI.
 - 🧩 **Interchangeable models** — any MediaPipe `.task` gesture recognizer bundle can be loaded at runtime via a file dialog; three pre-trained models ship with the repository.
-- 🌒 **Noir UI** — PySide6 with the project's own PodTeksT theme (navy ground, blue-to-violet accents, JetBrains Mono), with live FPS, handedness and confidence indicators; the window is a 16:9 board with three screens (*Live*, *Studio*, *Settings*), a *View* menu to switch cards on and off, a hideable interface and fullscreen, and it scales with its size, so it can be maximized on 1440p and high-DPI displays.
+- 🌒 **Noir UI** — PySide6 with the PodTeksT theme (navy ground, blue-to-violet accents, JetBrains Mono), with live FPS, handedness and confidence indicators; the window is a 16:9 board with three screens (*Live*, *Studio*, *Settings*), a *View* menu to switch cards on and off, a hideable interface and fullscreen, and it scales with its size, so it can be maximized on 1440p and high-DPI displays.
 
 ## How it works
 
@@ -75,10 +75,13 @@ AI_sign_language_translator/
 │   ├── speaker.py              # Text-to-speech engine (pyttsx3)
 │   ├── composer.py             # Assembles stable letters into words
 │   ├── corrector.py            # Dictionary correction of finished words (SymSpell)
+│   ├── board.py                # 16:9 board geometry and per-screen card layout
 │   ├── custom_landmarks.py     # Custom hand-landmark drawing styles
 │   ├── gui.py                  # UI class compiled from gui.ui (pyside6-uic)
 │   ├── gui.ui                  # Qt Designer UI definition
 │   ├── assets/                 # Icons and logos
+│   │   ├── fonts/              # Bundled JetBrains Mono faces (SIL OFL)
+│   │   └── podtekst.qss        # PodTeksT noir theme stylesheet
 │   └── requirements.txt        # Python dependencies
 ├── scripts/                    # Environment setup and launch helpers
 │   ├── build_patched_protobuf.ps1  # Reproducible compatibility-wheel build
@@ -194,8 +197,12 @@ python -m pytest
 With the Python 3.10 development environment active and dependencies installed:
 
 ```powershell
-.\scripts\build_windows_release.ps1 -Version 1.1.0
+.\scripts\build_windows_release.ps1 -Version 1.2.0 -Suffix podtekst
 ```
+
+The optional `-Suffix` is a release label appended to the version in the artifact
+names, used for variant releases such as this one; without it the names carry the
+bare version.
 
 The script runs the tests and builds the PyInstaller application in two forms
 under `dist/release/`: a versioned **single-file** `...-windows-x64.exe` and a
@@ -250,3 +257,7 @@ The thesis and original documentation, diagrams and screenshots are available un
 ## Author
 
 **Kamil Rataj** — engineering thesis project.
+
+The PodTeksT theme, the `BoardShell` board layout and the PodTeksT wordmark were
+contributed by **Michał Wiencek** (PodTeksT). The PodTeksT name and wordmark remain
+the property of their owner; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

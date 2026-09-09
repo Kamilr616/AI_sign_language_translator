@@ -40,7 +40,7 @@ Potok rozpoznawania oparty jest na **MediaPipe Gesture Recognizer** z **własnym
 - 🎥 **Elastyczna konfiguracja kamery** — wybór urządzenia, backendu przechwytywania (DirectShow, Media Foundation, V4L2, GStreamer, …), rozdzielczości oraz dostęp do natywnych ustawień sterownika.
 - ⚙️ **Regulowane parametry rozpoznawania** — progi pewności detekcji / obecności / śledzenia dłoni oraz próg klasyfikacji ustawiane z poziomu GUI.
 - 🧩 **Wymienne modele** — dowolny pakiet MediaPipe `.task` można wczytać w trakcie działania aplikacji; w repozytorium dostępne są trzy wytrenowane modele.
-- 🌒 **Interfejs noir** — PySide6 z własnym motywem PodTeksT (granatowe tło, akcenty od błękitu do fioletu, JetBrains Mono), ze wskaźnikami FPS, ręczności (lewa/prawa) i pewności rozpoznania na żywo; okno jest tablicą 16:9 z trzema ekranami (*Live*, *Studio*, *Settings*), menu *View* do włączania i wyłączania kart, chowanym interfejsem i pełnym ekranem, a całość skaluje się wraz z rozmiarem, więc można ją zmaksymalizować na ekranach 1440p i high-DPI.
+- 🌒 **Interfejs noir** — PySide6 z motywem PodTeksT (granatowe tło, akcenty od błękitu do fioletu, JetBrains Mono), ze wskaźnikami FPS, ręczności (lewa/prawa) i pewności rozpoznania na żywo; okno jest tablicą 16:9 z trzema ekranami (*Live*, *Studio*, *Settings*), menu *View* do włączania i wyłączania kart, chowanym interfejsem i pełnym ekranem, a całość skaluje się wraz z rozmiarem, więc można ją zmaksymalizować na ekranach 1440p i high-DPI.
 
 ## Jak to działa
 
@@ -74,10 +74,13 @@ AI_sign_language_translator/
 │   ├── speaker.py              # Silnik syntezy mowy (pyttsx3)
 │   ├── composer.py             # Składanie stabilnych liter w wyrazy
 │   ├── corrector.py            # Korekcja słownikowa zakończonych wyrazów (SymSpell)
+│   ├── board.py                # Geometria tablicy 16:9 i układ kart na ekranach
 │   ├── custom_landmarks.py     # Niestandardowe style rysowania szkieletu dłoni
 │   ├── gui.py                  # Klasa UI skompilowana z gui.ui (pyside6-uic)
 │   ├── gui.ui                  # Definicja interfejsu (Qt Designer)
 │   ├── assets/                 # Ikony i loga
+│   │   ├── fonts/              # Dołączone kroje JetBrains Mono (SIL OFL)
+│   │   └── podtekst.qss        # Arkusz stylów motywu noir PodTeksT
 │   └── requirements.txt        # Zależności Pythona
 ├── scripts/                    # Skrypty konfiguracji środowiska i uruchamiania
 │   ├── build_patched_protobuf.ps1  # Odtwarzalna budowa wheel zgodności
@@ -193,8 +196,11 @@ python -m pytest
 Po przygotowaniu środowiska deweloperskiego z Pythonem 3.10 i instalacji zależności:
 
 ```powershell
-.\scripts\build_windows_release.ps1 -Version 1.1.0
+.\scripts\build_windows_release.ps1 -Version 1.2.0 -Suffix podtekst
 ```
+
+Opcjonalny `-Suffix` to etykieta wydania dopisywana do wersji w nazwach artefaktów,
+używana dla wydań wariantowych takich jak to; bez niej nazwy zawierają samą wersję.
 
 Skrypt uruchamia testy i buduje aplikację przez PyInstaller w dwóch postaciach
 w katalogu `dist/release/`: wersjonowany **pojedynczy plik** `...-windows-x64.exe`
@@ -250,3 +256,7 @@ Praca inżynierska oraz oryginalna dokumentacja, diagramy i zrzuty są udostępn
 ## Autor
 
 **Kamil Rataj** — projekt zrealizowany w ramach pracy inżynierskiej.
+
+Motyw PodTeksT, układ tablicy `BoardShell` i znak PodTeksT wniósł **Michał Wiencek**
+(PodTeksT). Nazwa i znak PodTeksT pozostają własnością ich właściciela; patrz
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
