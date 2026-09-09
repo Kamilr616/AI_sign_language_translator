@@ -28,18 +28,30 @@ class FakeCapture:
         return True
 
 
+def forget(worker):
+    """Remove a stub worker from the leaked list, which prunes itself."""
+    workers = camera_module.stranded_workers()
+    if worker in workers:
+        workers.remove(worker)
+
+
 class StrandedWorkerStub:
     """Stands in for a capture worker that never finished."""
 
     def __init__(self, camera):
         self.camera = camera
         self.running = True
+        self.waited = []
 
     def isRunning(self):
         return self.running
 
     def is_reading(self, camera):
         return self.running and camera is self.camera
+
+    def wait(self, timeout):
+        self.waited.append(timeout)
+        return not self.running
 
 
 class TickingCamera:
@@ -131,7 +143,7 @@ def test_camera_is_left_alone_while_a_stranded_worker_reads_it():
         camera.destroy()
         assert capture.released is True
     finally:
-        camera_module.stranded_workers().remove(worker)
+        forget(worker)
 
 
 def test_stranded_worker_running_reports_leaked_threads():
@@ -143,10 +155,13 @@ def test_stranded_worker_running_reports_leaked_threads():
     camera_module.stranded_workers().append(worker)
     try:
         assert camera_module.stranded_worker_running() is True
+        assert camera_module.stranded_workers() == [worker]
         worker.running = False
         assert camera_module.stranded_worker_running() is False
+        assert camera_module.stranded_workers() == []
+        assert worker.waited == [0]
     finally:
-        camera_module.stranded_workers().remove(worker)
+        forget(worker)
 
 
 def test_read_stamps_frames_with_a_monotonic_clock(monkeypatch):
@@ -299,6 +314,24 @@ def test_worker_can_restart_after_a_stop_that_timed_out():
 
     assert worker.stop(timeout=5.0) is True
     assert camera.reads >= 2
+
+
+def test_worker_reports_which_camera_it_is_reading():
+    camera = BlockingCamera()
+    another_camera = TickingCamera(delay=0)
+    worker = CameraWorker(camera)
+
+    assert worker.is_reading(camera) is False
+
+    worker.start()
+    assert camera.entered.wait(5.0) is True
+
+    assert worker.is_reading(camera) is True
+    assert worker.is_reading(another_camera) is False
+
+    camera.release.set()
+    assert worker.stop(timeout=5.0) is True
+    assert worker.is_reading(camera) is False
 
 
 def test_worker_keeps_capturing_after_a_read_error():

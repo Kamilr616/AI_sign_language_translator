@@ -59,6 +59,9 @@ class StrandedWorkerStub:
     def is_reading(self, camera):
         return self.running and camera is self.camera
 
+    def wait(self, timeout):
+        return not self.running
+
 
 class StubSignal:
     def connect(self, slot):
@@ -69,11 +72,13 @@ class StubSignal:
 
 
 class StubRecognizer:
-    def __init__(self, start_result=True, close_result=True, stop_result=True, calls=None):
+    def __init__(self, start_result=True, close_result=True, stop_result=True,
+                 capture_busy=False, calls=None):
         self.calls = [] if calls is None else calls
         self.start_result = start_result
         self.close_result = close_result
         self.stop_result = stop_result
+        self.capture_busy = capture_busy
         self.result_ready_signal = StubSignal()
 
     def stop_capture(self):
@@ -249,7 +254,7 @@ def test_close_event_keeps_the_camera_when_capture_did_not_stop(application):
 
 def test_camera_reset_is_skipped_when_capture_will_not_stop(application, monkeypatch):
     window = MainApp()
-    stub = StubRecognizer(stop_result=False)
+    stub = StubRecognizer(stop_result=False, capture_busy=True)
     window.recognizer_app = stub
     monkeypatch.setattr(
         window, 'reset_camera', lambda: stub.calls.append('reset_camera') or True
@@ -258,21 +263,21 @@ def test_camera_reset_is_skipped_when_capture_will_not_stop(application, monkeyp
     window.pushbutton_reset_cap_click()
 
     assert stub.calls == ['stop_capture']
-    assert 'not running' in window.label_displayRateDetails.text()
+    assert 'busy' in window.label_displayRateDetails.text()
     window.recognizer_app = None
     window.close()
 
 
 def test_camera_settings_dialog_is_skipped_when_capture_will_not_stop(application):
     window = MainApp()
-    stub = StubRecognizer(stop_result=False)
+    stub = StubRecognizer(stop_result=False, capture_busy=True)
     window.recognizer_app = stub
     window.camera_app = StubCamera(stub.calls)
 
     window.pushbutton_camera_settings_click()
 
     assert stub.calls == ['stop_capture']
-    assert 'not running' in window.label_displayRateDetails.text()
+    assert 'busy' in window.label_displayRateDetails.text()
     window.recognizer_app = None
     window.camera_app = None
     window.close()
@@ -296,4 +301,33 @@ def test_close_event_keeps_a_camera_held_by_a_stranded_worker(application):
 
         assert capture.released is False
     finally:
-        camera_module.stranded_workers().remove(worker)
+        workers = camera_module.stranded_workers()
+        if worker in workers:
+            workers.remove(worker)
+
+
+def test_recognizer_reset_reports_a_camera_a_previous_worker_still_holds(application, monkeypatch):
+    window = MainApp()
+    camera = CameraApp.__new__(CameraApp)
+    camera.cap = FakeCapture()
+    # A close() that fails always leaves its worker behind on that camera.
+    worker = StrandedWorkerStub(camera)
+    camera_module.stranded_workers().append(worker)
+    window.camera_app = camera
+    window.recognizer_app = StubRecognizer(close_result=False)
+    candidate = StubRecognizer()
+    monkeypatch.setattr(main_app, 'GestureRecognizerApp', lambda **kwargs: candidate)
+    monkeypatch.setattr(candidate, 'create_recognizer', lambda: None, raising=False)
+
+    try:
+        assert window.reset_recognizer() is True
+
+        assert 'start_capture' not in candidate.calls
+        assert window.label_displayRateDetails.text() == 'camera busy, retry'
+    finally:
+        workers = camera_module.stranded_workers()
+        if worker in workers:
+            workers.remove(worker)
+        window.recognizer_app = None
+        window.camera_app = None
+        window.close()

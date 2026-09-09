@@ -36,11 +36,24 @@ def stranded_workers():
     return _stranded_workers
 
 
+def forget_finished_workers():
+    """
+    Drop leaked workers that have finished: their camera is usable again.
+
+    The release relies on isRunning(); the wait() below is a defensive no-op join
+    on a thread that has already reported itself finished.
+    """
+    for worker in [worker for worker in _stranded_workers if not worker.isRunning()]:
+        worker.wait(0)
+        _stranded_workers.remove(worker)
+
+
 def stranded_worker_running():
     """
     bool: True while any leaked capture worker is still executing.
     """
-    return any(worker.isRunning() for worker in _stranded_workers)
+    forget_finished_workers()
+    return bool(_stranded_workers)
 
 
 def camera_is_stranded(camera):
@@ -53,6 +66,7 @@ def camera_is_stranded(camera):
     Returns:
         bool: True while that camera must not be re-opened or released.
     """
+    forget_finished_workers()
     return any(worker.is_reading(camera) for worker in _stranded_workers)
 
 
