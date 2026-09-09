@@ -107,7 +107,7 @@ try {
     foreach ($File in @("README.md", "README.pl.md")) {
         Copy-Item -LiteralPath (Join-Path $RepositoryRoot $File) -Destination $ReleaseApp
     }
-    foreach ($File in @("LICENSE", "LICENSE-docs", "SECURITY.md")) {
+    foreach ($File in @("LICENSE", "LICENSE-docs", "SECURITY.md", "THIRD_PARTY_NOTICES.md")) {
         Copy-Item -LiteralPath (Join-Path $RepositoryRoot $File) -Destination $ReleaseRoot
         Copy-Item -LiteralPath (Join-Path $RepositoryRoot $File) -Destination $ReleaseApp
     }
