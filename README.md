@@ -94,14 +94,17 @@ AI_sign_language_translator/
 │   ├── Custom_gesture_recognizer.ipynb
 │   └── custom_gesture_recognizer.py
 ├── tests/                      # Regression and model-loading tests
-├── .github/workflows/          # Windows CI for Python 3.10 and 3.12
+├── .github/                    # Windows CI workflows and pull request template
 ├── docs/                       # Documentation, thesis files, screenshots
 ├── requirements-dev.txt        # Test and packaging dependencies
 ├── AGENTS.md                   # Repository maintenance guidelines
+├── CONTRIBUTING.md             # Fork, branch and pull request workflow
 ├── SECURITY.md                 # Private vulnerability reporting policy
 ├── LICENSE                     # GNU GPL v3.0 license for source code
 ├── LICENSE-docs                # CC BY-NC-ND license for thesis and documentation
-└── README.md
+├── THIRD_PARTY_NOTICES.md      # Third-party components, licenses and provenance
+├── README.md
+└── README.pl.md                # Polish version of this README
 ```
 
 ## Requirements
@@ -233,13 +236,13 @@ Details, including the dataset split and evaluation procedure, are described in 
 
 ## Contributing and security
 
-Bug reports and focused pull requests are welcome. Please report security vulnerabilities privately according to [SECURITY.md](SECURITY.md), not in a public issue. The locally patched protobuf dependency and its verification controls are documented under [`third_party/protobuf`](third_party/protobuf/README.md).
+Bug reports and focused pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the fork, branch and pull request workflow. Please report security vulnerabilities privately according to [SECURITY.md](SECURITY.md), not in a public issue. The locally patched protobuf dependency and its verification controls are documented under [`third_party/protobuf`](third_party/protobuf/README.md).
 
 ## License
 
 The **source code** is licensed under the [GNU General Public License v3.0](LICENSE). You may use, study, share and modify it freely, including commercially, provided that derivative works are also distributed under the GPL and preserve the source code and license notices. The application bundles Qt for Python (PySide6) under the GNU GPL, alongside components under Apache-2.0, MIT, BSD and MPL-2.0 licenses — all compatible with GPLv3.
 
-The thesis and original documentation, diagrams and screenshots are available under [CC BY-NC-ND 4.0](LICENSE-docs). Third-party logos and marks remain the property of their respective owners.
+The thesis and original documentation, diagrams and screenshots are available under [CC BY-NC-ND 4.0](LICENSE-docs). Third-party logos and marks remain the property of their respective owners. A full list of bundled third-party components and their licenses is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Author
 

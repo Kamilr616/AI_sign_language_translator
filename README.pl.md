@@ -93,14 +93,17 @@ AI_sign_language_translator/
 │   ├── Custom_gesture_recognizer.ipynb
 │   └── custom_gesture_recognizer.py
 ├── tests/                      # Testy regresji i ładowania modeli
-├── .github/workflows/          # CI Windows dla Pythona 3.10 i 3.12
+├── .github/                    # Workflow CI Windows i szablon pull requesta
 ├── docs/                       # Dokumentacja, pliki pracy dyplomowej, zrzuty ekranu
 ├── requirements-dev.txt        # Zależności testów i pakowania
 ├── AGENTS.md                   # Zasady utrzymania repozytorium
+├── CONTRIBUTING.md             # Zasady współpracy: fork, gałęzie, pull requesty
 ├── SECURITY.md                 # Zasady prywatnego zgłaszania podatności
 ├── LICENSE                     # Licencja GNU GPL v3.0 dla kodu
 ├── LICENSE-docs                # Licencja CC BY-NC-ND dla pracy i dokumentacji
-└── README.md
+├── THIRD_PARTY_NOTICES.md      # Komponenty zewnętrzne, licencje i pochodzenie
+├── README.md
+└── README.pl.md                # Polska wersja tego README
 ```
 
 ## Wymagania
@@ -233,13 +236,13 @@ Szczegóły, w tym podział zbioru danych i procedura ewaluacji, opisane są w [
 
 ## Współpraca i bezpieczeństwo
 
-Zgłoszenia błędów i niewielkie pull requesty są mile widziane. Podatności bezpieczeństwa należy zgłaszać prywatnie zgodnie z [SECURITY.md](SECURITY.md), a nie w publicznym issue. Lokalna poprawka zależności protobuf i jej mechanizmy weryfikacji są opisane w katalogu [`third_party/protobuf`](third_party/protobuf/README.md).
+Zgłoszenia błędów i niewielkie pull requesty są mile widziane. Opis pracy z forkiem, gałęziami i pull requestami znajduje się w [CONTRIBUTING.md](CONTRIBUTING.md). Podatności bezpieczeństwa należy zgłaszać prywatnie zgodnie z [SECURITY.md](SECURITY.md), a nie w publicznym issue. Lokalna poprawka zależności protobuf i jej mechanizmy weryfikacji są opisane w katalogu [`third_party/protobuf`](third_party/protobuf/README.md).
 
 ## Licencja
 
 **Kod źródłowy** jest udostępniany na [licencji GNU General Public License v3.0](LICENSE). Możesz go swobodnie używać, analizować, udostępniać i modyfikować, także komercyjnie, pod warunkiem że utwory pochodne również będą rozpowszechniane na licencji GPL oraz zachowają kod źródłowy i noty licencyjne. Aplikacja dołącza Qt for Python (PySide6) na licencji GNU GPL, a także komponenty na licencjach Apache-2.0, MIT, BSD i MPL-2.0 — wszystkie zgodne z GPLv3.
 
-Praca inżynierska oraz oryginalna dokumentacja, diagramy i zrzuty są udostępniane na [licencji CC BY-NC-ND 4.0](LICENSE-docs). Loga i znaki podmiotów trzecich pozostają własnością ich właścicieli.
+Praca inżynierska oraz oryginalna dokumentacja, diagramy i zrzuty są udostępniane na [licencji CC BY-NC-ND 4.0](LICENSE-docs). Loga i znaki podmiotów trzecich pozostają własnością ich właścicieli. Pełna lista dołączonych komponentów zewnętrznych i ich licencji znajduje się w pliku [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Autor
 
