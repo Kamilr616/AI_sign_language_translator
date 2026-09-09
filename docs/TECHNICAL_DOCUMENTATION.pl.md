@@ -119,7 +119,7 @@ Najważniejsze szczegóły:
 
 ### 3.3 Przetwarzanie końcowe wyników (wygładzanie)
 
-Surowe klasyfikacje pojedynczych klatek są niestabilne. Po włączeniu pola *Average sign* `MainApp` utrzymuje **okno przesuwne** (`last_results`) ostatnich par `(znak, wynik)`, ograniczone wartością suwaka w GUI:
+Surowe klasyfikacje pojedynczych klatek są niestabilne. Po włączeniu przycisku *Smoothing* `MainApp` utrzymuje **okno przesuwne** (`last_results`) ostatnich par `(znak, wynik)`, ograniczone wartością suwaka *Window*:
 
 1. `calculate_results_length` usuwa najstarszy wpis, gdy okno przekroczy skonfigurowany rozmiar.
 2. `calculate_common_sign_and_average` (`src/main_app.py:219`) wybiera **najczęstszy** znak w oknie (głosowanie większościowe) i raportuje **średni wynik próbek sklasyfikowanych jako ten znak**.
@@ -276,8 +276,8 @@ Wszystkie parametry można zmieniać z poziomu GUI w trakcie działania; zmiany 
 
 | Parametr | Kontrolka GUI | Znaczenie |
 |---|---|---|
-| Wygładzanie wł./wył. | Pole *Average sign* | Włącza głosowanie większościowe w oknie przesuwnym |
-| Rozmiar okna | Suwak *Range* | Liczba ostatnich wyników użytych do głosowania |
+| Wygładzanie wł./wył. | Przycisk *Smoothing* | Włącza głosowanie większościowe w oknie przesuwnym |
+| Rozmiar okna | Suwak *Window* | Liczba ostatnich wyników użytych do głosowania |
 | Mowa wł./wył. | Pole *Speak* | Wypowiada każdą rozpoznaną literę |
 | Tempo / głośność | Pola TTS | Tempo mowy pyttsx3 (słowa/min) i głośność (%) |
 

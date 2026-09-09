@@ -37,6 +37,85 @@ def test_result_window_discards_oldest_sample(application):
     window.close()
 
 
+def test_smoothing_starts_off_with_the_result_window_disabled(application):
+    window = MainApp()
+
+    assert window.pushButton_smoothing.isChecked() is False
+    assert window.pushButton_smoothing.text() == "OFF"
+    assert window.horizontalSlider_range.isEnabled() is False
+    assert window.label_range.isEnabled() is False
+    assert window.label_range_value.isEnabled() is False
+    window.close()
+
+
+def test_enabling_smoothing_labels_the_button_and_enables_the_result_window(application):
+    window = MainApp()
+
+    window.pushButton_smoothing.setChecked(True)
+
+    assert window.pushButton_smoothing.text() == "ON"
+    assert window.horizontalSlider_range.isEnabled() is True
+    assert window.label_range.isEnabled() is True
+    assert window.label_range_value.isEnabled() is True
+
+    window.pushButton_smoothing.setChecked(False)
+
+    assert window.pushButton_smoothing.text() == "OFF"
+    assert window.horizontalSlider_range.isEnabled() is False
+    assert window.label_range.isEnabled() is False
+    window.close()
+
+
+def test_disabling_smoothing_clears_the_result_window(application):
+    window = MainApp()
+    window.pushButton_smoothing.setChecked(True)
+    window.last_results = [("A", 1.0), ("A", 1.0)]
+    window.last_results_length = 2
+
+    window.pushButton_smoothing.setChecked(False)
+
+    assert window.last_results == []
+    assert window.last_results_length == 0
+    window.close()
+
+
+def test_window_size_is_reported_with_its_unit(application):
+    window = MainApp()
+
+    assert window.horizontalSlider_range.minimum() == 2
+    assert window.horizontalSlider_range.maximum() == 32
+    assert window.label_range_value.text() == "15 results"
+
+    window.horizontalSlider_range.setValue(7)
+
+    assert window.label_range_value.text() == "7 results"
+    window.close()
+
+
+def test_raw_result_is_displayed_when_smoothing_is_off(application):
+    window = MainApp()
+    window.pushButton_smoothing.setChecked(False)
+    window.last_results = [("A", 1.0), ("A", 1.0)]
+
+    window.process_result_and_frame(None, ["B", "Right"], [0.4, 0.9], None)
+
+    assert window.label_displaySign.text() == "B"
+    assert window.last_results == [("A", 1.0), ("A", 1.0)]
+    window.close()
+
+
+def test_window_vote_is_displayed_when_smoothing_is_on(application):
+    window = MainApp()
+    window.pushButton_smoothing.setChecked(True)
+    window.last_results = [("A", 1.0), ("A", 1.0)]
+
+    window.process_result_and_frame(None, ["B", "Right"], [0.4, 0.9], None)
+
+    assert window.label_displaySign.text() == "A"
+    assert window.last_results == [("A", 1.0), ("A", 1.0), ("B", 0.4)]
+    window.close()
+
+
 class FakeCapture:
     def __init__(self):
         self.released = False
