@@ -4,7 +4,13 @@ import custom_landmarks
 import logging
 from collections import deque
 from dataclasses import dataclass
-from camera import CAPTURE_STOP_TIMEOUT_S, CameraApp, CameraWorker, LatestFrameBuffer
+from camera import (
+    CAPTURE_STOP_TIMEOUT_S,
+    CameraApp,
+    CameraWorker,
+    LatestFrameBuffer,
+    strand_worker,
+)
 from PySide6.QtCore import Signal, QObject, QSize, Qt, QTimer
 from PySide6.QtGui import QImage
 from mediapipe import solutions, Image, ImageFormat
@@ -15,6 +21,8 @@ from mediapipe.tasks.python.components import processors
 
 
 INFERENCE_LATENCY_WINDOW = 30
+INFERENCE_TIMEOUT_S = 1.0
+INFERENCE_TIMEOUT_FACTOR = 10.0
 
 
 @dataclass(frozen=True)
@@ -26,7 +34,8 @@ class PipelineMetrics:
         pipeline_fps (int): Recognition results delivered to the GUI per second.
         camera_fps (float): Frames per second delivered by the capture worker.
         inference_ms (float): Mean latency from recognize_async() to its callback.
-        dropped_frames (int): Frames captured while an inference was in flight.
+        dropped_frames (int): Frames overwritten before the pipeline could consume
+            them, counted cumulatively since the recognizer was created.
     """
 
     pipeline_fps: int
@@ -98,6 +107,7 @@ class GestureRecognizerApp(QObject):
         self.start_time = time.monotonic()
         self.inference_ms = 0.0
         self._inference_started_at = None
+        self._pending_timestamp_ms = None
         self._latency_samples = deque(maxlen=INFERENCE_LATENCY_WINDOW)
 
         self.mp_hands = solutions.hands
@@ -146,7 +156,11 @@ class GestureRecognizerApp(QObject):
     @property
     def camera_fps(self) -> float:
         """float: Frame rate delivered by the camera, 0.0 while capture is stopped."""
-        return self._worker.camera_fps if self._worker is not None else 0.0
+        worker = self._worker
+        if worker is None or not worker.isRunning():
+            return 0.0
+
+        return worker.camera_fps
 
     def metrics(self) -> PipelineMetrics:
         """
@@ -162,15 +176,18 @@ class GestureRecognizerApp(QObject):
             dropped_frames=self._frames.dropped_frames,
         )
 
-    def start_capture(self):
+    def start_capture(self) -> bool:
         """
         Start the camera capture worker and let it drive the recognition loop.
 
         Frames are captured on the worker thread, so the GUI thread is never
         blocked waiting for the camera sensor.
+
+        Returns:
+            bool: True when frames are being captured afterwards.
         """
         if self._closing:
-            return
+            return False
 
         if self._worker is None:
             self._worker = CameraWorker(self.cap, self._frames)
@@ -179,7 +196,7 @@ class GestureRecognizerApp(QObject):
                 Qt.ConnectionType.QueuedConnection,
             )
 
-        self._worker.start()
+        return bool(self._worker.start())
 
     def stop_capture(self, timeout: float = CAPTURE_STOP_TIMEOUT_S) -> bool:
         """
@@ -204,11 +221,21 @@ class GestureRecognizerApp(QObject):
 
         Runs on a MediaPipe worker thread.
 
+        A result for a packet the watchdog already gave up on is dropped: its
+        bookkeeping now belongs to a newer submission, and the frame it carries
+        is older than the one being recognized, so showing it would move the
+        preview backwards.
+
         Args:
             result (GestureRecognizerResult): The recognition result containing detected gestures.
             output_image (Image): The processed output image.
             timestamp_ms (int): The timestamp of the result in milliseconds.
         """
+        if timestamp_ms != self._pending_timestamp_ms:
+            logging.warning("Ignoring a late recognition result for timestamp %s ms", timestamp_ms)
+            return
+
+        self._pending_timestamp_ms = None
         self._inference_pending = False
         self.record_inference_latency()
         try:
@@ -260,6 +287,34 @@ class GestureRecognizerApp(QObject):
         if self.recognizer and not self._closing:
             QTimer.singleShot(self._retry_delay_ms, self.recognize_frame)
 
+    def inference_deadline_s(self) -> float:
+        """
+        How long to wait for a recognition callback before giving up on it.
+
+        MediaPipe can drop a submitted packet in its flow limiter without ever
+        calling back. Without a deadline the in-flight flag would stay set and
+        every captured frame would be ignored from then on, freezing the app on
+        its last result. The bound follows the measured latency, so a slow model
+        is never cut off.
+
+        Returns:
+            float: The deadline in seconds.
+        """
+        return max(
+            INFERENCE_TIMEOUT_S,
+            INFERENCE_TIMEOUT_FACTOR * self.inference_ms / 1000.0,
+        )
+
+    def inference_expired(self) -> bool:
+        """
+        bool: True when the pending inference has missed its deadline.
+        """
+        started_at = self._inference_started_at
+        if started_at is None:
+            return False
+
+        return (time.perf_counter() - started_at) > self.inference_deadline_s()
+
     def next_timestamp_ms(self, timestamp_ns: int) -> int:
         """
         Convert a capture timestamp to the strictly increasing milliseconds MediaPipe requires.
@@ -300,7 +355,16 @@ class GestureRecognizerApp(QObject):
             return
 
         if self._inference_pending:
-            return
+            if not self.inference_expired():
+                return
+
+            logging.warning(
+                "No recognition result within %.0f ms; dropping the stalled inference",
+                self.inference_deadline_s() * 1000.0,
+            )
+            self._inference_pending = False
+            self._inference_started_at = None
+            self._pending_timestamp_ms = None
 
         captured = self._frames.take()
         if captured is None:
@@ -312,12 +376,15 @@ class GestureRecognizerApp(QObject):
 
         try:
             mp_image = Image(image_format=ImageFormat.SRGB, data=image.astype(np.uint8))
-            self._inference_pending = True
+            timestamp_ms = self.next_timestamp_ms(timestamp)
             self._inference_started_at = time.perf_counter()
-            self.recognizer.recognize_async(mp_image, self.next_timestamp_ms(timestamp))
+            self._pending_timestamp_ms = timestamp_ms
+            self._inference_pending = True
+            self.recognizer.recognize_async(mp_image, timestamp_ms)
         except Exception as e:
             self._inference_pending = False
             self._inference_started_at = None
+            self._pending_timestamp_ms = None
             if not self._closing:
                 logging.error(f"Exception in recognizer: {e}")
                 self._schedule_retry()
@@ -360,18 +427,34 @@ class GestureRecognizerApp(QObject):
 
         return frame, text, scores
 
-    def close(self):
+    def close(self, timeout: float = CAPTURE_STOP_TIMEOUT_S) -> bool:
         """
         Release resources: stop the capture worker first, then the recognizer.
+
+        Args:
+            timeout (float): Maximum wait for the capture thread, in seconds.
+
+        Returns:
+            bool: False when the capture thread did not stop in time. The worker
+            is then leaked on purpose and the camera it reads from must be left
+            open: freeing a running QThread, or releasing the VideoCapture it is
+            blocked in, takes the whole process down without a traceback.
         """
         self._closing = True
         self._inference_pending = False
+        self._pending_timestamp_ms = None
 
-        self.stop_capture()
+        stopped = self.stop_capture(timeout)
+
         if self._worker is not None:
             self._worker.frame_ready.disconnect(self.recognize_frame)
+            if not stopped:
+                logging.error("Leaking the capture worker; the camera stays open")
+                strand_worker(self._worker)
             self._worker = None
 
         if self.recognizer:
             self.recognizer.close()
             self.recognizer = None
+
+        return stopped
