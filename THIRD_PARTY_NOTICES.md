@@ -60,6 +60,23 @@ suite; provenance and held-out evaluation figures per model are documented in
 [`docs/TECHNICAL_DOCUMENTATION.md`](docs/TECHNICAL_DOCUMENTATION.md#54-shipped-models)
 · [wersja polska](docs/TECHNICAL_DOCUMENTATION.pl.md#54-modele-dołączone-do-repozytorium).
 
+### Bundled fonts (JetBrains Mono)
+
+`src/assets/fonts/JetBrainsMono-Regular.ttf` and
+`src/assets/fonts/JetBrainsMono-ExtraBold.ttf` are unmodified copies of the
+JetBrains Mono typeface, used by the PodTeksT theme.
+
+| Item | Value |
+|---|---|
+| Files | `src/assets/fonts/JetBrainsMono-Regular.ttf`, `src/assets/fonts/JetBrainsMono-ExtraBold.ttf` |
+| Copyright | Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono) |
+| License | [SIL Open Font License 1.1](src/assets/fonts/OFL.txt) |
+| License text | shipped alongside the fonts in [`src/assets/fonts/OFL.txt`](src/assets/fonts/OFL.txt) |
+
+[`src/main.py`](src/main.py) registers every `.ttf` in that directory with the
+font database at start-up; a font file that cannot be registered only produces a
+warning and the interface falls back to the system fonts.
+
 ## Python dependencies
 
 Where a version constraint exists in the requirements files, the Version column
@@ -73,9 +90,17 @@ dependency source is vendored except the protobuf wheels above.
 |---|---|---|
 | protobuf (locally patched, bundled wheels) | `4.25.9+aislt.cve20260994.1` | [BSD-3-Clause](third_party/protobuf/LICENSE) |
 | mediapipe | `>=0.10.14,<0.10.30` | [Apache-2.0](https://spdx.org/licenses/Apache-2.0.html) |
-| qdarkstyle | `>=3.2.3` | [MIT](https://spdx.org/licenses/MIT.html) |
 | pyttsx3 | `>=2.98` | [MPL-2.0](https://spdx.org/licenses/MPL-2.0.html) |
 | PySide6 | `>=6.7.3` | [LGPL-3.0-only](https://spdx.org/licenses/LGPL-3.0-only.html) OR [GPL-2.0-only](https://spdx.org/licenses/GPL-2.0-only.html) OR [GPL-3.0-only](https://spdx.org/licenses/GPL-3.0-only.html), or a commercial Qt license; this GPLv3 application uses Qt for Python under the GPL terms |
+| symspellpy | `>=6.10.0,<7` | [MIT](https://spdx.org/licenses/MIT.html) (Copyright 2025 mmb L, the Python port; Copyright 2021 Wolf Garbe for the original SymSpell C# implementation, also MIT) |
+
+The Windows release build passes `--collect-data symspellpy`, so the English
+frequency dictionaries shipped inside that package
+(`frequency_dictionary_en_82_765.txt` and
+`frequency_bigramdictionary_en_243_342.txt`, taken from the SymSpell project and
+covered by the same MIT license) are packaged into both executables. `symspellpy`
+itself declares no runtime dependencies, so it adds nothing to the transitive
+list below.
 
 ### Transitive runtime dependencies
 
@@ -98,7 +123,7 @@ These are not shipped with the application or with a release build.
 
 | Package | Version | License |
 |---|---|---|
-| pytest | `>=8.3,<9` | [MIT](https://spdx.org/licenses/MIT.html) |
+| pytest | `>=9.0.3,<10` | [MIT](https://spdx.org/licenses/MIT.html) |
 | pyinstaller | `>=6.11,<7` | [GPL-2.0-or-later with the PyInstaller bootloader exception](https://github.com/pyinstaller/pyinstaller/blob/develop/COPYING.txt), which permits distributing applications built with it under any license |
 | pip-audit | `>=2.9,<3` | [Apache-2.0](https://spdx.org/licenses/Apache-2.0.html) |
 
@@ -123,6 +148,12 @@ The status badges at the top of [`README.md`](README.md) and
 READMEs also link to GitHub-hosted release assets. GitHub and the GitHub logo
 are trademarks of GitHub, Inc.
 
+`src/assets/podtekst-logo.png` is the **PodTeksT** wordmark, shown in the window
+header (see [`src/gui.py`](src/gui.py)). It was contributed by Michał Wiencek
+(PodTeksT) in pull request 13 of this repository. The PodTeksT name and wordmark
+remain the property of their owner and are **not** covered by the GPL-3.0 license
+of the source code.
+
 The names, logos and marks of **Qt**, **MediaPipe**, **OpenCV**, **Kaggle**,
 **Google Colab**, **TensorFlow** and **PyCharm** belong to their respective
 owners and are used here only to identify the technologies involved. Their
@@ -142,6 +173,6 @@ the [Tests workflow](.github/workflows/tests.yml), and the metadata and license
 file shipped inside each installed distribution remain authoritative.
 
 This file must be updated whenever a dependency is added or removed, a version
-constraint changes, a bundled wheel is rebuilt, or a `.task` model is replaced
-or retrained. The same rule is recorded in [`AGENTS.md`](AGENTS.md) and in the
-pull request checklist in [`CONTRIBUTING.md`](CONTRIBUTING.md).
+constraint changes, a bundled wheel is rebuilt, a bundled asset is added or
+replaced, or a `.task` model is replaced or retrained. The repository guidelines
+in [`AGENTS.md`](AGENTS.md) apply to this branch as well.
