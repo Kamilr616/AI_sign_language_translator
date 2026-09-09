@@ -1,3 +1,4 @@
+import sys
 import threading
 
 import numpy as np
@@ -75,6 +76,18 @@ class FakeRecognizer:
 
     def close(self):
         self.closed = True
+
+
+class SynchronousRecognizer(FakeRecognizer):
+    """Fake recognizer that answers from inside recognize_async()."""
+
+    def __init__(self, app):
+        super().__init__()
+        self.app = app
+
+    def recognize_async(self, image, timestamp):
+        super().recognize_async(image, timestamp)
+        self.app.handle_result(FakeResult(), FakeOutputImage(frame(480)), timestamp)
 
 
 class FakeOutputImage:
@@ -223,16 +236,65 @@ def test_late_result_of_an_abandoned_inference_is_ignored(monkeypatch):
 
     app.handle_result(FakeResult(), FakeOutputImage(frame(480)), 5)
 
+    # The frame is dropped, but the packet still reports how long it took: that
+    # measurement is what lets the watchdog deadline grow.
     assert app._inference_pending is True
-    assert app.inference_ms == 0.0
     assert results == []
+    assert app.inference_ms == pytest.approx(1100.0)
 
     clock.now += 0.02
     app.handle_result(FakeResult(), FakeOutputImage(frame(480)), 6)
 
     assert app._inference_pending is False
-    assert app.inference_ms == pytest.approx(20.0)
+    assert app.inference_ms == pytest.approx((1100.0 + 20.0) / 2)
     assert len(results) == 1
+    app.close()
+
+
+def test_watchdog_deadline_widens_for_a_model_slower_than_its_floor(monkeypatch):
+    clock = Clock()
+    monkeypatch.setattr(recognizer.time, 'perf_counter', clock)
+    app = build_app()
+    results = []
+    app.result_ready_signal.connect(lambda *args: results.append(args))
+
+    model_latency = recognizer.INFERENCE_TIMEOUT_S + 0.5
+    step = 0.4
+    outstanding = []
+    timestamp_ns = 5_000_000
+
+    for _ in range(30):
+        for packet in [entry for entry in outstanding if entry[1] <= clock.now]:
+            outstanding.remove(packet)
+            app.handle_result(FakeResult(), FakeOutputImage(frame(480)), packet[0])
+
+        submitted = len(app.recognizer.calls)
+        app.frames.put(timestamp_ns, frame())
+        app.recognize_frame()
+        if len(app.recognizer.calls) > submitted:
+            outstanding.append((app.recognizer.calls[-1][1], clock.now + model_latency))
+
+        clock.now += step
+        timestamp_ns += 500_000_000
+
+    assert app.inference_ms > recognizer.INFERENCE_TIMEOUT_S * 1000
+    assert app.inference_deadline_s() > recognizer.INFERENCE_TIMEOUT_S
+    assert len(results) >= 3
+    app.close()
+
+
+def test_result_delivered_inside_recognize_async_is_accepted():
+    app = build_app()
+    app.recognizer = SynchronousRecognizer(app)
+    results = []
+    app.result_ready_signal.connect(lambda *args: results.append(args))
+
+    app.frames.put(5_000_000, frame())
+    app.recognize_frame()
+
+    assert len(results) == 1
+    assert app._inference_pending is False
+    assert app.inference_ms > 0
     app.close()
 
 
@@ -287,7 +349,8 @@ def test_close_keeps_a_capture_worker_that_refuses_to_stop():
 
     camera.release.set()
     assert stranded.stop(timeout=5.0) is True
-    camera_module.stranded_workers().remove(stranded)
+    assert camera_module.stranded_worker_running() is False
+    assert stranded not in camera_module.stranded_workers()
 
 
 def test_close_stops_the_capture_worker():
@@ -312,4 +375,204 @@ def test_fps_waits_for_complete_sample_window(monkeypatch):
 
     app.calculate_fps()
     assert app.fps == 5
+    app.close()
+
+
+def test_watchdog_recovers_when_the_start_time_was_already_forgotten(monkeypatch):
+    clock = Clock()
+    monkeypatch.setattr(recognizer.time, 'perf_counter', clock)
+    app = build_app()
+    results = []
+    app.result_ready_signal.connect(lambda *args: results.append(args))
+
+    # Slower than the count-bounded memory of submissions can cover, so the first
+    # answers come back for packets whose start time is gone.
+    model_latency = 30.0
+    step = 0.5
+    outstanding = []
+    timestamp_ns = 5_000_000
+    peak_deadline = 0.0
+
+    for _ in range(400):
+        for packet in [entry for entry in outstanding if entry[1] <= clock.now]:
+            outstanding.remove(packet)
+            app.handle_result(FakeResult(), FakeOutputImage(frame(480)), packet[0])
+
+        submitted = len(app.recognizer.calls)
+        app.frames.put(timestamp_ns, frame())
+        app.recognize_frame()
+        if len(app.recognizer.calls) > submitted:
+            outstanding.append((app.recognizer.calls[-1][1], clock.now + model_latency))
+
+        peak_deadline = max(peak_deadline, app.inference_deadline_s())
+        clock.now += step
+        timestamp_ns += 500_000_000
+
+    assert len(results) >= 1
+    assert model_latency <= app.inference_deadline_s() <= 20 * model_latency
+    assert peak_deadline <= 20 * model_latency
+
+    # Every sample is either a real measurement or a true lower bound, so the
+    # readout tracks the model instead of running away with the deadline.
+    assert 0.5 * model_latency <= app.inference_ms / 1000.0 <= 1.05 * model_latency
+    app.close()
+
+
+def test_inference_deadline_never_exceeds_its_ceiling():
+    app = build_app()
+
+    app.inference_ms = 1_000_000_000.0
+
+    assert app.inference_deadline_s() == recognizer.INFERENCE_DEADLINE_MAX_S
+    app.close()
+
+
+def test_lower_bound_latency_measures_against_the_oldest_remembered_submission(monkeypatch):
+    clock = Clock(20.0)
+    monkeypatch.setattr(recognizer.time, 'perf_counter', clock)
+    app = build_app()
+    app.remember_submission(1, 10.0)
+    app.remember_submission(2, 12.0)
+
+    # A forgotten packet is older than everything remembered, so it must be
+    # measured against the oldest entry, not the newest.
+    assert app.lower_bound_latency() == pytest.approx(10.0)
+
+    app.forget_submissions()
+    app._inference_started_at = 15.0
+    assert app.lower_bound_latency() == pytest.approx(5.0)
+
+    app._inference_started_at = None
+    assert app.lower_bound_latency() is None
+    app.close()
+
+
+def test_nothing_is_recorded_for_a_packet_with_nothing_to_measure_against():
+    app = build_app()
+
+    app.record_inference_latency(None)
+
+    assert app.inference_ms == 0.0
+    assert len(app._latency_samples) == 0
+    app.close()
+
+
+def test_deadline_returns_to_normal_after_a_transient_stall(monkeypatch):
+    clock = Clock()
+    monkeypatch.setattr(recognizer.time, 'perf_counter', clock)
+    app = build_app()
+
+    step = 0.5
+    outstanding = []
+    timestamp_ns = 5_000_000
+    peak_deadline = 0.0
+    model_latency = 30.0
+
+    for index in range(400):
+        if index == 140:
+            model_latency = 2.0
+
+        for packet in [entry for entry in outstanding if entry[1] <= clock.now]:
+            outstanding.remove(packet)
+            app.handle_result(FakeResult(), FakeOutputImage(frame(480)), packet[0])
+
+        submitted = len(app.recognizer.calls)
+        app.frames.put(timestamp_ns, frame())
+        app.recognize_frame()
+        if len(app.recognizer.calls) > submitted:
+            outstanding.append((app.recognizer.calls[-1][1], clock.now + model_latency))
+
+        peak_deadline = max(peak_deadline, app.inference_deadline_s())
+        clock.now += step
+        timestamp_ns += 500_000_000
+
+    assert peak_deadline == recognizer.INFERENCE_DEADLINE_MAX_S
+    assert app.inference_ms / 1000.0 == pytest.approx(model_latency, rel=0.2)
+    assert app.inference_deadline_s() == pytest.approx(20.0, rel=0.2)
+    app.close()
+
+
+def test_remembered_submissions_stay_bounded():
+    app = build_app()
+
+    for index in range(recognizer.OUTSTANDING_INFERENCE_LIMIT * 4):
+        app.frames.put(5_000_000 + index * 1_000_000, frame())
+        app.recognize_frame()
+        app._inference_pending = False
+
+    assert len(app.recognizer.calls) == recognizer.OUTSTANDING_INFERENCE_LIMIT * 4
+    assert len(app._outstanding) <= recognizer.OUTSTANDING_INFERENCE_LIMIT
+    app.close()
+
+
+def test_failed_submission_forgets_its_start_time(monkeypatch):
+    app = build_app(FakeRecognizer(error=RuntimeError('boom')))
+    monkeypatch.setattr(recognizer.QTimer, 'singleShot', lambda delay, callback: None)
+    app.frames.put(5_000_000, frame())
+
+    app.recognize_frame()
+
+    assert app._outstanding == {}
+    app.close()
+
+
+def test_close_forgets_remembered_submissions():
+    app = build_app()
+    app.frames.put(5_000_000, frame())
+    app.recognize_frame()
+    assert app._outstanding != {}
+
+    app.close()
+
+    assert app._outstanding == {}
+
+
+def test_capture_busy_reports_a_worker_that_still_holds_the_camera():
+    app = build_app(camera=FakeCamera(closed=True))
+
+    assert app.capture_busy is False
+
+    app.start_capture()
+    assert app.capture_busy is True
+
+    app.stop_capture()
+    assert app.capture_busy is False
+    app.close()
+
+
+def test_remembering_and_forgetting_submissions_is_thread_safe():
+    """The Qt thread remembers submissions while MediaPipe threads take them back."""
+    app = build_app()
+    failures = []
+    stop = threading.Event()
+    latest = [0]
+
+    def forget_the_oldest():
+        # Aim at the entry the writer is about to evict, which is where an
+        # unguarded map would lose a race.
+        while not stop.is_set():
+            try:
+                app.forget_submission(latest[0] - recognizer.OUTSTANDING_INFERENCE_LIMIT + 1)
+            except Exception as error:
+                failures.append(error)
+                return
+
+    consumers = [threading.Thread(target=forget_the_oldest) for _ in range(4)]
+    switch_interval = sys.getswitchinterval()
+    sys.setswitchinterval(1e-6)
+
+    try:
+        for consumer in consumers:
+            consumer.start()
+        for timestamp in range(1, 20000):
+            app.remember_submission(timestamp, 0.0)
+            latest[0] = timestamp
+    finally:
+        stop.set()
+        for consumer in consumers:
+            consumer.join(10.0)
+        sys.setswitchinterval(switch_interval)
+
+    assert failures == []
+    assert len(app._outstanding) <= recognizer.OUTSTANDING_INFERENCE_LIMIT
     app.close()

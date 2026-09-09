@@ -2,6 +2,7 @@ import time
 import numpy as np
 import custom_landmarks
 import logging
+import threading
 from collections import deque
 from dataclasses import dataclass
 from camera import (
@@ -23,6 +24,8 @@ from mediapipe.tasks.python.components import processors
 INFERENCE_LATENCY_WINDOW = 30
 INFERENCE_TIMEOUT_S = 1.0
 INFERENCE_TIMEOUT_FACTOR = 10.0
+INFERENCE_DEADLINE_MAX_S = 60.0
+OUTSTANDING_INFERENCE_LIMIT = 8
 
 
 @dataclass(frozen=True)
@@ -108,6 +111,8 @@ class GestureRecognizerApp(QObject):
         self.inference_ms = 0.0
         self._inference_started_at = None
         self._pending_timestamp_ms = None
+        self._outstanding = {}
+        self._outstanding_lock = threading.Lock()
         self._latency_samples = deque(maxlen=INFERENCE_LATENCY_WINDOW)
 
         self.mp_hands = solutions.hands
@@ -124,6 +129,9 @@ class GestureRecognizerApp(QObject):
         """
         self._closing = False
         self._inference_pending = False
+        self._inference_started_at = None
+        self._pending_timestamp_ms = None
+        self.forget_submissions()
         classifier_options = processors.ClassifierOptions(
             display_names_locale=None,
             max_results=1,
@@ -152,6 +160,12 @@ class GestureRecognizerApp(QObject):
     def frames(self) -> LatestFrameBuffer:
         """LatestFrameBuffer: The buffer fed by the capture worker."""
         return self._frames
+
+    @property
+    def capture_busy(self) -> bool:
+        """bool: True while the capture worker still holds the camera."""
+        worker = self._worker
+        return worker is not None and worker.isRunning()
 
     @property
     def camera_fps(self) -> float:
@@ -224,20 +238,23 @@ class GestureRecognizerApp(QObject):
         A result for a packet the watchdog already gave up on is dropped: its
         bookkeeping now belongs to a newer submission, and the frame it carries
         is older than the one being recognized, so showing it would move the
-        preview backwards.
+        preview backwards. Its measured latency is still recorded, because that
+        measurement is what widens the watchdog deadline.
 
         Args:
             result (GestureRecognizerResult): The recognition result containing detected gestures.
             output_image (Image): The processed output image.
             timestamp_ms (int): The timestamp of the result in milliseconds.
         """
+        self.record_inference_latency(self.forget_submission(timestamp_ms))
+
         if timestamp_ms != self._pending_timestamp_ms:
             logging.warning("Ignoring a late recognition result for timestamp %s ms", timestamp_ms)
             return
 
         self._pending_timestamp_ms = None
+        self._inference_started_at = None
         self._inference_pending = False
-        self.record_inference_latency()
         try:
             frame, text, category_name = self.process_recognition_result(
                 output_image.numpy_view().copy(), result
@@ -251,21 +268,109 @@ class GestureRecognizerApp(QObject):
             if self.recognizer and not self._closing:
                 self.recognize_next_signal.emit()
 
-    def record_inference_latency(self):
+    def remember_submission(self, timestamp_ms, started_at):
         """
-        Record how long the last MediaPipe inference took.
+        Note when a packet was submitted, so its latency can be measured later.
+
+        The watchdog can hand the pipeline over to a newer submission before an
+        older packet answers; keeping the start time of the last few packets lets
+        such a late answer still be measured. The map is bounded, so a model that
+        never answers cannot make it grow. Submissions are noted on the Qt thread
+        and taken back on the MediaPipe thread, hence the lock. Its oldest-first
+        eviction below, together with next_timestamp_ms()'s strictly increasing
+        keys, is what lower_bound_latency() relies on to read a true lower bound
+        off the head of this map.
+
+        Args:
+            timestamp_ms (int): The timestamp the packet was submitted with.
+            started_at (float): The perf_counter() reading at submission.
+        """
+        with self._outstanding_lock:
+            self._outstanding[timestamp_ms] = started_at
+
+            while len(self._outstanding) > OUTSTANDING_INFERENCE_LIMIT:
+                del self._outstanding[next(iter(self._outstanding))]
+
+    def forget_submission(self, timestamp_ms):
+        """
+        Take back what was noted for a submission.
+
+        Args:
+            timestamp_ms (int): The timestamp the packet was submitted with.
+
+        Returns:
+            float or None: Its start time, or None when it is no longer known.
+        """
+        with self._outstanding_lock:
+            return self._outstanding.pop(timestamp_ms, None)
+
+    def forget_submissions(self):
+        """Forget every noted submission."""
+        with self._outstanding_lock:
+            self._outstanding.clear()
+
+    def lower_bound_latency(self):
+        """
+        Measure a packet whose start time is no longer remembered.
+
+        remember_submission() evicts start times oldest first, and
+        next_timestamp_ms() hands out strictly increasing keys, so the head of
+        the map always holds the earliest still-remembered submission's start
+        time. forget_submission() may pop arbitrary newer keys on callback, but
+        that can only move the head forward in time, never backward — so the
+        time since the oldest remembered submission can only shrink over time
+        and is always a true lower bound on how long an unremembered packet has
+        been outstanding. The measurement must come from the clock and never
+        from the deadline, which is derived from these very samples — feeding
+        it back in would make the mean grow without bound.
+
+        Returns:
+            float or None: The lower bound in seconds, or None when nothing is
+            outstanding to measure against.
+        """
+        with self._outstanding_lock:
+            oldest = next(iter(self._outstanding.values()), None)
+
+        if oldest is None:
+            oldest = self._inference_started_at
+
+        if oldest is None:
+            return None
+
+        return time.perf_counter() - oldest
+
+    def record_inference_latency(self, started_at):
+        """
+        Record how long one MediaPipe inference took.
 
         Measures the wall time between the recognize_async() submission and the
         callback entry, averaged over a rolling window so the readout does not
-        flicker. Called on the MediaPipe worker thread.
+        flicker. Every answered packet contributes, including one the watchdog
+        already abandoned: the rolling mean is what raises the watchdog deadline,
+        so measuring only the accepted packets would pin the deadline at its
+        floor and abandon every submission of a genuinely slower model forever.
+        Called on the MediaPipe worker thread.
+
+        A packet answered so late that its start time has already been forgotten
+        still counts, measured against the oldest submission that is still
+        remembered (see lower_bound_latency). Recording nothing there would leave
+        the mean at zero for a model slower than the remembered window, and the
+        deadline would stay pinned at its floor for good.
+
+        Args:
+            started_at (float or None): The perf_counter() reading taken when
+                that packet was submitted, or None when it is no longer known.
         """
-        started_at = self._inference_started_at
-        self._inference_started_at = None
-
         if started_at is None:
-            return
+            elapsed_s = self.lower_bound_latency()
+            if elapsed_s is None:
+                return
 
-        self._latency_samples.append((time.perf_counter() - started_at) * 1000.0)
+            latency_ms = elapsed_s * 1000.0
+        else:
+            latency_ms = (time.perf_counter() - started_at) * 1000.0
+
+        self._latency_samples.append(latency_ms)
         self.inference_ms = sum(self._latency_samples) / len(self._latency_samples)
 
     def calculate_fps(self):
@@ -294,15 +399,24 @@ class GestureRecognizerApp(QObject):
         MediaPipe can drop a submitted packet in its flow limiter without ever
         calling back. Without a deadline the in-flight flag would stay set and
         every captured frame would be ignored from then on, freezing the app on
-        its last result. The bound follows the measured latency, so a slow model
-        is never cut off.
+        its last result. The bound follows the rolling mean latency, which every
+        answered packet feeds even when its result arrives too late to be used,
+        so a model slower than the floor widens the deadline on its first answer
+        instead of having all of its work abandoned.
+
+        The result is capped: however the mean was arrived at, waiting minutes or
+        hours for one callback is never useful, and a hard ceiling keeps a single
+        extreme measurement from freezing the pipeline for the rest of the
+        session. A model slower than the ceiling is beyond what this application
+        can drive anyway, and it keeps resubmitting once per ceiling instead of
+        stopping altogether.
 
         Returns:
             float: The deadline in seconds.
         """
-        return max(
-            INFERENCE_TIMEOUT_S,
-            INFERENCE_TIMEOUT_FACTOR * self.inference_ms / 1000.0,
+        return min(
+            INFERENCE_DEADLINE_MAX_S,
+            max(INFERENCE_TIMEOUT_S, INFERENCE_TIMEOUT_FACTOR * self.inference_ms / 1000.0),
         )
 
     def inference_expired(self) -> bool:
@@ -380,10 +494,12 @@ class GestureRecognizerApp(QObject):
             self._inference_started_at = time.perf_counter()
             self._pending_timestamp_ms = timestamp_ms
             self._inference_pending = True
+            self.remember_submission(timestamp_ms, self._inference_started_at)
             self.recognizer.recognize_async(mp_image, timestamp_ms)
         except Exception as e:
             self._inference_pending = False
             self._inference_started_at = None
+            self.forget_submission(self._pending_timestamp_ms)
             self._pending_timestamp_ms = None
             if not self._closing:
                 logging.error(f"Exception in recognizer: {e}")
@@ -443,6 +559,7 @@ class GestureRecognizerApp(QObject):
         self._closing = True
         self._inference_pending = False
         self._pending_timestamp_ms = None
+        self.forget_submissions()
 
         stopped = self.stop_capture(timeout)
 
