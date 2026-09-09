@@ -245,11 +245,9 @@ class WordCorrector:
         candidates = self._symspell.lookup(lowered, Verbosity.ALL, max_edit_distance=distance)
         if not candidates:
             return None, float('inf')
-        ranked = min(
-            candidates,
-            key=lambda item: (weighted_distance(lowered, item.term), -item.count),
-        )
-        return ranked.term, weighted_distance(lowered, ranked.term)
+        distances = {item.term: weighted_distance(lowered, item.term) for item in candidates}
+        ranked = min(candidates, key=lambda item: (distances[item.term], -item.count))
+        return ranked.term, distances[ranked.term]
 
     def _split_words(self, lowered):
         """Split a long unknown word into known ones; the cost is the number of splits."""
