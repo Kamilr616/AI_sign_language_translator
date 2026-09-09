@@ -11,6 +11,50 @@ CAMERA_FPS_WINDOW = 30
 CAPTURE_IDLE_DELAY_S = 0.05
 CAPTURE_STOP_TIMEOUT_S = 2.0
 
+_stranded_workers = []
+
+
+def strand_worker(worker):
+    """
+    Keep a reference to a capture worker that refused to stop.
+
+    Dropping the last reference to a running QThread frees it while its run()
+    is still executing, which kills the process without a traceback. Such a
+    worker is deliberately leaked instead: it is still blocked inside a driver
+    call, and the camera it reads from must stay open as well.
+
+    Args:
+        worker (CameraWorker): The worker that did not finish in time.
+    """
+    _stranded_workers.append(worker)
+
+
+def stranded_workers():
+    """
+    list: Capture workers that were leaked because they did not stop in time.
+    """
+    return _stranded_workers
+
+
+def stranded_worker_running():
+    """
+    bool: True while any leaked capture worker is still executing.
+    """
+    return any(worker.isRunning() for worker in _stranded_workers)
+
+
+def camera_is_stranded(camera):
+    """
+    Report whether a leaked capture worker is still reading from a camera.
+
+    Args:
+        camera (CameraApp): The camera to check.
+
+    Returns:
+        bool: True while that camera must not be re-opened or released.
+    """
+    return any(worker.is_reading(camera) for worker in _stranded_workers)
+
 
 class LatestFrameBuffer:
     """
@@ -110,16 +154,44 @@ class CameraWorker(QThread):
         """int: Frames overwritten before the consumer could read them."""
         return self._frames.dropped_frames
 
+    def is_reading(self, camera):
+        """
+        Report whether this worker is still reading from a given camera.
+
+        Args:
+            camera (CameraApp): The camera to check.
+
+        Returns:
+            bool: True while the loop runs against that camera.
+        """
+        return self._camera is camera and self.isRunning()
+
     def start(self, *args, **kwargs):
-        """Start the capture loop; a worker that is already running is left alone."""
+        """
+        Start the capture loop; a worker that is already capturing is left alone.
+
+        A loop that is still finishing a stop() which timed out cannot be
+        restarted, because clearing the stop event would let it keep running.
+        Waiting for it here would freeze the GUI for a second stop timeout, so
+        the attempt fails immediately instead and the caller can try again once
+        the driver has released the thread.
+
+        Returns:
+            bool: True when the capture loop is running afterwards.
+        """
         if self.isRunning():
-            return
+            if not self._stop_event.is_set():
+                return True
+
+            logging.error("Camera capture worker is still stopping; cannot restart it")
+            return False
 
         self._stop_event.clear()
         self._intervals.clear()
         self._last_frame_at = None
         self._camera_fps = 0.0
         super().start(*args, **kwargs)
+        return True
 
     def stop(self, timeout=CAPTURE_STOP_TIMEOUT_S):
         """
@@ -142,9 +214,21 @@ class CameraWorker(QThread):
         return finished
 
     def run(self):
-        """Capture frames until stop() is called."""
+        """
+        Capture frames until stop() is called.
+
+        A failing camera must not kill the capture thread: an exception escaping
+        run() would silently freeze the preview on the last frame, so every
+        failure is logged and the loop keeps going after the usual back-off.
+        """
         while not self._stop_event.is_set():
-            if not self.capture_once():
+            try:
+                captured = self.capture_once()
+            except Exception:
+                logging.exception("Error while capturing a camera frame")
+                captured = False
+
+            if not captured:
                 self._stop_event.wait(self._idle_delay)
 
     def capture_once(self):
@@ -199,13 +283,36 @@ class CameraApp:
             logging.exception("Error while initializing the camera")
             self.destroy()
 
+    def held_by_stranded_worker(self, action):
+        """
+        Refuse to touch the device while a leaked capture worker still reads it.
+
+        A worker that never came back from read() keeps using this handle. Any
+        other thread re-opening, re-configuring or releasing it would pull the
+        capture out from under that call and take the whole process down, so the
+        handle is intentionally leaked instead.
+
+        Args:
+            action (str): What the caller wanted to do, for the log message.
+
+        Returns:
+            bool: True when the request must be refused.
+        """
+        if not camera_is_stranded(self):
+            return False
+
+        logging.error(
+            "Refusing to %s the camera: a leaked capture worker is still reading it", action
+        )
+        return True
+
     def settings(self):
-        if self.cap is not None:
+        if self.cap is not None and not self.held_by_stranded_worker("open the settings of"):
             self.cap.set(cv2.CAP_PROP_SETTINGS, 1)
 
     def configure(self, **kwargs):
         try:
-            if self.cap is None:
+            if self.cap is None or self.held_by_stranded_worker("configure"):
                 return
             self.cap.set(cv2.CAP_PROP_FPS, 30)
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, kwargs["width"])
@@ -215,6 +322,9 @@ class CameraApp:
             self.destroy()
 
     def open(self, fd=0, camera_driver=cv2.CAP_DSHOW):
+        if self.held_by_stranded_worker("re-open"):
+            return False
+
         try:
             if self.cap is None:
                 self.cap = cv2.VideoCapture()
@@ -228,6 +338,9 @@ class CameraApp:
             return False
 
     def destroy(self):
+        if self.held_by_stranded_worker("release"):
+            return
+
         if self.cap is not None and self.cap.isOpened():
             self.cap.release()
         self.cap = None

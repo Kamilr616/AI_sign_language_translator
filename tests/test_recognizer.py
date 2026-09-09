@@ -1,6 +1,9 @@
+import threading
+
 import numpy as np
 import pytest
 
+import camera as camera_module
 import recognizer
 from recognizer import create_scaled_qimage
 
@@ -31,6 +34,32 @@ class FakeCamera:
 
     def read(self):
         raise AssertionError("the recognizer must consume frames from the capture worker")
+
+
+class BlockingCamera:
+    """Camera whose read() blocks, so the capture worker cannot be stopped."""
+
+    def __init__(self):
+        self.entered = threading.Event()
+        self.release = threading.Event()
+
+    def is_closed(self):
+        return False
+
+    def read(self):
+        self.entered.set()
+        self.release.wait(10.0)
+        return 1_000_000, "frame"
+
+
+class Clock:
+    """Settable monotonic clock."""
+
+    def __init__(self, now=0.0):
+        self.now = now
+
+    def __call__(self):
+        return self.now
 
 
 class FakeRecognizer:
@@ -146,10 +175,64 @@ def test_inference_latency_is_measured_between_submission_and_callback(monkeypat
     for _ in range(2):
         app.frames.put(5_000_000, frame())
         app.recognize_frame()
-        app.handle_result(FakeResult(), FakeOutputImage(frame(480)), 5)
+        submitted_timestamp = app.recognizer.calls[-1][1]
+        app.handle_result(FakeResult(), FakeOutputImage(frame(480)), submitted_timestamp)
 
     assert app.inference_ms == pytest.approx(15.0)
     assert app.metrics().inference_ms == pytest.approx(15.0)
+    app.close()
+
+
+def test_stalled_inference_is_dropped_after_the_deadline(monkeypatch):
+    clock = Clock()
+    monkeypatch.setattr(recognizer.time, 'perf_counter', clock)
+    app = build_app()
+
+    app.frames.put(5_000_000, frame())
+    app.recognize_frame()
+    assert len(app.recognizer.calls) == 1
+
+    clock.now = recognizer.INFERENCE_TIMEOUT_S - 0.1
+    app.frames.put(6_000_000, frame())
+    app.recognize_frame()
+    assert len(app.recognizer.calls) == 1
+
+    clock.now = recognizer.INFERENCE_TIMEOUT_S + 0.1
+    app.frames.put(7_000_000, frame())
+    app.recognize_frame()
+
+    assert len(app.recognizer.calls) == 2
+    app.close()
+
+
+def test_late_result_of_an_abandoned_inference_is_ignored(monkeypatch):
+    clock = Clock()
+    monkeypatch.setattr(recognizer.time, 'perf_counter', clock)
+    app = build_app()
+    results = []
+    app.result_ready_signal.connect(lambda *args: results.append(args))
+
+    app.frames.put(5_000_000, frame())
+    app.recognize_frame()
+
+    clock.now = recognizer.INFERENCE_TIMEOUT_S + 0.1
+    app.frames.put(6_000_000, frame())
+    app.recognize_frame()
+
+    assert [timestamp for _, timestamp in app.recognizer.calls] == [5, 6]
+
+    app.handle_result(FakeResult(), FakeOutputImage(frame(480)), 5)
+
+    assert app._inference_pending is True
+    assert app.inference_ms == 0.0
+    assert results == []
+
+    clock.now += 0.02
+    app.handle_result(FakeResult(), FakeOutputImage(frame(480)), 6)
+
+    assert app._inference_pending is False
+    assert app.inference_ms == pytest.approx(20.0)
+    assert len(results) == 1
     app.close()
 
 
@@ -160,8 +243,51 @@ def test_metrics_report_the_camera_rate_of_the_capture_worker():
 
     assert app.metrics().camera_fps == pytest.approx(24.5)
 
+    assert app.stop_capture() is True
+    assert app.metrics().camera_fps == 0.0
+
     app.close()
     assert app._worker is None
+
+
+def test_stop_capture_discards_the_buffered_frame():
+    app = build_app(camera=FakeCamera(closed=True))
+    app.start_capture()
+    app.frames.put(5_000_000, frame())
+
+    assert app.stop_capture() is True
+    assert app.frames.take() is None
+
+    app.close()
+
+
+def test_start_capture_reports_a_worker_that_cannot_start():
+    app = build_app(camera=FakeCamera(closed=True))
+
+    assert app.start_capture() is True
+    app._worker.start = lambda *args, **kwargs: False
+
+    assert app.start_capture() is False
+
+    del app._worker.start
+    app.close()
+
+
+def test_close_keeps_a_capture_worker_that_refuses_to_stop():
+    camera = BlockingCamera()
+    app = build_app(camera=camera)
+    app.start_capture()
+    assert camera.entered.wait(5.0) is True
+
+    assert app.close(timeout=0.1) is False
+    assert app._worker is None
+
+    stranded = camera_module.stranded_workers()[-1]
+    assert stranded.isRunning() is True
+
+    camera.release.set()
+    assert stranded.stop(timeout=5.0) is True
+    camera_module.stranded_workers().remove(stranded)
 
 
 def test_close_stops_the_capture_worker():
