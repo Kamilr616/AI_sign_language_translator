@@ -197,6 +197,10 @@ With the Python 3.10 development environment active and dependencies installed:
 .\scripts\build_windows_release.ps1 -Version 1.1.0
 ```
 
+The optional `-Suffix` appends a lowercase release label to the version in the
+artifact names and in `START_HERE.md` / `BUILD_INFO.txt`, for variant or
+pre-release builds — for example `-Suffix rc1`.
+
 The script runs the tests and builds the PyInstaller application in two forms
 under `dist/release/`: a versioned **single-file** `...-windows-x64.exe` and a
 ready-to-extract **folder build** packaged as a Windows x64 ZIP.

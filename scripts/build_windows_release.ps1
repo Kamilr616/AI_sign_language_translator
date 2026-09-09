@@ -3,7 +3,11 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$Version,
     [string]$Python = "python",
-    [string]$OutputDirectory = ".\dist\release"
+    [string]$OutputDirectory = ".\dist\release",
+    # Optional release label appended to the version in the artifact names, for
+    # variant or pre-release builds such as "podtekst" or "rc1". Declared last so
+    # that the positional order of the parameters above stays unchanged.
+    [string]$Suffix = ""
 )
 
 Set-StrictMode -Version Latest
@@ -26,6 +30,14 @@ if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
     throw "Version must use the major.minor.patch format"
 }
+# -cnotmatch, because -notmatch would ignore case and let an uppercase label past.
+if ($Suffix -and $Suffix -cnotmatch '^[a-z0-9]+([.-][a-z0-9]+)*$') {
+    throw "Suffix must be lowercase alphanumeric groups separated by single dots or hyphens, for example 'podtekst' or 'rc1'; got '$Suffix'"
+}
+
+# The label carries the suffix, so every artifact name and every version string
+# written into the release states the same thing.
+$Label = if ($Suffix) { "$Version-$Suffix" } else { $Version }
 
 Push-Location $RepositoryRoot
 try {
@@ -47,7 +59,7 @@ try {
     $BuildRoot = Join-Path $RepositoryRoot "build\release"
     $PyInstallerWork = Join-Path $BuildRoot "pyinstaller"
     $PyInstallerDist = Join-Path $BuildRoot "dist"
-    $ReleaseName = "AI-Sign-Language-Translator-v$Version"
+    $ReleaseName = "AI-Sign-Language-Translator-v$Label"
     $OutputPath = if ([IO.Path]::IsPathRooted($OutputDirectory)) {
         $OutputDirectory
     } else {
@@ -149,14 +161,14 @@ Dwa sposoby uruchomienia, bez instalacji Pythona:
 - Kliknij dwukrotnie `AI-Sign-Language-Translator.exe` w tym folderze (pojedynczy przenosny plik), lub
 - Uruchom `RUN.bat` / `RUN.ps1` (korzysta z wersji katalogowej w `app`).
 Rozpoznawanie na zywo wymaga kamery.
-'@ -f $Version
+'@ -f $Label
     Set-Content -LiteralPath (Join-Path $ReleaseRoot "START_HERE.md") -Value $StartHere -Encoding utf8
 
     $SourceCommit = (& git rev-parse HEAD).Trim()
     Assert-LastExitCode "Reading the source revision"
     $BuildTime = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
     $BuildInfo = @"
-Version: $Version
+Version: $Label
 Platform: Windows x64
 Source commit: $SourceCommit
 Python: $(& $Python --version 2>&1)
