@@ -196,6 +196,10 @@ Po przygotowaniu środowiska deweloperskiego z Pythonem 3.10 i instalacji zależ
 .\scripts\build_windows_release.ps1 -Version 1.1.0
 ```
 
+Opcjonalny `-Suffix` dopisuje do wersji zapisaną małymi literami etykietę wydania
+w nazwach artefaktów oraz w plikach `START_HERE.md` i `BUILD_INFO.txt`, na potrzeby
+wydań wariantowych lub przedpremierowych — na przykład `-Suffix rc1`.
+
 Skrypt uruchamia testy i buduje aplikację przez PyInstaller w dwóch postaciach
 w katalogu `dist/release/`: wersjonowany **pojedynczy plik** `...-windows-x64.exe`
 oraz gotową do rozpakowania **wersję katalogową** spakowaną jako archiwum ZIP dla
