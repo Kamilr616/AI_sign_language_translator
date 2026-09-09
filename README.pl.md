@@ -106,6 +106,7 @@ AI_sign_language_translator/
 ├── SECURITY.md                 # Zasady prywatnego zgłaszania podatności
 ├── LICENSE                     # Licencja GNU GPL v3.0 dla kodu
 ├── LICENSE-docs                # Licencja CC BY-NC-ND dla pracy i dokumentacji
+├── THIRD_PARTY_NOTICES.md      # Dołączone komponenty innych podmiotów i ich licencje
 └── README.md
 ```
 
@@ -249,7 +250,7 @@ Zgłoszenia błędów i niewielkie pull requesty są mile widziane. Podatności 
 
 ## Licencja
 
-**Kod źródłowy** jest udostępniany na [licencji GNU General Public License v3.0](LICENSE). Możesz go swobodnie używać, analizować, udostępniać i modyfikować, także komercyjnie, pod warunkiem że utwory pochodne również będą rozpowszechniane na licencji GPL oraz zachowają kod źródłowy i noty licencyjne. Aplikacja dołącza Qt for Python (PySide6) na licencji GNU GPL, a także komponenty na licencjach Apache-2.0, MIT, BSD i MPL-2.0 — wszystkie zgodne z GPLv3.
+**Kod źródłowy** jest udostępniany na [licencji GNU General Public License v3.0](LICENSE). Możesz go swobodnie używać, analizować, udostępniać i modyfikować, także komercyjnie, pod warunkiem że utwory pochodne również będą rozpowszechniane na licencji GPL oraz zachowają kod źródłowy i noty licencyjne. Aplikacja dołącza Qt for Python (PySide6) na licencji GNU GPL, a także komponenty na licencjach Apache-2.0, MIT, BSD i MPL-2.0 — wszystkie zgodne z GPLv3 — oraz dołączony krój JetBrains Mono na licencji SIL OFL 1.1. Wszystkie dołączone komponenty, ich licencje i pochodzenie wymienia plik [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Praca inżynierska oraz oryginalna dokumentacja, diagramy i zrzuty są udostępniane na [licencji CC BY-NC-ND 4.0](LICENSE-docs). Loga i znaki podmiotów trzecich pozostają własnością ich właścicieli.
 
@@ -257,6 +258,6 @@ Praca inżynierska oraz oryginalna dokumentacja, diagramy i zrzuty są udostępn
 
 **Kamil Rataj** — projekt zrealizowany w ramach pracy inżynierskiej.
 
-Motyw PodTeksT, układ tablicy `BoardShell` i znak PodTeksT wniósł **Michał Wiencek**
+Motyw PodTeksT, układ tablicy w `src/board.py` i znak PodTeksT wniósł **Michał Wiencek**
 (PodTeksT). Nazwa i znak PodTeksT pozostają własnością ich właściciela; patrz
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

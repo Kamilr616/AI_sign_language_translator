@@ -107,6 +107,7 @@ AI_sign_language_translator/
 ├── SECURITY.md                 # Private vulnerability reporting policy
 ├── LICENSE                     # GNU GPL v3.0 license for source code
 ├── LICENSE-docs                # CC BY-NC-ND license for thesis and documentation
+├── THIRD_PARTY_NOTICES.md      # Bundled third-party components and their licenses
 └── README.md
 ```
 
@@ -250,7 +251,7 @@ Bug reports and focused pull requests are welcome. Please report security vulner
 
 ## License
 
-The **source code** is licensed under the [GNU General Public License v3.0](LICENSE). You may use, study, share and modify it freely, including commercially, provided that derivative works are also distributed under the GPL and preserve the source code and license notices. The application bundles Qt for Python (PySide6) under the GNU GPL, alongside components under Apache-2.0, MIT, BSD and MPL-2.0 licenses — all compatible with GPLv3.
+The **source code** is licensed under the [GNU General Public License v3.0](LICENSE). You may use, study, share and modify it freely, including commercially, provided that derivative works are also distributed under the GPL and preserve the source code and license notices. The application bundles Qt for Python (PySide6) under the GNU GPL, alongside components under Apache-2.0, MIT, BSD and MPL-2.0 licenses — all compatible with GPLv3 — and the bundled JetBrains Mono typeface under SIL OFL 1.1. Every bundled component, its license and its provenance are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 The thesis and original documentation, diagrams and screenshots are available under [CC BY-NC-ND 4.0](LICENSE-docs). Third-party logos and marks remain the property of their respective owners.
 
@@ -258,6 +259,6 @@ The thesis and original documentation, diagrams and screenshots are available un
 
 **Kamil Rataj** — engineering thesis project.
 
-The PodTeksT theme, the `BoardShell` board layout and the PodTeksT wordmark were
+The PodTeksT theme, the board layout in `src/board.py` and the PodTeksT wordmark were
 contributed by **Michał Wiencek** (PodTeksT). The PodTeksT name and wordmark remain
 the property of their owner; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

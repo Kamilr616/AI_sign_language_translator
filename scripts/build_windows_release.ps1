@@ -2,11 +2,12 @@
 param(
     [Parameter(Mandatory=$true)]
     [string]$Version,
-    # Optional release label appended to the version in the artifact names, for
-    # variant or pre-release builds such as "podtekst" or "rc1".
-    [string]$Suffix = "",
     [string]$Python = "python",
-    [string]$OutputDirectory = ".\dist\release"
+    [string]$OutputDirectory = ".\dist\release",
+    # Optional release label appended to the version in the artifact names, for
+    # variant or pre-release builds such as "podtekst" or "rc1". Declared last so
+    # that the positional order of the parameters above stays unchanged.
+    [string]$Suffix = ""
 )
 
 Set-StrictMode -Version Latest
@@ -107,7 +108,7 @@ try {
     foreach ($File in @("README.md", "README.pl.md")) {
         Copy-Item -LiteralPath (Join-Path $RepositoryRoot $File) -Destination $ReleaseApp
     }
-    foreach ($File in @("LICENSE", "LICENSE-docs", "SECURITY.md")) {
+    foreach ($File in @("LICENSE", "LICENSE-docs", "SECURITY.md", "THIRD_PARTY_NOTICES.md")) {
         Copy-Item -LiteralPath (Join-Path $RepositoryRoot $File) -Destination $ReleaseRoot
         Copy-Item -LiteralPath (Join-Path $RepositoryRoot $File) -Destination $ReleaseApp
     }
