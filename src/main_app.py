@@ -163,9 +163,16 @@ class MainApp(QMainWindow, Ui_MainWindow):
     def pushbutton_camera_settings_click(self):
         """
         Open the camera settings dialog.
+
+        The capture worker is paused for as long as the modal driver dialog is
+        open, so the property page and the capture loop never touch the same
+        VideoCapture at the same time.
         """
-        if self.camera_app:
-            self.camera_app.settings()
+        if not self.camera_app or not self.stop_capture():
+            return
+
+        self.camera_app.settings()
+        self.start_capture()
 
     def init_camera(self):
         """
@@ -249,14 +256,67 @@ class MainApp(QMainWindow, Ui_MainWindow):
             return False
 
         previous_recognizer = self.recognizer_app
+        capture_released = True
         if previous_recognizer is not None:
             previous_recognizer.result_ready_signal.disconnect()
-            previous_recognizer.close()
+            capture_released = previous_recognizer.close() is not False
 
         self.recognizer_app = candidate
         self.recognizer_app.result_ready_signal.connect(self.process_result_and_frame)
-        self.recognizer_app.start_capture()
+
+        if capture_released:
+            self.start_capture()
+        else:
+            self.report_capture_stopped(
+                "Previous capture worker still holds the camera; not starting a second one"
+            )
         return True
+
+    def report_capture_stopped(self, reason):
+        """
+        Log why the pipeline is not capturing and say so in the rate readout.
+
+        Args:
+            reason (str): The message to log.
+        """
+        logging.error(reason)
+        self.label_displayRateDetails.setText('camera not running')
+
+    def stop_capture(self):
+        """
+        Stop capturing so the camera can be re-opened, re-configured or released.
+
+        Returns:
+            bool: True when nothing reads the camera any more. On False the
+            caller must not touch the device: the capture worker is still inside
+            the driver and pulling the capture away would kill the process.
+        """
+        if self.recognizer_app is None:
+            return True
+
+        if self.recognizer_app.stop_capture():
+            return True
+
+        self.report_capture_stopped(
+            "Capture worker did not stop; leaving the camera untouched"
+        )
+        return False
+
+    def start_capture(self):
+        """
+        Start capturing on the active recognizer and report a failure.
+
+        Returns:
+            bool: True when frames are being captured afterwards.
+        """
+        if self.recognizer_app is None:
+            return False
+
+        if self.recognizer_app.start_capture():
+            return True
+
+        self.report_capture_stopped("Could not start the camera capture worker")
+        return False
 
     def start(self):
         """
@@ -316,7 +376,8 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
         self.label_displayRateDetails.setText(format_rate_details(metrics))
         self.label_displayRateDetails.setToolTip(
-            f'Frames dropped while an inference was in flight: {metrics.dropped_frames}'
+            'Frames dropped because the pipeline was busy '
+            f'(total since start): {metrics.dropped_frames}'
         )
 
     def process_result_and_frame(self, frame, text, scores, metrics):
@@ -374,11 +435,11 @@ class MainApp(QMainWindow, Ui_MainWindow):
         The capture worker is stopped before the device is re-opened, so the camera
         is never read and re-opened at the same time.
         """
-        if self.recognizer_app is not None:
-            self.recognizer_app.stop_capture()
+        if not self.stop_capture():
+            return
 
-        if self.reset_camera() and self.recognizer_app is not None:
-            self.recognizer_app.start_capture()
+        if self.reset_camera():
+            self.start_capture()
 
     def closeEvent(self, event):
         """
@@ -387,15 +448,21 @@ class MainApp(QMainWindow, Ui_MainWindow):
         Args:
             event (QCloseEvent): The close event.
         """
+        capture_stopped = True
         if self.recognizer_app is not None:
             if self.recognizer_app.result_ready_signal:
                 self.recognizer_app.result_ready_signal.disconnect()
-            self.recognizer_app.close()
+            capture_stopped = self.recognizer_app.close() is not False
             self.recognizer_app = None
 
         if self.camera_app is not None:
-            self.camera_app.destroy()
-            self.camera_app = None
+            if capture_stopped:
+                self.camera_app.destroy()
+                self.camera_app = None
+            else:
+                logging.error(
+                    "Capture worker is still reading; leaving the camera open on exit"
+                )
 
         if self.tts_app is not None:
             self.tts_app.stop()

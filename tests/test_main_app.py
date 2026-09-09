@@ -1,7 +1,9 @@
 import pytest
 from PySide6.QtWidgets import QApplication
 
+import camera as camera_module
 import main_app
+from camera import CameraApp
 from main_app import MainApp
 from recognizer import PipelineMetrics
 
@@ -33,6 +35,70 @@ def test_result_window_discards_oldest_sample(application):
 
     assert window.last_results == [("B", 0.7), ("A", 1.0), ("C", 0.9)]
     window.close()
+
+
+class FakeCapture:
+    def __init__(self):
+        self.released = False
+
+    def isOpened(self):
+        return not self.released
+
+    def release(self):
+        self.released = True
+
+
+class StrandedWorkerStub:
+    def __init__(self, camera):
+        self.camera = camera
+        self.running = True
+
+    def isRunning(self):
+        return self.running
+
+    def is_reading(self, camera):
+        return self.running and camera is self.camera
+
+
+class StubSignal:
+    def connect(self, slot):
+        return None
+
+    def disconnect(self):
+        return None
+
+
+class StubRecognizer:
+    def __init__(self, start_result=True, close_result=True, stop_result=True, calls=None):
+        self.calls = [] if calls is None else calls
+        self.start_result = start_result
+        self.close_result = close_result
+        self.stop_result = stop_result
+        self.result_ready_signal = StubSignal()
+
+    def stop_capture(self):
+        self.calls.append('stop_capture')
+        return self.stop_result
+
+    def start_capture(self):
+        self.calls.append('start_capture')
+        return self.start_result
+
+    def close(self):
+        self.calls.append('close')
+        return self.close_result
+
+
+class StubCamera:
+    def __init__(self, calls):
+        self.calls = calls
+        self.destroyed = False
+
+    def settings(self):
+        self.calls.append('settings')
+
+    def destroy(self):
+        self.destroyed = True
 
 
 class InvalidRecognizer:
@@ -113,3 +179,121 @@ def test_recognition_rate_widgets_show_pipeline_and_camera_metrics(application):
     assert window.label_displayRateDetails.text() == 'camera 28.4 FPS | inference 17.3 ms'
     assert '5' in window.label_displayRateDetails.toolTip()
     window.close()
+
+
+def test_camera_reset_stops_capture_before_reopening(application, monkeypatch):
+    window = MainApp()
+    stub = StubRecognizer()
+    window.recognizer_app = stub
+    monkeypatch.setattr(
+        window, 'reset_camera', lambda: stub.calls.append('reset_camera') or True
+    )
+
+    window.pushbutton_reset_cap_click()
+
+    assert stub.calls == ['stop_capture', 'reset_camera', 'start_capture']
+    window.recognizer_app = None
+    window.close()
+
+
+def test_camera_settings_dialog_pauses_capture(application):
+    window = MainApp()
+    stub = StubRecognizer()
+    window.recognizer_app = stub
+    window.camera_app = StubCamera(stub.calls)
+
+    window.pushbutton_camera_settings_click()
+
+    assert stub.calls == ['stop_capture', 'settings', 'start_capture']
+    window.recognizer_app = None
+    window.camera_app = None
+    window.close()
+
+
+def test_failed_capture_start_is_reported_in_the_readout(application):
+    window = MainApp()
+    window.recognizer_app = StubRecognizer(start_result=False)
+
+    assert window.start_capture() is False
+    assert 'not running' in window.label_displayRateDetails.text()
+
+    window.recognizer_app = None
+    window.close()
+
+
+def test_close_event_releases_the_camera_after_a_clean_stop(application):
+    window = MainApp()
+    stub = StubRecognizer(close_result=True)
+    camera = StubCamera(stub.calls)
+    window.recognizer_app = stub
+    window.camera_app = camera
+
+    window.close()
+
+    assert camera.destroyed is True
+    assert window.camera_app is None
+
+
+def test_close_event_keeps_the_camera_when_capture_did_not_stop(application):
+    window = MainApp()
+    stub = StubRecognizer(close_result=False)
+    camera = StubCamera(stub.calls)
+    window.recognizer_app = stub
+    window.camera_app = camera
+
+    window.close()
+
+    assert camera.destroyed is False
+    assert window.camera_app is camera
+
+
+def test_camera_reset_is_skipped_when_capture_will_not_stop(application, monkeypatch):
+    window = MainApp()
+    stub = StubRecognizer(stop_result=False)
+    window.recognizer_app = stub
+    monkeypatch.setattr(
+        window, 'reset_camera', lambda: stub.calls.append('reset_camera') or True
+    )
+
+    window.pushbutton_reset_cap_click()
+
+    assert stub.calls == ['stop_capture']
+    assert 'not running' in window.label_displayRateDetails.text()
+    window.recognizer_app = None
+    window.close()
+
+
+def test_camera_settings_dialog_is_skipped_when_capture_will_not_stop(application):
+    window = MainApp()
+    stub = StubRecognizer(stop_result=False)
+    window.recognizer_app = stub
+    window.camera_app = StubCamera(stub.calls)
+
+    window.pushbutton_camera_settings_click()
+
+    assert stub.calls == ['stop_capture']
+    assert 'not running' in window.label_displayRateDetails.text()
+    window.recognizer_app = None
+    window.camera_app = None
+    window.close()
+
+
+def test_close_event_keeps_a_camera_held_by_a_stranded_worker(application):
+    window = MainApp()
+    camera = CameraApp.__new__(CameraApp)
+    capture = FakeCapture()
+    camera.cap = capture
+    worker = StrandedWorkerStub(camera)
+    camera_module.stranded_workers().append(worker)
+
+    try:
+        # The current recognizer stops cleanly; the camera is still held by the
+        # worker a previous recognizer stranded.
+        window.recognizer_app = StubRecognizer(close_result=True)
+        window.camera_app = camera
+
+        window.close()
+
+        assert capture.released is False
+    finally:
+        camera_module.stranded_workers().remove(worker)
