@@ -272,15 +272,30 @@ class MainApp(QMainWindow, Ui_MainWindow):
             )
         return True
 
+    def camera_is_busy(self):
+        """
+        bool: True while any capture worker still holds the camera.
+        """
+        if self.recognizer_app is not None and self.recognizer_app.capture_busy:
+            return True
+
+        return self.camera_app is not None and camera_is_stranded(self.camera_app)
+
     def report_capture_stopped(self, reason):
         """
         Log why the pipeline is not capturing and say so in the rate readout.
+
+        A worker that still holds the camera will let go of it eventually, so the
+        readout asks for a retry; anything else means no capture is running at
+        all and pressing the button again would not help.
 
         Args:
             reason (str): The message to log.
         """
         logging.error(reason)
-        self.label_displayRateDetails.setText('camera not running')
+        self.label_displayRateDetails.setText(
+            'camera busy, retry' if self.camera_is_busy() else 'camera not running'
+        )
 
     def stop_capture(self):
         """
@@ -297,9 +312,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         if self.recognizer_app.stop_capture():
             return True
 
-        self.report_capture_stopped(
-            "Capture worker did not stop; leaving the camera untouched"
-        )
+        self.report_capture_stopped("Capture worker did not stop; leaving the camera untouched")
         return False
 
     def start_capture(self):
