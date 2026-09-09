@@ -206,7 +206,7 @@ ready-to-extract **folder build** packaged as a Windows x64 ZIP.
 1. Position your hand in front of the camera so it is fully visible in the preview.
 2. Show a static ASL alphabet sign — the recognized letter, its confidence and the detected handedness are displayed live.
 3. **Speak** — enable the checkbox to have every recognized letter spoken aloud.
-4. **Average sign** — enable smoothing over the last *N* results (window size set with the slider) for a more stable output.
+4. **Smoothing** — press the *Smoothing* button to average the last *N* results (window size set with the *Window* slider) for a more stable output.
 5. Adjust recognition thresholds, camera resolution, capture backend or TTS rate/volume in the settings panels, then press the corresponding **Reset** button to apply.
 6. **Model** — load a different `.task` model from the `models/` directory at any time.
 

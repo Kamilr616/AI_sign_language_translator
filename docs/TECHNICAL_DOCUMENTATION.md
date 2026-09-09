@@ -119,7 +119,7 @@ Key details:
 
 ### 3.3 Result post-processing (smoothing)
 
-Raw per-frame classifications flicker. When the *Average sign* checkbox is enabled, `MainApp` maintains a **sliding window** (`last_results`) of the most recent `(sign, score)` pairs, bounded by the GUI slider value:
+Raw per-frame classifications flicker. When the *Smoothing* button is enabled, `MainApp` maintains a **sliding window** (`last_results`) of the most recent `(sign, score)` pairs, bounded by the *Window* slider value:
 
 1. `calculate_results_length` evicts the oldest entry once the window exceeds the configured size.
 2. `calculate_common_sign_and_average` (`src/main_app.py:219`) selects the **most frequent** sign in the window (majority vote) and reports the **average score of the samples classified as that sign**.
@@ -276,8 +276,8 @@ All parameters are adjustable from the GUI at runtime; changes take effect after
 
 | Parameter | GUI control | Meaning |
 |---|---|---|
-| Smoothing on/off | *Average sign* checkbox | Enables sliding-window majority voting |
-| Window size | *Range* slider | Number of recent results used for voting |
+| Smoothing on/off | *Smoothing* button | Enables sliding-window majority voting |
+| Window size | *Window* slider | Number of recent results used for voting |
 | Speech on/off | *Speak* checkbox | Speaks every recognized letter |
 | Rate / volume | TTS spin boxes | pyttsx3 speech rate (wpm) and volume (%) |
 
