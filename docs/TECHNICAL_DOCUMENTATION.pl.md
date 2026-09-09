@@ -78,37 +78,43 @@ flowchart TB
 
 ### 3.2 Pętla rozpoznawania i model wątkowości
 
-`GestureRecognizer` MediaPipe pracuje w trybie **`RunningMode.LIVE_STREAM`** — `recognize_async()` zwraca sterowanie natychmiast, a wynik dostarczany jest później w wątku roboczym MediaPipe poprzez `result_callback`. Odporna pętla asynchroniczna jest koordynowana kolejkowanym sygnałem Qt. Krótki `QTimer` jest używany tylko do ponowienia po chwilowym błędzie odczytu lub wysłania klatki:
+`GestureRecognizer` MediaPipe pracuje w trybie **`RunningMode.LIVE_STREAM`** — `recognize_async()` zwraca sterowanie natychmiast, a wynik dostarczany jest później w wątku roboczym MediaPipe poprzez `result_callback`. Klatki są przechwytywane w osobnym wątku (`CameraWorker`, `QThread` w `src/camera.py`), dzięki czemu wątek GUI nigdy nie czeka na matrycę kamery, a rozpoznawanie zawsze pracuje na najnowszej przechwyconej klatce. Krótki `QTimer` jest używany tylko do ponowienia po nieudanym wysłaniu klatki:
 
 ```mermaid
 sequenceDiagram
     participant M as MainApp (wątek główny Qt)
-    participant R as GestureRecognizerApp
+    participant W as CameraWorker (wątek przechwytywania)
     participant C as CameraApp
+    participant R as GestureRecognizerApp
     participant MP as Wątek roboczy MediaPipe
     participant T as SpeakerApp (wątek roboczy TTS)
 
-    M->>R: create_recognizer() + recognize_frame()
-    R->>C: read()
-    C-->>R: timestamp_ns, klatka RGB
+    M->>R: create_recognizer() + start_capture()
+    R->>W: start()
+    W->>C: read()
+    C-->>W: timestamp_ns, klatka RGB
+    Note over W: LatestFrameBuffer.put()<br/>wygrywa najnowsza klatka,<br/>nadpisana liczona jako porzucona
+    W--)R: frame_ready (kolejkowany)
     R->>MP: recognize_async(mp.Image, ts_ms)
     MP-->>R: handle_result(wynik, obraz, ts)
-    Note over R: rysowanie szkieletu, obliczenie FPS
-    R--)M: result_ready_signal.emit(obraz, tekst, wyniki, fps)
+    Note over R: rysowanie szkieletu, pomiar<br/>opóźnienia inferencji i FPS
+    R--)M: result_ready_signal.emit(obraz, tekst, wyniki, metryki)
     Note over M: głosowanie w oknie przesuwnym,<br/>aktualizacja etykiet i pasków
     M--)T: speak(litera)  [jeśli włączone]
     R--)M: recognize_next_signal (kolejkowany)
-    M->>R: recognize_frame()  → kolejna iteracja
+    M->>R: recognize_frame()  → kolejna klatka z bufora
 ```
 
 Najważniejsze szczegóły:
 
-- **Porządkowanie klatek** — MediaPipe wymaga monotonicznie rosnących znaczników czasu. `CameraApp.read()` znakuje każdą klatkę wartością `time.time_ns()`; `recognize_frame()` (`src/recognizer.py:140`) odrzuca klatki, których znacznik nie jest nowszy od ostatnio przetworzonego, po czym konwertuje nanosekundy na milisekundy dla `recognize_async`.
-- **Bezpieczne wątkowo aktualizacje UI** — `handle_result` działa w wątku MediaPipe, więc tworzy odłączony od tablicy źródłowej `QImage` i nie używa widżetów ani `QPixmap`. Następnie emituje `result_ready_signal` (`Signal(object, list, list, int)`); Qt kolejkuje połączenie do wątku głównego, gdzie `MainApp.process_result_and_frame` konwertuje obraz do `QPixmap` i aktualizuje interfejs.
-- **Odzyskiwanie i backpressure** — jednocześnie może oczekiwać tylko jedno `recognize_async()`. Callback kolejkuje następny odczyt w wątku Qt, a nieudany odczyt lub wysłanie jest ponawiane po 50 ms bez blokowania GUI.
-- **Pomiar FPS** — obliczany po każdym pełnym oknie 5 klatek jako `5 / Δt` (`calculate_fps`, `src/recognizer.py`).
+- **Przechwytywanie poza wątkiem GUI** — `CameraWorker` w pętli wywołuje `CameraApp.read()` i przechowuje w `LatestFrameBuffer` wyłącznie najnowszą klatkę; klatka nadpisana, zanim rozpoznawanie zdążyło ją pobrać, jest liczona w `dropped_frames`. Wątek emituje sygnał `frame_ready`, zamiast być odpytywany, więc bezczynne rozpoznawanie nie zużywa CPU.
+- **Porządkowanie klatek** — MediaPipe wymaga ściśle rosnących znaczników czasu w milisekundach. `CameraApp.read()` znakuje każdą klatkę wartością `time.monotonic_ns()`, a `GestureRecognizerApp.next_timestamp_ms()` przelicza ją na milisekundy, przesuwając wartość o jedną milisekundę do przodu, gdy dwie klatki trafią w tę samą milisekundę. Pominięcie takiej klatki zatrzymałoby potok aż do kolejnego przechwycenia, a MediaPipe wymaga jedynie monotoniczności, nie zgodności z zegarem ściennym.
+- **Bezpieczne wątkowo aktualizacje UI** — `handle_result` działa w wątku MediaPipe, więc tworzy odłączony od tablicy źródłowej `QImage` i nie używa widżetów ani `QPixmap`. Następnie emituje `result_ready_signal` (`Signal(object, list, list, object)`, gdzie czwartym argumentem jest migawka `PipelineMetrics`); Qt kolejkuje połączenie do wątku głównego, gdzie `MainApp.process_result_and_frame` konwertuje obraz do `QPixmap` i aktualizuje interfejs.
+- **Odzyskiwanie i backpressure** — jednocześnie może oczekiwać tylko jedno `recognize_async()`; klatki przechwycone w trakcie trwającej inferencji są porzucane, a nie kolejkowane. Callback kolejkuje kolejne wysłanie w wątku Qt, nieudane wysłanie jest ponawiane po 50 ms, a nieudany odczyt jest ponawiany przez wątek przechwytywania po 50 ms — w żadnym z tych przypadków GUI nie jest blokowane.
+- **Pomiar wydajności** — trzy odrębne liczby, wszystkie z zegarów monotonicznych: **FPS potoku** (wyniki rozpoznawania na sekundę, obliczane po każdym pełnym oknie 5 klatek jako `5 / Δt`, `calculate_fps`), **FPS kamery** (średnia krocząca z odstępów między klatkami dostarczanymi przez wątek przechwytywania) oraz **opóźnienie inferencji** w milisekundach (od `recognize_async()` do wejścia w callback, średnia krocząca). Pojedyncza liczba nie pozwalała odróżnić wolnej kamery od wolnego modelu.
+- **Zatrzymywanie przechwytywania** — `stop_capture()` prosi wątek o zakończenie i czeka na niego (limit 2 s), zanim urządzenie zostanie ponownie otwarte lub zwolnione. Dzieje się to przy każdym resecie kamery, resecie rozpoznawania i przy zamykaniu aplikacji, więc kamera nigdy nie jest jednocześnie czytana i otwierana, a żaden callback nie trafia do zwolnionego obiektu.
 - **Współbieżność TTS** — `SpeakerApp` uruchamia jeden długożyjący wątek roboczy będący demonem, który przez cały czas życia jest właścicielem silnika pyttsx3 i obsługuje jego zewnętrzną pętlę zdarzeń (`startLoop(False)` oraz cykliczne `iterate()`), czekając na callback `finished-utterance`, zanim pobierze kolejny tekst; pozwala to również uniknąć regresji `runAndWait()` w pyttsx3 2.99, która anulowała każdą wypowiedź po pierwszej. `speak(text)` nie blokuje wywołującego: dodaje tekst do kolejki, a oczekujące żądania są redukowane tak, że wypowiadany jest tylko najnowszy tekst; żądania są ignorowane, gdy wątek roboczy nie działa (`src/speaker.py`).
-- **Zamykanie** — `MainApp.closeEvent` odłącza sygnał, zamyka rozpoznawanie, zwalnia kamerę i zatrzymuje silnik TTS — w tej kolejności.
+- **Zamykanie** — `MainApp.closeEvent` odłącza sygnał, zamyka rozpoznawanie (co najpierw zatrzymuje wątek przechwytywania i czeka na niego), zwalnia kamerę i zatrzymuje silnik TTS — w tej kolejności.
 
 ### 3.3 Przetwarzanie końcowe wyników (wygładzanie)
 
@@ -137,21 +143,29 @@ Tworzy `QApplication`, konfiguruje `logging` (poziom INFO, UTF-8), nakłada arku
 | `reset_tts()` | Buduje od nowa `SpeakerApp` z wybranym tempem i głośnością |
 | `open_file_dialog()` | Pozwala wybrać plik modelu `.task`; wyzwala `reset_recognizer()` |
 | `populate_cameras()` / `populate_camera_drivers()` | Enumeruje urządzenia wideo (`QMediaDevices.videoInputs()`) i backendy OpenCV (`cv2.videoio_registry.getCameraBackends()`) |
-| `process_result_and_frame(frame, text, scores, fps)` | Slot Qt: wyświetla klatkę z adnotacjami, FPS, ręczność i pewność; stosuje wygładzanie; przekazuje literę do TTS |
+| `process_result_and_frame(frame, text, scores, metrics)` | Slot Qt: wyświetla klatkę z adnotacjami, wskaźniki wydajności, ręczność i pewność; stosuje wygładzanie; przekazuje literę do TTS |
+| `update_recognition_rate(metrics)` | Aktualizuje etykietę i pasek FPS potoku oraz wiersz z FPS kamery i opóźnieniem inferencji |
 | `calculate_common_sign_and_average()` | Głosowanie większościowe + średni wynik w oknie przesuwnym |
 | `closeEvent(event)` | Uporządkowane zwolnienie zasobów |
 
 Modelem domyślnym jest `models/gesture_recognizer_asl_0.task`. Jego ścieżka bezwzględna jest wyznaczana z katalogu repozytorium dla kodu źródłowego albo z katalogu pakietu PyInstaller dla wydania, więc start nie zależy od katalogu roboczego wywołującego.
 
-### 4.3 `src/camera.py` — `CameraApp`
+### 4.3 `src/camera.py` — `CameraApp`, `CameraWorker`
 
-Cienka nakładka na `cv2.VideoCapture`:
+`CameraApp` to cienka nakładka na `cv2.VideoCapture`:
 
 - `open(fd, camera_driver)` — otwiera urządzenie `fd` z jawnie wskazanym backendem (domyślnie `cv2.CAP_DSHOW`; w Windows preferowany jest DirectShow, ponieważ udostępnia natywne okno ustawień).
 - `configure(width, height)` — żąda 30 FPS oraz zadanego rozmiaru klatki.
 - `settings()` — otwiera natywne okno właściwości sterownika (`CAP_PROP_SETTINGS`, tylko DirectShow).
-- `read()` — zwraca `(time.time_ns(), klatka_rgb)`; konwersja BGR→RGB odbywa się tutaj, dzięki czemu dalsze komponenty (MediaPipe, Qt) zawsze otrzymują RGB. W razie błędu zwraca `(timestamp, None)`.
+- `read()` — zwraca `(time.monotonic_ns(), klatka_rgb)`; zegar monotoniczny nigdy nie cofa się przy zmianie czasu systemowego, a konwersja BGR→RGB odbywa się tutaj, dzięki czemu dalsze komponenty (MediaPipe, Qt) zawsze otrzymują RGB. W razie błędu zwraca `(timestamp, None)`. Wywołanie pozostaje synchroniczne i nadal można go używać bezpośrednio, na przykład w testach.
 - `destroy()` / `is_closed()` — zwolnienie zasobów i sprawdzenie stanu.
+
+`CameraWorker(QThread)` przenosi blokujące przechwytywanie poza wątek GUI:
+
+- `start()` / `stop(timeout=2.0)` — uruchamia pętlę przechwytywania albo prosi ją o zakończenie i czeka na wątek; `stop()` loguje błąd i zwraca `False`, jeśli wątek nie zakończy się w zadanym czasie. Zatrzymany wątek można uruchomić ponownie.
+- `capture_once()` — odczytuje jedną klatkę, aktualizuje kroczące `camera_fps` i publikuje klatkę. Zwraca `False`, gdy kamera jest zamknięta lub odczyt się nie powiódł — pętla robi wtedy 50 ms przerwy zamiast kręcić się w kółko.
+- `frame_ready` — sygnał Qt emitowany po każdej opublikowanej klatce; budzi rozpoznawanie, które dzięki temu nie musi odpytywać bufora.
+- `LatestFrameBuffer` — jednoelementowy, chroniony blokadą bufor wymiany między wątkami. `put()` nadpisuje niepobraną klatkę i zlicza ją w `dropped_frames`, `take()` zwraca najnowszą klatkę albo `None`, a `clear()` porzuca ją bez zliczania.
 
 ### 4.4 `src/recognizer.py` — `GestureRecognizerApp`
 
@@ -162,8 +176,11 @@ Hermetyzuje API MediaPipe Tasks:
   - `RunningMode.LIVE_STREAM` + `result_callback=self.handle_result`,
   - progami detekcji dłoni przekazanymi z GUI,
   - `custom_gesture_classifier_options = ClassifierOptions(max_results=1, score_threshold=…)` — zwracany jest tylko jeden najlepszy gest powyżej progu użytkownika.
-- `recognize_frame()` pobiera świeżą klatkę z `CameraApp`, pomija nieaktualne znaczniki czasu, opakowuje tablicę w `mediapipe.Image(SRGB)` i wywołuje `recognize_async`.
-- `handle_result()` nanosi adnotacje, oblicza FPS, emituje `result_ready_signal` i zawsze emituje kolejkowany `recognize_next_signal`, dopóki recognizer jest aktywny, również po obsługiwalnym błędzie callbacku.
+- `start_capture()` / `stop_capture()` tworzą, uruchamiają i zatrzymują `CameraWorker`; `stop_capture()` czyści też bufor klatek, więc wznowiony potok nigdy nie startuje od nieaktualnej klatki.
+- `recognize_frame()` pobiera najnowszą klatkę z bufora, opakowuje tablicę w `mediapipe.Image(SRGB)` i wywołuje `recognize_async`. Wraca natychmiast, gdy trwa inna inferencja, a brak klatki w buforze to normalny stan bezczynności — pętlę wznawia kolejny sygnał `frame_ready`.
+- `next_timestamp_ms()` przelicza monotoniczny znacznik przechwycenia na ściśle rosnącą wartość w milisekundach, wymaganą przez MediaPipe.
+- `handle_result()` nanosi adnotacje, zapisuje opóźnienie inferencji, oblicza FPS potoku, emituje `result_ready_signal` wraz z migawką `PipelineMetrics` i zawsze emituje kolejkowany `recognize_next_signal`, dopóki recognizer jest aktywny, również po obsługiwalnym błędzie callbacku.
+- `metrics()` zwraca `PipelineMetrics(pipeline_fps, camera_fps, inference_ms, dropped_frames)` — liczby prezentowane w grupie *Recognition rate*.
 - `process_recognition_result()` konwertuje punkty charakterystyczne pierwszej wykrytej dłoni do protobufa `NormalizedLandmarkList` i rysuje je funkcją `mp.solutions.drawing_utils.draw_landmarks`, korzystając z niestandardowych stylów z `custom_landmarks.py`. Z wyniku wyodrębnia nazwy i wyniki `[gest, ręczność]`.
 - `create_scaled_qimage()` kopiuje klatkę NumPy z adnotacjami do odłączonego `QImage`, skalując do 640×480 (z zachowaniem proporcji, szybka transformacja) tylko wtedy, gdy rozdzielczość źródłowa jest inna.
 
@@ -188,7 +205,7 @@ Synteza mowy offline oparta na `pyttsx3`:
 pyside6-uic src/gui.ui -o src/gui.py
 ```
 
-Okno zawiera podgląd wideo (`label_displayFrame`, 640×480), panel wyników (rozpoznany znak, ręczność, paski pewności, pasek FPS) oraz zakładki ustawień (kamera, rozpoznawanie, TTS, wyniki).
+Okno zawiera podgląd wideo (`label_displayFrame`, 640×480), panel wyników (rozpoznany znak, ręczność, paski pewności, etykietę i pasek FPS potoku oraz wiersz `label_displayRateDetails` z FPS kamery i opóźnieniem inferencji) oraz zakładki ustawień (kamera, rozpoznawanie, TTS, wyniki).
 
 ## 5. Potok treningu modelu
 
@@ -262,6 +279,14 @@ Wszystkie parametry można zmieniać z poziomu GUI w trakcie działania; zmiany 
 | Rozmiar okna | Suwak *Range* | Liczba ostatnich wyników użytych do głosowania |
 | Mowa wł./wył. | Pole *Speak* | Wypowiada każdą rozpoznaną literę |
 | Tempo / głośność | Pola TTS | Tempo mowy pyttsx3 (słowa/min) i głośność (%) |
+
+### 6.4 Liczba klatek, ekspozycja i oświetlenie
+
+Tempo rozpoznawania jest zwykle ograniczone przez kamerę, a nie przez model. Kamera UVC z **automatyczną ekspozycją** wydłuża w słabym świetle czas naświetlania i po cichu dzieli swoją liczbę klatek: urządzenie nadal deklaruje 30 FPS, podczas gdy liczba unikalnych dostarczonych klatek spada do około 10,4 FPS (96 ms na klatkę) lub 7,8 FPS (128 ms na klatkę). W pomiarach na kamerze Chicony USB2.0 (backend DirectShow, 640×480 YUY2) potok raportował wtedy około 8 FPS, mimo że pojedyncza inferencja zajmuje jedynie 17–26 ms.
+
+- Programowe ustawienie ekspozycji (`CAP_PROP_AUTO_EXPOSURE` / `CAP_PROP_EXPOSURE`) jest przez ten sterownik odrzucane zarówno na backendzie DirectShow, jak i Media Foundation, a zmiana backendu nie pomaga — Media Foundation raportuje wysoką liczbę klatek, ale zwraca klatki zduplikowane.
+- Rozwiązaniem, które działa, jest natywne okno właściwości sterownika: naciśnij **Camera settings**, przejdź na zakładkę *Regulacja kamery* (*Camera Control* w angielskim Windows), odznacz **Auto** przy pozycji *Ekspozycja*, wybierz krótszy czas naświetlania i popraw oświetlenie pomieszczenia.
+- Rozdzielony odczyt w grupie *Recognition rate* pozwala odróżnić obie przyczyny: niski **FPS kamery** przy niskim czasie **inference** wskazuje na ekspozycję i oświetlenie, a nie na model czy procesor.
 
 ## 7. Uruchamianie i wdrożenie
 
