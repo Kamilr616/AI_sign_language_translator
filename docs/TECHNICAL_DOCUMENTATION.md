@@ -160,7 +160,7 @@ Creates the `QApplication`, configures `logging` (INFO level, UTF-8), registers 
 | `set_muted(muted)` | Silences the voice (key M, the *MUTE* pill, the *View* menu) without changing the speaker settings; `translate_to_speech` drops texts while muted and the utterance in progress finishes |
 | `apply_layout()` | Places the cards with `board.compute_layout` and resizes the preview, the text bar and the transcript to their cards |
 | `refresh_text_bar()` | Shows the composed text, elided on the left when it is wider than the bar |
-| `closeEvent(event)` | Orderly resource release |
+| `closeEvent(event)` | Orderly resource release; the camera is released only when the capture worker has really stopped |
 
 The default model is `models/gesture_recognizer_asl_0.task`. Its absolute path is derived from the repository root in source runs or from PyInstaller's bundle directory in packaged runs, so startup does not depend on the caller's working directory.
 
@@ -184,7 +184,7 @@ Encapsulates the MediaPipe Tasks API:
   - `RunningMode.LIVE_STREAM` + `result_callback=self.handle_result`,
   - hand-detection thresholds passed from the GUI,
   - `custom_gesture_classifier_options = ClassifierOptions(max_results=1, score_threshold=…)` — only the single best gesture above the user threshold is returned.
-- `recognize_frame()` starts the capture thread (a no-op while it is running); `stop_capture()` stops it and waits for it to exit.
+- `recognize_frame()` starts the capture thread (a no-op while it is running); `stop_capture()` stops it and waits for it to exit. Both `stop_capture()` and `close()` return `False` when the worker was still inside a blocking camera read after the timeout (2 s); the worker then still holds the camera lock, so `MainApp` leaves the device alone: *Reset* on the camera card shows a warning instead of reopening it, and closing the window skips the release (the operating system frees the device at exit).
 - `submit_frame()` wraps one RGB frame in `mediapipe.Image(SRGB)`, assigns a strictly increasing millisecond timestamp and calls `recognize_async`, marking the single in-flight slot as busy.
 - `handle_result()` frees the slot, annotates the frame, computes FPS and emits `result_ready_signal`; a recoverable callback error is logged and the loop continues.
 - `process_recognition_result()` converts the landmarks of the first detected hand into a `NormalizedLandmarkList` protobuf and draws them with `mp.solutions.drawing_utils.draw_landmarks`, using the custom styles from `custom_landmarks.py`. It extracts `[gesture, handedness]` names and scores from the result. When no sign passes the score threshold (including the trained `none` class), MediaPipe reports a background category with an empty name; it is returned as `['', handedness]` with score `0.0`, which the window shows as `?`.

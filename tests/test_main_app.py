@@ -643,3 +643,64 @@ def test_the_mute_pill_and_the_menu_entry_stay_in_step_without_touching_the_sett
     assert window.tts_app.spoken == ['y']
     window.tts_app = None
     window.close()
+
+
+class FakeSignal:
+    def disconnect(self):
+        return None
+
+
+class StuckRecognizer:
+    """Recognizer whose capture worker never leaves its camera read."""
+
+    def __init__(self):
+        self.calls = []
+        self.result_ready_signal = FakeSignal()
+
+    def stop_capture(self, timeout=2.0):
+        self.calls.append('stop')
+        return False
+
+    def close(self, timeout=2.0):
+        self.calls.append('close')
+        return False
+
+    def recognize_frame(self):
+        self.calls.append('start')
+
+
+class FakeCameraApp:
+    def __init__(self):
+        self.destroyed = False
+
+    def destroy(self):
+        self.destroyed = True
+
+
+def test_camera_reset_is_refused_while_the_worker_is_still_reading(application, monkeypatch):
+    window = MainApp()
+    window.recognizer_app = StuckRecognizer()
+    warnings = []
+    monkeypatch.setattr(main_app.QMessageBox, 'warning', lambda *args: warnings.append(args[1:3]))
+    monkeypatch.setattr(window, 'reset_camera', lambda: pytest.fail('the camera must not be touched'))
+
+    window.pushbutton_reset_cap_click()
+
+    assert warnings and warnings[0][0] == 'Camera busy'
+    assert window.recognizer_app.calls == ['stop']
+    window.recognizer_app = None
+    window.close()
+
+
+def test_closing_leaves_the_camera_alone_while_the_worker_is_still_reading(application):
+    window = MainApp()
+    recognizer = StuckRecognizer()
+    camera = FakeCameraApp()
+    window.recognizer_app = recognizer
+    window.camera_app = camera
+
+    window.close()
+
+    assert recognizer.calls == ['close']
+    assert camera.destroyed is False
+    assert window.recognizer_app is None and window.camera_app is None

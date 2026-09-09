@@ -193,12 +193,42 @@ def test_close_stops_the_capture_worker():
     app.recognize_frame()
     assert wait_until(lambda: camera.reads >= 1)
     thread = app._capture_thread
-    app.close()
+    assert app.close() is True
 
     assert not thread.is_alive()
     reads = camera.reads
     time.sleep(0.05)
     assert camera.reads == reads
+
+
+class BlockedCamera(FakeCamera):
+    """Camera whose read blocks until released, like a wedged device driver."""
+
+    def __init__(self):
+        super().__init__()
+        self.release = threading.Event()
+
+    def read(self):
+        self.release.wait()
+        return super().read()
+
+
+def test_close_reports_a_worker_stuck_in_a_camera_read():
+    camera = BlockedCamera()
+    app = make_recognizer_app(camera)
+    app.recognizer = FakeRecognizer()
+
+    app.recognize_frame()
+    thread = app._capture_thread
+    assert wait_until(lambda: thread.is_alive())
+
+    assert app.stop_capture(timeout=0.05) is False
+    assert thread.is_alive()
+    assert app.close(timeout=0.05) is False
+    assert app.recognizer is None
+
+    camera.release.set()
+    assert wait_until(lambda: not thread.is_alive())
 
 
 def test_fps_waits_for_complete_sample_window(monkeypatch):

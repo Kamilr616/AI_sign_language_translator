@@ -160,7 +160,7 @@ Tworzy `QApplication`, konfiguruje `logging` (poziom INFO, UTF-8), rejestruje do
 | `set_muted(muted)` | Wycisza głos (klawisz M, pigułka *MUTE*, menu *View*) bez zmiany ustawień mowy; `translate_to_speech` odrzuca teksty w czasie wyciszenia, a wypowiedź w toku dokańcza się |
 | `apply_layout()` | Rozmieszcza karty przez `board.compute_layout` i dopasowuje podgląd, pasek tekstu i transkrypt do ich kart |
 | `refresh_text_bar()` | Pokazuje złożony tekst, z wielokropkiem z lewej, gdy jest szerszy niż pasek |
-| `closeEvent(event)` | Uporządkowane zwolnienie zasobów |
+| `closeEvent(event)` | Uporządkowane zwolnienie zasobów; kamera jest zwalniana tylko wtedy, gdy wątek przechwytywania naprawdę się zatrzymał |
 
 Modelem domyślnym jest `models/gesture_recognizer_asl_0.task`. Jego ścieżka bezwzględna jest wyznaczana z katalogu repozytorium dla kodu źródłowego albo z katalogu pakietu PyInstaller dla wydania, więc start nie zależy od katalogu roboczego wywołującego.
 
@@ -184,7 +184,7 @@ Hermetyzuje API MediaPipe Tasks:
   - `RunningMode.LIVE_STREAM` + `result_callback=self.handle_result`,
   - progami detekcji dłoni przekazanymi z GUI,
   - `custom_gesture_classifier_options = ClassifierOptions(max_results=1, score_threshold=…)` — zwracany jest tylko jeden najlepszy gest powyżej progu użytkownika.
-- `recognize_frame()` uruchamia wątek przechwytywania (nic nie robi, gdy ten już działa); `stop_capture()` zatrzymuje go i czeka na jego zakończenie.
+- `recognize_frame()` uruchamia wątek przechwytywania (nic nie robi, gdy ten już działa); `stop_capture()` zatrzymuje go i czeka na jego zakończenie. Zarówno `stop_capture()`, jak i `close()` zwracają `False`, gdy po limicie czasu (2 s) wątek wciąż tkwi w blokującym odczycie kamery; trzyma wtedy nadal blokadę kamery, więc `MainApp` nie rusza urządzenia: *Reset* na karcie kamery pokazuje ostrzeżenie zamiast otwierać ją ponownie, a zamknięcie okna pomija zwolnienie (system operacyjny zwalnia urządzenie przy wyjściu z procesu).
 - `submit_frame()` opakowuje jedną klatkę RGB w `mediapipe.Image(SRGB)`, nadaje ściśle rosnący znacznik czasu w milisekundach i wywołuje `recognize_async`, oznaczając jedyny slot wnioskowania jako zajęty.
 - `handle_result()` zwalnia slot, nanosi adnotacje, oblicza FPS i emituje `result_ready_signal`; obsługiwalny błąd callbacku jest logowany, a pętla działa dalej.
 - `process_recognition_result()` konwertuje punkty charakterystyczne pierwszej wykrytej dłoni do protobufa `NormalizedLandmarkList` i rysuje je funkcją `mp.solutions.drawing_utils.draw_landmarks`, korzystając z niestandardowych stylów z `custom_landmarks.py`. Z wyniku wyodrębnia nazwy i wyniki `[gest, ręczność]`. Gdy żaden znak nie przekracza progu (także wytrenowana klasa `none`), MediaPipe zgłasza kategorię tła z pustą nazwą; jest ona zwracana jako `['', ręczność]` z wynikiem `0.0`, co okno pokazuje jako `?`.

@@ -311,13 +311,23 @@ class GestureRecognizerApp(QObject):
 
         return frame, text, scores
 
-    def close(self):
+    def close(self, timeout=2.0):
         """
         Stop the capture worker and release MediaPipe resources.
+
+        MediaPipe is closed either way: once ``_closing`` is set the loop never
+        submits again, and a submission racing with the close fails quietly.
+
+        Returns:
+            bool: True when the worker is gone, False when it was still inside
+                  a blocking camera read after the timeout. In that case the
+                  worker still holds the camera lock, so the caller must not
+                  reopen, reconfigure or release the device until it exits.
         """
         self._closing = True
-        self.stop_capture()
+        stopped = self.stop_capture(timeout)
         self._release_slot()
         if self.recognizer:
             self.recognizer.close()
             self.recognizer = None
+        return stopped

@@ -842,10 +842,18 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
         The capture worker is paused while the device is reopened and restarted
         afterwards; if the device could not be opened the worker keeps polling,
-        so a later successful reset resumes recognition on its own.
+        so a later successful reset resumes recognition on its own. When the
+        worker is still inside a blocking camera read after the stop timeout,
+        the device is left alone, because reopening it would wait on the camera
+        lock and freeze the window; the user is asked to try again instead.
         """
-        if self.recognizer_app is not None:
-            self.recognizer_app.stop_capture()
+        if self.recognizer_app is not None and not self.recognizer_app.stop_capture():
+            QMessageBox.warning(
+                self,
+                "Camera busy",
+                "The camera is still finishing a frame. Try Reset again in a moment.",
+            )
+            return
         self.reset_camera()
         if self.recognizer_app is not None:
             self.recognizer_app.recognize_frame()
@@ -854,17 +862,26 @@ class MainApp(QMainWindow, Ui_MainWindow):
         """
         Release resources when closing the application.
 
+        The camera is released only when the capture worker has really
+        stopped; a worker still blocked in a camera read holds the camera
+        lock, and waiting for it here would hang the close. The device is then
+        left to the operating system, which frees it when the process exits.
+
         Args:
             event (QCloseEvent): The close event.
         """
+        worker_stopped = True
         if self.recognizer_app is not None:
             if self.recognizer_app.result_ready_signal:
                 self.recognizer_app.result_ready_signal.disconnect()
-            self.recognizer_app.close()
+            worker_stopped = self.recognizer_app.close()
             self.recognizer_app = None
 
         if self.camera_app is not None:
-            self.camera_app.destroy()
+            if worker_stopped:
+                self.camera_app.destroy()
+            else:
+                logging.warning("Capture worker still reading; leaving the camera to the operating system")
             self.camera_app = None
 
         if self.tts_app is not None:
