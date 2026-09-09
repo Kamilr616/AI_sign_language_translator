@@ -104,9 +104,9 @@ class FakeResult:
     handedness = []
 
 
-def build_app(fake_recognizer=None, camera=None):
+def build_app(fake_recognizer=None, camera=None, **kwargs):
     app = recognizer.GestureRecognizerApp(
-        'unused.task', 1, 0.65, 0.65, 0.55, 0.6, camera or FakeCamera()
+        'unused.task', 1, 0.65, 0.65, 0.55, 0.6, camera or FakeCamera(), **kwargs
     )
     app.recognizer = fake_recognizer if fake_recognizer is not None else FakeRecognizer()
     return app
@@ -364,17 +364,52 @@ def test_close_stops_the_capture_worker():
     assert app._closing is True
 
 
-def test_fps_waits_for_complete_sample_window(monkeypatch):
-    timestamps = iter([100.0, 101.0])
-    monkeypatch.setattr(recognizer.time, 'monotonic', lambda: next(timestamps))
-    app = build_app()
+def test_pipeline_rate_averages_the_last_result_intervals():
+    # 31 results 33.3 ms apart: 30 intervals, so the window is exactly full.
+    ticks = iter([index * 0.0333 for index in range(31)])
+    app = build_app(clock=lambda: next(ticks))
 
-    for _ in range(4):
+    for _ in range(31):
         app.calculate_fps()
-    assert app.fps == 0
+
+    assert app.fps == pytest.approx(30.0, abs=0.1)
+    app.close()
+
+
+def test_pipeline_rate_stays_zero_until_a_second_result_arrives():
+    ticks = iter([100.0, 100.04])
+    app = build_app(clock=lambda: next(ticks))
 
     app.calculate_fps()
-    assert app.fps == 5
+    assert app.fps == 0.0
+
+    app.calculate_fps()
+    assert app.fps == pytest.approx(25.0)
+    app.close()
+
+
+def test_pipeline_rate_forgets_results_older_than_its_window():
+    # Two slow results, then two fast ones; only the last two intervals count.
+    ticks = iter([0.0, 1.0, 2.0, 2.05, 2.10])
+    app = build_app(fps_window=2, clock=lambda: next(ticks))
+
+    for _ in range(5):
+        app.calculate_fps()
+
+    assert app.fps == pytest.approx(20.0)
+    app.close()
+
+
+def test_restarting_capture_forgets_the_measured_rate():
+    ticks = iter([0.0, 0.04, 99.0])
+    app = build_app(camera=FakeCamera(closed=True), clock=lambda: next(ticks))
+    app.calculate_fps()
+    app.calculate_fps()
+    assert app.fps > 0
+
+    app.start_capture()
+
+    assert app.fps == 0.0
     app.close()
 
 
