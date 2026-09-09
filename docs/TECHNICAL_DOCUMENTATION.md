@@ -78,37 +78,43 @@ flowchart TB
 
 ### 3.2 Recognition loop and threading model
 
-MediaPipe's `GestureRecognizer` runs in **`RunningMode.LIVE_STREAM`**, which means `recognize_async()` returns immediately and the result is delivered later on a MediaPipe worker thread via the `result_callback`. The application builds a resilient asynchronous loop around a queued Qt signal. A short `QTimer` retry is used only after a transient capture or submission failure:
+MediaPipe's `GestureRecognizer` runs in **`RunningMode.LIVE_STREAM`**, which means `recognize_async()` returns immediately and the result is delivered later on a MediaPipe worker thread via the `result_callback`. Frames are captured on a dedicated thread (`CameraWorker`, a `QThread` in `src/camera.py`), so the GUI thread never blocks on the camera sensor, and the recognizer always works on the newest captured frame. A short `QTimer` retry is used only after a failed submission:
 
 ```mermaid
 sequenceDiagram
     participant M as MainApp (Qt main thread)
-    participant R as GestureRecognizerApp
+    participant W as CameraWorker (capture thread)
     participant C as CameraApp
+    participant R as GestureRecognizerApp
     participant MP as MediaPipe worker thread
     participant T as SpeakerApp (TTS worker thread)
 
-    M->>R: create_recognizer() + recognize_frame()
-    R->>C: read()
-    C-->>R: timestamp_ns, RGB frame
+    M->>R: create_recognizer() + start_capture()
+    R->>W: start()
+    W->>C: read()
+    C-->>W: timestamp_ns, RGB frame
+    Note over W: LatestFrameBuffer.put()<br/>newest frame wins,<br/>the overwritten one is counted as dropped
+    W--)R: frame_ready (queued)
     R->>MP: recognize_async(mp.Image, ts_ms)
     MP-->>R: handle_result(result, image, ts)
-    Note over R: draw landmarks, compute FPS
-    R--)M: result_ready_signal.emit(image, text, scores, fps)
+    Note over R: draw landmarks, measure<br/>inference latency and FPS
+    R--)M: result_ready_signal.emit(image, text, scores, metrics)
     Note over M: sliding-window voting,<br/>update labels & progress bars
     M--)T: speak(letter)  [if enabled]
     R--)M: recognize_next_signal (queued)
-    M->>R: recognize_frame()  → next iteration
+    M->>R: recognize_frame()  → next buffered frame
 ```
 
 Key details:
 
-- **Frame ordering** — MediaPipe requires monotonically increasing timestamps. `CameraApp.read()` stamps each frame with `time.time_ns()`; `recognize_frame()` (`src/recognizer.py:140`) discards frames whose timestamp is not newer than the last one processed, then converts nanoseconds to milliseconds for `recognize_async`.
-- **Thread-safe UI updates** — `handle_result` runs on a MediaPipe thread, so it creates a detached `QImage` and never touches widgets or `QPixmap`. It emits `result_ready_signal` (a `Signal(object, list, list, int)`); Qt queues the connection to the main thread, where `MainApp.process_result_and_frame` converts the image to `QPixmap` and updates the UI.
-- **Recovery and backpressure** — only one `recognize_async()` call may be pending. Callback completion queues the next capture on the Qt thread; failed reads or submissions retry after 50 ms without blocking the GUI.
-- **FPS measurement** — computed after each complete 5-frame sample window as `5 / Δt` (`calculate_fps`, `src/recognizer.py`).
+- **Capture off the GUI thread** — `CameraWorker` loops on `CameraApp.read()` and keeps only the newest frame in a `LatestFrameBuffer`; a frame overwritten before the recognizer consumes it is counted in `dropped_frames`. The worker emits `frame_ready` instead of being polled, so an idle recognizer costs no CPU.
+- **Frame ordering** — MediaPipe requires strictly increasing millisecond timestamps. `CameraApp.read()` stamps each frame with `time.monotonic_ns()`, and `GestureRecognizerApp.next_timestamp_ms()` converts it to milliseconds, nudging the value one millisecond forward when two frames fall into the same millisecond. Skipping such a frame would idle the pipeline until the next capture, and MediaPipe only needs monotonicity, not wall-clock accuracy.
+- **Thread-safe UI updates** — `handle_result` runs on a MediaPipe thread, so it creates a detached `QImage` and never touches widgets or `QPixmap`. It emits `result_ready_signal` (a `Signal(object, list, list, object)` whose fourth argument is a `PipelineMetrics` snapshot); Qt queues the connection to the main thread, where `MainApp.process_result_and_frame` converts the image to `QPixmap` and updates the UI.
+- **Recovery and backpressure** — only one `recognize_async()` call may be pending; frames captured while an inference is in flight are dropped instead of queued. Callback completion queues the next submission on the Qt thread; a failed submission retries after 50 ms and a failed read is retried by the capture worker after 50 ms, neither blocking the GUI.
+- **Rate measurement** — three separate numbers, all taken from monotonic clocks: the **pipeline FPS** (recognition results per second, computed after each complete 5-frame sample window as `5 / Δt`, `calculate_fps`), the **camera FPS** (rolling average of the intervals between frames delivered by the worker) and the **inference latency** in milliseconds (`recognize_async()` to callback entry, rolling average). A single number could not tell a slow camera apart from a slow model.
+- **Stopping capture** — `stop_capture()` asks the worker to finish and joins it (2 s timeout) before the device is re-opened or released. It runs on every camera reset, recognizer reset and on shutdown, so the camera is never read and re-opened at the same time and no callback lands on a released object.
 - **TTS concurrency** — `SpeakerApp` runs a single long-lived daemon worker thread that owns the pyttsx3 engine for its whole lifetime and drives its external event loop (`startLoop(False)` plus periodic `iterate()`), waiting for the `finished-utterance` callback before it takes the next text; this also avoids a pyttsx3 2.99 `runAndWait()` regression that cancelled every utterance after the first. `speak(text)` is non-blocking: it enqueues the text, and pending requests are coalesced so only the newest one is spoken; requests are ignored while the worker is not running (`src/speaker.py`).
-- **Shutdown** — `MainApp.closeEvent` disconnects the signal, closes the recognizer, releases the camera and stops the TTS engine, in that order.
+- **Shutdown** — `MainApp.closeEvent` disconnects the signal, closes the recognizer (which stops and joins the capture worker first), releases the camera and stops the TTS engine, in that order.
 
 ### 3.3 Result post-processing (smoothing)
 
@@ -137,21 +143,29 @@ Creates the `QApplication`, configures `logging` (INFO level, UTF-8), applies th
 | `reset_tts()` | Rebuilds `SpeakerApp` with the selected rate and volume |
 | `open_file_dialog()` | Lets the user pick a `.task` model file; triggers `reset_recognizer()` |
 | `populate_cameras()` / `populate_camera_drivers()` | Enumerates video devices (`QMediaDevices.videoInputs()`) and OpenCV capture backends (`cv2.videoio_registry.getCameraBackends()`) |
-| `process_result_and_frame(frame, text, scores, fps)` | Qt slot: renders the annotated frame, FPS, handedness and confidence; applies smoothing; forwards the letter to TTS |
+| `process_result_and_frame(frame, text, scores, metrics)` | Qt slot: renders the annotated frame, the recognition rate readout, handedness and confidence; applies smoothing; forwards the letter to TTS |
+| `update_recognition_rate(metrics)` | Updates the pipeline FPS label and bar plus the camera rate / inference latency line |
 | `calculate_common_sign_and_average()` | Majority vote + average score over the sliding window |
 | `closeEvent(event)` | Orderly resource release |
 
 The default model is `models/gesture_recognizer_asl_0.task`. Its absolute path is derived from the repository root in source runs or from PyInstaller's bundle directory in packaged runs, so startup does not depend on the caller's working directory.
 
-### 4.3 `src/camera.py` — `CameraApp`
+### 4.3 `src/camera.py` — `CameraApp`, `CameraWorker`
 
-Thin wrapper around `cv2.VideoCapture`:
+`CameraApp` is a thin wrapper around `cv2.VideoCapture`:
 
 - `open(fd, camera_driver)` — opens device `fd` with an explicit backend (default `cv2.CAP_DSHOW`; on Windows DirectShow is preferred because it exposes the native settings dialog).
 - `configure(width, height)` — requests 30 FPS and the desired frame size.
 - `settings()` — opens the driver's native property dialog (`CAP_PROP_SETTINGS`, DirectShow only).
-- `read()` — returns `(time.time_ns(), frame_rgb)`; the BGR→RGB conversion is done here so that downstream consumers (MediaPipe, Qt) always receive RGB. On failure returns `(timestamp, None)`.
+- `read()` — returns `(time.monotonic_ns(), frame_rgb)`; the monotonic clock never jumps backwards when the system clock is adjusted, and the BGR→RGB conversion is done here so that downstream consumers (MediaPipe, Qt) always receive RGB. On failure returns `(timestamp, None)`. The call stays synchronous and can still be used directly, for example from tests.
 - `destroy()` / `is_closed()` — release and state query.
+
+`CameraWorker(QThread)` moves the blocking capture off the GUI thread:
+
+- `start()` / `stop(timeout=2.0)` — start the capture loop, or ask it to finish and join it; `stop()` logs an error and returns `False` when the thread does not end within the timeout. A stopped worker can be started again.
+- `capture_once()` — reads one frame, updates the rolling `camera_fps` and publishes the frame. It returns `False` when the camera is closed or the read failed, and the loop then pauses for 50 ms instead of spinning.
+- `frame_ready` — Qt signal emitted after every published frame; the recognizer is woken by it instead of polling.
+- `LatestFrameBuffer` — the lock-protected single-slot handover between the two threads. `put()` overwrites an unconsumed frame and counts it in `dropped_frames`, `take()` returns the newest frame or `None`, `clear()` discards it without counting a drop.
 
 ### 4.4 `src/recognizer.py` — `GestureRecognizerApp`
 
@@ -162,8 +176,11 @@ Encapsulates the MediaPipe Tasks API:
   - `RunningMode.LIVE_STREAM` + `result_callback=self.handle_result`,
   - hand-detection thresholds passed from the GUI,
   - `custom_gesture_classifier_options = ClassifierOptions(max_results=1, score_threshold=…)` — only the single best gesture above the user threshold is returned.
-- `recognize_frame()` pulls a fresh frame from `CameraApp`, skips stale timestamps, wraps the array in `mediapipe.Image(SRGB)` and calls `recognize_async`.
-- `handle_result()` annotates the frame, computes FPS, emits `result_ready_signal` and always emits the queued `recognize_next_signal` while the recognizer remains active, including after a recoverable callback error.
+- `start_capture()` / `stop_capture()` create, start and join the `CameraWorker`; `stop_capture()` also clears the frame buffer, so a restarted pipeline never begins with a stale frame.
+- `recognize_frame()` takes the newest buffered frame, wraps the array in `mediapipe.Image(SRGB)` and calls `recognize_async`. It returns immediately while an inference is still in flight, and doing nothing when no frame has been captured yet is the normal idle state — the next `frame_ready` resumes the loop.
+- `next_timestamp_ms()` converts the monotonic capture timestamp into the strictly increasing millisecond value MediaPipe requires.
+- `handle_result()` annotates the frame, records the inference latency, computes the pipeline FPS, emits `result_ready_signal` with a `PipelineMetrics` snapshot and always emits the queued `recognize_next_signal` while the recognizer remains active, including after a recoverable callback error.
+- `metrics()` returns `PipelineMetrics(pipeline_fps, camera_fps, inference_ms, dropped_frames)` — the numbers shown in the *Recognition rate* group.
 - `process_recognition_result()` converts the landmarks of the first detected hand into a `NormalizedLandmarkList` protobuf and draws them with `mp.solutions.drawing_utils.draw_landmarks`, using the custom styles from `custom_landmarks.py`. It extracts `[gesture, handedness]` names and scores from the result.
 - `create_scaled_qimage()` copies the annotated NumPy frame into a detached `QImage`, downscaling to 640×480 (aspect-ratio preserving, fast transformation) only when the source resolution differs.
 
@@ -188,7 +205,7 @@ Offline TTS based on `pyttsx3`:
 pyside6-uic src/gui.ui -o src/gui.py
 ```
 
-The window contains the video preview (`label_displayFrame`, 640×480), the result panel (recognized sign, handedness, confidence progress bars, FPS bar) and a settings tab widget (camera, recognizer, TTS, results).
+The window contains the video preview (`label_displayFrame`, 640×480), the result panel (recognized sign, handedness, confidence progress bars, the pipeline FPS label and bar plus the `label_displayRateDetails` line with the camera rate and inference latency) and a settings tab widget (camera, recognizer, TTS, results).
 
 ## 5. Model training pipeline
 
@@ -262,6 +279,14 @@ All parameters are adjustable from the GUI at runtime; changes take effect after
 | Window size | *Range* slider | Number of recent results used for voting |
 | Speech on/off | *Speak* checkbox | Speaks every recognized letter |
 | Rate / volume | TTS spin boxes | pyttsx3 speech rate (wpm) and volume (%) |
+
+### 6.4 Frame rate, exposure and lighting
+
+The recognition rate is usually limited by the camera, not by the model. A UVC webcam with **auto-exposure** lengthens its exposure time in low light and silently divides its frame rate: the device still advertises 30 FPS while the number of unique delivered frames falls to about 10.4 FPS (96 ms per frame) or 7.8 FPS (128 ms per frame). Measured on a Chicony USB2.0 Camera (DirectShow backend, 640×480 YUY2), the pipeline then reports roughly 8 FPS even though a single inference takes only 17–26 ms.
+
+- Setting the exposure programmatically (`CAP_PROP_AUTO_EXPOSURE` / `CAP_PROP_EXPOSURE`) is rejected by this driver on both the DirectShow and the Media Foundation backend, and switching the backend does not help — Media Foundation reports a high frame rate but returns duplicate frames.
+- The remedy that works is the driver's own property page: press **Camera settings**, open the *Camera Control* tab (*Regulacja kamery* on a Polish Windows), untick **Auto** next to *Exposure*, choose a shorter exposure time and improve the room lighting.
+- The split readout in the *Recognition rate* group tells the two causes apart: a low **camera FPS** together with a low **inference** time points at exposure and lighting, not at the model or the CPU.
 
 ## 7. Running and packaging
 

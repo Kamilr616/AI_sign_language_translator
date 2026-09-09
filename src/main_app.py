@@ -15,6 +15,26 @@ MODEL_DIRECTORY = PROJECT_ROOT / 'models'
 MODEL_PATH = str(MODEL_DIRECTORY / 'gesture_recognizer_asl_0.task')
 
 
+def format_rate_details(metrics):
+    """
+    Build the secondary recognition rate line.
+
+    The camera rate and the inference latency are reported separately, because a
+    low pipeline FPS can come either from the camera (long exposure in low light)
+    or from the model (slow inference); a single number cannot tell them apart.
+
+    Args:
+        metrics (PipelineMetrics): The latest pipeline measurements.
+
+    Returns:
+        str: A line such as "camera 28.4 FPS | inference 17.3 ms".
+    """
+    camera_fps = f'{metrics.camera_fps:.1f}' if metrics.camera_fps else '--'
+    inference_ms = f'{metrics.inference_ms:.1f}' if metrics.inference_ms else '--'
+
+    return f'camera {camera_fps} FPS | inference {inference_ms} ms'
+
+
 class MainApp(QMainWindow, Ui_MainWindow):
     def __init__(self):
         """
@@ -235,7 +255,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
         self.recognizer_app = candidate
         self.recognizer_app.result_ready_signal.connect(self.process_result_and_frame)
-        self.recognizer_app.recognize_frame()
+        self.recognizer_app.start_capture()
         return True
 
     def start(self):
@@ -283,7 +303,23 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
         return most_common_sign, average_score
 
-    def process_result_and_frame(self, frame, text, scores, latest_fps):
+    def update_recognition_rate(self, metrics):
+        """
+        Update the recognition rate readout.
+
+        Args:
+            metrics (PipelineMetrics): The latest pipeline measurements.
+        """
+        if metrics.pipeline_fps:
+            self.label_displayFPS.setText(f'{metrics.pipeline_fps} FPS')
+            self.progressBar_fps.setValue(metrics.pipeline_fps)
+
+        self.label_displayRateDetails.setText(format_rate_details(metrics))
+        self.label_displayRateDetails.setToolTip(
+            f'Frames dropped while an inference was in flight: {metrics.dropped_frames}'
+        )
+
+    def process_result_and_frame(self, frame, text, scores, metrics):
         """
         Update the UI with the processed frame and recognized gesture text.
 
@@ -291,15 +327,14 @@ class MainApp(QMainWindow, Ui_MainWindow):
             frame (QImage): The processed frame.
             text (list): Recognized gesture text.
             scores (list): Scores of the recognized gestures.
-            latest_fps (int): The latest frames per second (FPS) value.
+            metrics (PipelineMetrics): The latest pipeline, camera and latency measurements.
         """
 
         if frame:
             self.label_displayFrame.setPixmap(QPixmap.fromImage(frame))
 
-        if latest_fps:
-            self.label_displayFPS.setText(f'{latest_fps} FPS')
-            self.progressBar_fps.setValue(latest_fps)
+        if metrics is not None:
+            self.update_recognition_rate(metrics)
 
         if text and scores:
             self.label_recognitionInfo.setText(text[1])
@@ -335,9 +370,15 @@ class MainApp(QMainWindow, Ui_MainWindow):
     def pushbutton_reset_cap_click(self):
         """
         Reset Camera.
+
+        The capture worker is stopped before the device is re-opened, so the camera
+        is never read and re-opened at the same time.
         """
+        if self.recognizer_app is not None:
+            self.recognizer_app.stop_capture()
+
         if self.reset_camera() and self.recognizer_app is not None:
-            self.recognizer_app.recognize_frame()
+            self.recognizer_app.start_capture()
 
     def closeEvent(self, event):
         """
