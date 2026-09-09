@@ -57,15 +57,39 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.pushButton_camera_settings.clicked.connect(self.pushbutton_camera_settings_click)
         self.pushButton_model.clicked.connect(self.open_file_dialog)
         self.horizontalSlider_range.valueChanged.connect(self.update_range)
+        self.pushButton_smoothing.toggled.connect(self.update_smoothing_mode)
+
+        self.update_range()
+        self.update_smoothing_mode()
 
     def update_range(self):
         """
-        Update the range label and clear results if necessary.
+        Update the result window label and clear results if necessary.
         """
-        self.label_range_value.setText(str(self.horizontalSlider_range.value()))
+        self.label_range_value.setText(f'{self.horizontalSlider_range.value()} results')
 
         if self.last_results_length > self.horizontalSlider_range.value():
             self.last_results.clear()
+
+    def update_smoothing_mode(self, *_):
+        """
+        Label the smoothing button and enable the result window controls with it.
+
+        The window size only matters while the sliding-window vote runs, so the
+        slider and its labels are disabled whenever smoothing is off. Switching
+        smoothing off also empties the window, so that switching it back on can
+        never vote over samples recognized before the pause.
+        """
+        enabled = self.pushButton_smoothing.isChecked()
+
+        self.pushButton_smoothing.setText('ON' if enabled else 'OFF')
+        self.horizontalSlider_range.setEnabled(enabled)
+        self.label_range.setEnabled(enabled)
+        self.label_range_value.setEnabled(enabled)
+
+        if not enabled:
+            self.last_results.clear()
+            self.last_results_length = 0
 
     def calculate_results_length(self):
         """
@@ -346,8 +370,6 @@ class MainApp(QMainWindow, Ui_MainWindow):
         if not self.recognizer_app:
             self.reset_recognizer()
 
-        self.update_range()
-
     def calculate_common_sign_and_average(self):
         """
         Calculate the most common sign and the average score for that sign.
@@ -414,7 +436,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.label_recognitionInfo.setText(text[1])
             self.progressBar_hand.setValue(scores[1] * 100)
 
-            if self.checkBox_avg_sign.isChecked():
+            if self.pushButton_smoothing.isChecked():
                 self.last_results.append((text[0], scores[0]))
                 result_sign, average_score = self.calculate_common_sign_and_average()
             else:

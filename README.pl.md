@@ -206,7 +206,7 @@ Windows x64.
 1. Ustaw dłoń przed kamerą tak, aby była w całości widoczna na podglądzie.
 2. Pokaż statyczny znak alfabetu ASL — rozpoznana litera, jej pewność oraz wykryta ręczność (lewa/prawa) wyświetlane są na bieżąco.
 3. **Speak** — włącz, aby każda rozpoznana litera była wypowiadana na głos.
-4. **Average sign** — włącz wygładzanie po ostatnich *N* wynikach (rozmiar okna ustawiany suwakiem), aby uzyskać stabilniejszy wynik.
+4. **Smoothing** — naciśnij przycisk *Smoothing*, aby uśrednić ostatnie *N* wyników (rozmiar okna ustawiany suwakiem *Window*), aby uzyskać stabilniejszy wynik.
 5. Dostosuj progi rozpoznawania, rozdzielczość kamery, backend przechwytywania lub tempo/głośność mowy w panelach ustawień, a następnie zatwierdź odpowiednim przyciskiem **Reset**.
 6. **Model** — w dowolnym momencie wczytaj inny model `.task` z katalogu `models/`.
 
