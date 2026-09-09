@@ -12,9 +12,11 @@ on the user's view toggles:
 
 A hidden card gives its space away: without the results column the camera
 column widens, without the transcript the camera grows down, and hiding the
-header hands its strip to the cards. Only the camera, text and transcript
-cards are resized; the others keep the size they were designed with in
-``gui.ui`` and are only placed.
+header hands its strip to the cards. The camera, text and transcript cards
+are resized to fill their column; the results and settings cards keep the
+size they were designed with in ``gui.ui`` and are only placed; the author
+card takes whatever is left of the right column below the settings and is
+dropped when less than ``AUTHOR_MIN_HEIGHT`` remains.
 
 Pure geometry, no Qt dependency: ``compute_layout`` returns rectangles.
 """
