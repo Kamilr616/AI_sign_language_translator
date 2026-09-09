@@ -1905,9 +1905,9 @@
       <property name="geometry">
        <rect>
         <x>10</x>
-        <y>70</y>
+        <y>62</y>
         <width>191</width>
-        <height>21</height>
+        <height>16</height>
        </rect>
       </property>
       <property name="sizePolicy">
@@ -1942,6 +1942,35 @@
       </property>
       <property name="format">
        <string/>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_displayRateDetails">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>80</y>
+        <width>191</width>
+        <height>17</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>Calibri</family>
+        <pointsize>9</pointsize>
+        <bold>false</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string notr="true">camera -- FPS | inference -- ms</string>
+      </property>
+      <property name="textFormat">
+       <enum>Qt::TextFormat::PlainText</enum>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+      <property name="textInteractionFlags">
+       <set>Qt::TextInteractionFlag::NoTextInteraction</set>
       </property>
      </widget>
     </widget>

@@ -39,7 +39,7 @@ Potok rozpoznawania oparty jest na **MediaPipe Gesture Recognizer** z **własnym
 - 🎥 **Elastyczna konfiguracja kamery** — wybór urządzenia, backendu przechwytywania (DirectShow, Media Foundation, V4L2, GStreamer, …), rozdzielczości oraz dostęp do natywnych ustawień sterownika.
 - ⚙️ **Regulowane parametry rozpoznawania** — progi pewności detekcji / obecności / śledzenia dłoni oraz próg klasyfikacji ustawiane z poziomu GUI.
 - 🧩 **Wymienne modele** — dowolny pakiet MediaPipe `.task` można wczytać w trakcie działania aplikacji; w repozytorium dostępne są trzy wytrenowane modele.
-- 🌒 **Nowoczesny ciemny interfejs** — PySide6 + QDarkStyle, ze wskaźnikami FPS, ręczności (lewa/prawa) i pewności rozpoznania na żywo.
+- 🌒 **Nowoczesny ciemny interfejs** — PySide6 + QDarkStyle, ze wskaźnikami wydajności na żywo (FPS potoku oraz FPS kamery i opóźnienie inferencji), ręczności (lewa/prawa) i pewności rozpoznania.
 
 ## Jak to działa
 
@@ -54,10 +54,10 @@ flowchart LR
     E -->|rozpoznana litera| G[SpeakerApp<br/>pyttsx3 TTS]
 ```
 
-1. **Przechwytywanie** — `CameraApp` pobiera klatki BGR z wybranej kamery i konwertuje je do RGB wraz ze znacznikiem czasu w nanosekundach.
-2. **Rozpoznawanie** — `GestureRecognizerApp` przekazuje do MediaPipe po jednej klatce. Callback kolejkuje następne przechwycenie w wątku Qt, a krótki timer ponawia chwilowo nieudany odczyt lub wysłanie klatki.
+1. **Przechwytywanie** — `CameraApp` pobiera klatki BGR z wybranej kamery i konwertuje je do RGB wraz z monotonicznym znacznikiem czasu w nanosekundach. Przechwytywanie działa we własnym wątku, więc GUI nigdy nie czeka na kamerę.
+2. **Rozpoznawanie** — `GestureRecognizerApp` przekazuje do MediaPipe najnowszą przechwyconą klatkę, po jednej inferencji naraz; klatki przechwycone w trakcie trwającej inferencji są porzucane, dzięki czemu potok zawsze pracuje na świeżych danych.
 3. **Przetwarzanie końcowe** — `MainApp` opcjonalnie agreguje ostatnie *N* klasyfikacji, wybierając najczęstszy znak i jego średni wynik.
-4. **Wyjście** — klatka z naniesionym szkieletem dłoni, rozpoznana litera, pewność i FPS są wyświetlane w GUI; litera może być dodatkowo syntezowana do mowy.
+4. **Wyjście** — klatka z naniesionym szkieletem dłoni, rozpoznana litera, pewność oraz wskaźniki wydajności (FPS potoku, FPS kamery i opóźnienie inferencji) są wyświetlane w GUI; litera może być dodatkowo syntezowana do mowy.
 
 Szczegółowy opis architektury, modelu wątkowości i potoku treningowego znajduje się w [dokumentacji technicznej](docs/TECHNICAL_DOCUMENTATION.pl.md).
 
@@ -209,6 +209,13 @@ Windows x64.
 4. **Average sign** — włącz wygładzanie po ostatnich *N* wynikach (rozmiar okna ustawiany suwakiem), aby uzyskać stabilniejszy wynik.
 5. Dostosuj progi rozpoznawania, rozdzielczość kamery, backend przechwytywania lub tempo/głośność mowy w panelach ustawień, a następnie zatwierdź odpowiednim przyciskiem **Reset**.
 6. **Model** — w dowolnym momencie wczytaj inny model `.task` z katalogu `models/`.
+
+### Niskie tempo rozpoznawania? Najpierw sprawdź ekspozycję
+
+W słabym świetle kamera z automatyczną ekspozycją wydłuża czas naświetlania i po cichu dzieli swoją liczbę klatek — urządzenie nadal deklaruje 30 FPS, choć dostarcza tylko około 8–10 unikalnych klatek na sekundę, a tempo rozpoznawania spada wraz z nią. Grupa *Recognition rate* rozdziela obie możliwe przyczyny: **FPS kamery** (jak szybko napływają klatki) i **inference** (jak długo trwa jedno rozpoznanie).
+
+- Niski FPS kamery przy niskim czasie inferencji oznacza, że wąskim gardłem jest kamera: naciśnij **Camera settings**, przejdź na zakładkę *Regulacja kamery*, odznacz **Auto** przy pozycji *Ekspozycja*, wybierz krótszy czas naświetlania i popraw oświetlenie pomieszczenia.
+- Programowe ustawienie ekspozycji z poziomu OpenCV jest odrzucane przez wiele sterowników UVC, a zmiana backendu przechwytywania nie pomaga — należy użyć natywnego okna właściwości sterownika.
 
 Tablica znaków alfabetu ASL dostępna jest w [`docs/images`](docs/images/asl-sign-language-alphabet-vectors.webp).
 
