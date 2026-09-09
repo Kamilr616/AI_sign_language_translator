@@ -27,8 +27,8 @@ The recognition pipeline is built on **MediaPipe Gesture Recognizer** with a **c
 ## Screenshots
 
 <p align="center">
-  <img src="docs/images/ui.PNG" width="49%" alt="Recognition of the ASL letter V">
-  <img src="docs/images/ui_mat.PNG" width="49%" alt="Recognition of the ASL letter I">
+  <img src="docs/images/ui.PNG" width="49%" alt="Studio screen: recognition of the ASL letter V">
+  <img src="docs/images/ui_mat.PNG" width="49%" alt="Live screen: recognition of the ASL letter I">
 </p>
 
 ## Key features

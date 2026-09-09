@@ -26,8 +26,8 @@ Potok rozpoznawania oparty jest na **MediaPipe Gesture Recognizer** z **własnym
 ## Zrzuty ekranu
 
 <p align="center">
-  <img src="docs/images/ui.PNG" width="49%" alt="Rozpoznawanie litery V alfabetu ASL">
-  <img src="docs/images/ui_mat.PNG" width="49%" alt="Rozpoznawanie litery I alfabetu ASL">
+  <img src="docs/images/ui.PNG" width="49%" alt="Ekran Studio: rozpoznawanie litery V alfabetu ASL">
+  <img src="docs/images/ui_mat.PNG" width="49%" alt="Ekran Live: rozpoznawanie litery I alfabetu ASL">
 </p>
 
 ## Najważniejsze funkcje
