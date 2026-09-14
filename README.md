@@ -91,8 +91,7 @@ AI_sign_language_translator/
 │   ├── gesture_recognizer_asl_mp.task
 │   └── SHA256SUMS.txt                     # Pinned model checksums
 ├── notebooks/                  # Model training (Google Colab)
-│   ├── Custom_gesture_recognizer.ipynb
-│   └── custom_gesture_recognizer.py
+│   └── Custom_gesture_recognizer.ipynb
 ├── tests/                      # Regression and model-loading tests
 ├── .github/                    # Windows CI workflows and pull request template
 ├── docs/                       # Documentation, thesis files, screenshots

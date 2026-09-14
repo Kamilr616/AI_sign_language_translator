@@ -90,8 +90,7 @@ AI_sign_language_translator/
 │   ├── gesture_recognizer_asl_mp.task
 │   └── SHA256SUMS.txt                     # Przypięte sumy modeli
 ├── notebooks/                  # Trening modelu (Google Colab)
-│   ├── Custom_gesture_recognizer.ipynb
-│   └── custom_gesture_recognizer.py
+│   └── Custom_gesture_recognizer.ipynb
 ├── tests/                      # Testy regresji i ładowania modeli
 ├── .github/                    # Workflow CI Windows i szablon pull requesta
 ├── docs/                       # Dokumentacja, pliki pracy dyplomowej, zrzuty ekranu
