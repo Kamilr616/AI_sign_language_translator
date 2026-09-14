@@ -213,7 +213,7 @@ The window contains the video preview (`label_displayFrame`, 640×480), a settin
 
 ## 5. Model training pipeline
 
-The custom model is trained in Google Colab with **MediaPipe Model Maker** (notebook: [`notebooks/Custom_gesture_recognizer.ipynb`](../notebooks/Custom_gesture_recognizer.ipynb)). `notebooks/custom_gesture_recognizer.py` is a Colab source export and contains notebook shell commands, so it is not a standalone Python script.
+The custom model is trained in Google Colab with **MediaPipe Model Maker** (notebook: [`notebooks/Custom_gesture_recognizer.ipynb`](../notebooks/Custom_gesture_recognizer.ipynb)).
 
 ### 5.1 Dataset
 
